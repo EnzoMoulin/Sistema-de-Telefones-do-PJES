@@ -819,8 +819,14 @@ function initMapaLeaflet(containerId, isOverlay){
   var cont = document.getElementById(containerId);
   if(!cont) return null;
   if(typeof L==="undefined"){
-    cont.innerHTML = '<div style="padding:24px;text-align:center;color:#64748b;font-size:13px;">Carregando mapa\u2026 <br><small>Leaflet n\u00e3o carregou \u2014 verifique conex\u00e3o.</small></div>';
-    setTimeout(function(){ if(typeof L!=="undefined") initMapaLeaflet(containerId, isOverlay); }, 1200);
+    var _retry = cont._leafletRetryCount || 0;
+    cont._leafletRetryCount = _retry + 1;
+    if(_retry < 5){
+      cont.innerHTML = '<div style="padding:24px;text-align:center;color:#64748b;font-size:13px;">Carregando mapa\u2026<br><small>Tentativa '+(_retry+1)+'/5 \u2014 Leaflet n\u00e3o carregou, tentando novamente.</small></div>';
+      setTimeout(function(){ if(typeof L!=="undefined") initMapaLeaflet(containerId, isOverlay); else { cont._leafletRetryCount = _retry+1; if(cont._leafletRetryCount < 5) setTimeout(function(){ initMapaLeaflet(containerId, isOverlay); }, 900); else cont.innerHTML = '<div style="padding:24px;text-align:center;color:#dc2626;font-size:13px;">Leaflet n\u00e3o carregou \u2014 verifique conex\u00e3o ou recarregue a p\u00e1gina.<br><button type="button" class="btn btn-secondary" style="margin-top:10px;padding:6px 12px;font-size:12px;" onclick="location.reload()">Recarregar</button> <button type="button" class="btn btn-secondary" style="margin-top:10px;padding:6px 10px;font-size:12px;" onclick="initMapaLeaflet(\''+containerId+'\','+(isOverlay?'true':'false')+')">Tentar novamente</button></div>'; } }, 1100 + _retry*400);
+    } else {
+      cont.innerHTML = '<div style="padding:24px;text-align:center;color:#dc2626;font-size:13px;">Leaflet n\u00e3o carregou \u2014 verifique conex\u00e3o ou recarregue a p\u00e1gina.<br><button type="button" class="btn btn-secondary" style="margin-top:10px;padding:6px 12px;font-size:12px;" onclick="location.reload()">Recarregar</button> <button type="button" class="btn btn-secondary" style="margin-top:10px;padding:6px 10px;font-size:12px;" onclick="initMapaLeaflet(\''+containerId+'\','+(isOverlay?'true':'false')+')">Tentar novamente</button></div>';
+    }
     return null;
   }
   var mapa = L.map(containerId, { zoomControl:true, attributionControl:true }).setView([-19.5, -40.3], 9);
@@ -961,6 +967,12 @@ function tentarInicializarMapa(){
     return true;
   }
   if(leafletCont && leafletCont.offsetHeight>40){
+    if(typeof L==="undefined"){
+      try{ initMapaLeaflet("mapa-leaflet", false); }catch(e){}
+      setTimeout(function(){ try{ tentarInicializarMapa(); }catch(e){} }, 900);
+      mapaPendenteInit = true;
+      return false;
+    }
     try{ initMapaLeaflet("mapa-leaflet", false); mapaPendenteInit=false; return true; }catch(e){ return false; }
   }
   // container not yet sized -> retry

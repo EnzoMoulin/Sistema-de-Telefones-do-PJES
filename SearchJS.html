@@ -13,6 +13,12 @@ let filtroAtual = {
   tipo: "",
   setor: ""
 };
+// V4 helpers — MUNICIPIO->FORUM->UNIDADE alias com fallback legado microrregiao/comarca
+function campoMunicipio(item){ try{ return String(item.municipio||item.microrregiao||item.MUNICIPIO||item.MICRORREGIAO||"").trim(); }catch(e){ return ""; } }
+function campoForum(item){ try{ return String(item.forum||item.comarca||item.FORUM||item.COMARCA||"").trim(); }catch(e){ return ""; } }
+function campoUnidade(item){ try{ return String(item.unidade||item.setor||item.UNIDADE||item.SETOR||"").trim(); }catch(e){ return ""; } }
+function obterOrdemMunicipiosPlanilha(){ try{ if(typeof ordemComarcas!=="undefined" && Array.isArray(ordemComarcas)) return ordemComarcas; }catch(e){} return []; }
+
 // v3.25: ordem canónica Tipo — E-mail sempre último (Telefone, Ramal, WhatsApp, E-mail)
 var ORDEM_TIPO_FILTRO = ["Telefone","Ramal","WhatsApp","E-mail"];
 function normalizarTipoFiltro(v){ return String(v||"").trim().toLowerCase(); }
@@ -391,6 +397,7 @@ function atualizarFiltroSetorPorComarca() {
   return atualizarFiltroSetorPorMicrorregiaoComarca();
 }
 function atualizarFiltroSetorPorMicrorregiaoComarca() {
+ // V4 cascade: MUNICIPIO->FORUM->UNIDADE->SETOR compat with legado
   if (
     typeof listaTelefones === "undefined" ||
     !Array.isArray(listaTelefones)
@@ -419,11 +426,11 @@ function atualizarFiltroSetorPorMicrorregiaoComarca() {
   listaTelefones.forEach(function(item){
     if (!item || !item.setor) return;
     if (filtroMicroSel) {
-      var microItem = normalizarTextoFront(item.microrregiao || "");
+      var microItem = normalizarTextoFront(campoMunicipio(item) || "");
       if (microItem !== filtroMicroSel) return;
     }
     if (filtroComarcaSel) {
-      var comItem = normalizarTextoFront(item.comarca || "");
+      var comItem = normalizarTextoFront(campoForum(item) || "");
       if (comItem !== filtroComarcaSel) return;
     }
     setoresFiltrados.add(String(item.setor));
@@ -470,12 +477,12 @@ function atualizarFiltroComarcaPorMicrorregiao() {
   var comarcasFiltradas = new Set();
 
   listaTelefones.forEach(function(item){
-    if (!item || !item.comarca) return;
+    if (!item || !campoForum(item)) return;
     if (filtroMicro) {
-      var microItem = normalizarTextoFront(item.microrregiao || "");
+      var microItem = normalizarTextoFront(campoMunicipio(item) || "");
       if (microItem !== filtroMicro) return;
     }
-    comarcasFiltradas.add(String(item.comarca));
+    comarcasFiltradas.add(String(campoForum(item)));
   });
 
   var permitidas =
@@ -572,7 +579,7 @@ function aplicarFiltrosLocais(
       !ehPesquisaGeral &&
       microrregiao &&
       normalizarTextoFront(
-        item.microrregiao
+        campoMunicipio(item)
       ) !== microrregiao
     ) {
       return false;
@@ -582,7 +589,7 @@ function aplicarFiltrosLocais(
       !ehPesquisaGeral &&
       comarca &&
       normalizarTextoFront(
-        item.comarca
+        campoForum(item)
       ) !== comarca
     ) {
       return false;
@@ -677,17 +684,17 @@ function carregarFiltros() {
     new Set();
 
   listaTelefones.forEach(item => {
-    if (item.microrregiao) {
+    if (campoMunicipio(item)) {
       regioes.add(
         String(
-          item.microrregiao
+          campoMunicipio(item)
         )
       );
     }
 
-    if (item.comarca) {
+    if (campoForum(item)) {
       comarcas.add(
-        String(item.comarca)
+        String(campoForum(item))
       );
     }
 

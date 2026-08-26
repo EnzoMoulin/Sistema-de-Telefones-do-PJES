@@ -9,10 +9,6 @@ Arquivo: ConsultarTelefones.html
 
   <div class="telefones-header">
 
-    <p class="telefones-instrucao">
-      Selecione um município no mapa para ver os detalhes.
-    </p>
-
     <button id="btn-imprimir-consulta" class="hidden" style="display:none;" onclick="imprimirConsultaPDF()" aria-hidden="true" tabindex="-1"></button>
 
   </div>
@@ -20,50 +16,24 @@ Arquivo: ConsultarTelefones.html
   <div class="consulta-layout">
 
     <!-- =====================================================
-         COLUNA ESQUERDA
+         COLUNA ESQUERDA — MAPA RESPONSIVO (ocupa todo esquerdo)
          ===================================================== -->
 
     <aside class="consulta-esquerda">
 
-      <div class="search-panel consulta-filtros">
+      <div id="consulta-mapa"></div>
 
-        <div class="search-box">
+      <!-- DETALHES DO SETOR (sobrepoe mapa quando selecionado) -->
 
-          <span class="search-icon">
-            🔍
-          </span>
+      <div id="consulta-detalhes-conteudo" style="display:none;"></div>
 
-          <input
-            id="campo-pesquisa-consulta"
-            type="search"
-            placeholder="Filtrar comarcas ou setores..."
-            oninput="filtrarSetoresConsultaDebounced()"
-          >
-        </div>
+    </aside>
 
-        <select id="filtro-microrregiao-consulta" style="display:none;" aria-hidden="true" tabindex="-1"><option value=""></option></select>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <select id="filtro-comarca-consulta" onchange="filtrarListaConsultaPorComarcaSetor()" style="flex:1;min-width:140px;padding:8px;border:1px solid #d1d5db;border-radius:8px;background:#fff;font-size:13px;">
-            <option value="">Todas as comarcas</option>
-          </select>
-          <select id="filtro-setor-consulta" onchange="filtrarListaConsultaPorComarcaSetor()" style="flex:1;min-width:140px;padding:8px;border:1px solid #d1d5db;border-radius:8px;background:#fff;font-size:13px;">
-            <option value="">Todos os setores</option>
-          </select>
-        </div>
-        <div class="consulta-microrregiao" style="display:flex;gap:8px;">
+    <!-- =====================================================
+         COLUNA DIREITA — CONTATOS DO PJES (lista)
+         ===================================================== -->
 
-          <button
-            id="btn-novo-telefone-consulta"
-            class="btn btn-primary"
-            onclick="abrirModalNovoTelefone()"
-            style="display:none;flex:1;background:#16a34a;border-color:#16a34a;color:#fff;"
-            title="Adicionar novo contato (respeita suas comarcas permitidas)"
-          >
-            + Novo Contato
-          </button>
-        </div>
-
-      </div>
+    <section id="consulta-detalhes" class="consulta-detalhes">
 
       <div class="consulta-lista-wrapper">
 
@@ -77,22 +47,6 @@ Arquivo: ConsultarTelefones.html
         </div>
 
       </div>
-
-    </aside>
-
-    <!-- =====================================================
-         COLUNA DIREITA
-         ===================================================== -->
-
-    <section id="consulta-detalhes" class="consulta-detalhes">
-
-      <!-- MAPA NORMAL -->
-
-      <div id="consulta-mapa"></div>
-
-      <!-- DETALHES DO SETOR -->
-
-      <div id="consulta-detalhes-conteudo" style="display:none;"></div>
 
     </section>
 

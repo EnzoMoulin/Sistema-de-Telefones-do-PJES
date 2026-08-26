@@ -104,28 +104,33 @@ class ValidationService {
   }
 
   validarCamposObrigatorios(dados) {
-    // v3.34 — suporta normalizado (SETOR_ID) e legado (microrregiao/comarca/setor)
-    const ehNormalizado = !!(textoSeguro(valorObjeto(dados, "setorId", "SETOR_ID", "setor_id")) || (typeof DB !== "undefined" && DB.temModeloNormalizado && DB.temModeloNormalizado()));
-    const regras = ehNormalizado
-      ? [{campo: "setorId", nome: "Setor"}, {campo: "tipo", nome: "Tipo"}]
-      : [{campo: "microrregiao", nome: "Microrregião"}, {campo: "comarca", nome: "Comarca"}, {campo: "setor", nome: "Setor"}, {campo: "tipo", nome: "Tipo"}];
-    // Normaliza alias setorId
-    if (ehNormalizado && !textoSeguro(valorObjeto(dados,"setorId","SETOR_ID")) && textoSeguro(valorObjeto(dados,"setor"))) {
-      // Se veio setor nome, será resolvido em TelefoneRepository — não falha aqui
-    }
-
-    const faltantes = [];
-
-    regras.forEach(regra => {
-      const valor = textoSeguro(valorObjeto(dados,regra.campo));
-
-      if (!valor) {
-        faltantes.push(regra.nome);
+    // V4 — MUNICIPIOS -> FORUM -> UNIDADES -> SETORES -> CONTATOS
+    const temForum = textoSeguro(valorObjeto(dados, "forumId", "FORUM_ID", "forum_id", "forum", "FORUM"));
+    const temUnidade = textoSeguro(valorObjeto(dados, "unidadeId", "UNIDADE_ID", "unidade_id", "unidade", "UNIDADE"));
+    const temSetor = textoSeguro(valorObjeto(dados, "setorId", "SETOR_ID", "setor_id", "setor", "SETOR"));
+    const isNormalizedCheck = (typeof DB !== "undefined" && DB.temModeloNormalizado && DB.temModeloNormalizado());
+    const ehNormalizado = !!(temForum || temUnidade || temSetor || isNormalizedCheck);
+    // Normalizado requer pelo menos um vínculo FORUM/UNIDADE/SETOR + TIPO
+    if (ehNormalizado) {
+      const faltantes = [];
+      const temVinculo = !!(temForum || temUnidade || temSetor || textoSeguro(valorObjeto(dados, "setor", "Setor")) || textoSeguro(valorObjeto(dados, "comarca", "Comarca")));
+      // Se veio setor nome legado, será resolvido em TelefoneRepository — não falha aqui se tem setor nome
+      if (!temVinculo) faltantes.push("Fórum/Unidade/Setor");
+      const tipoV = textoSeguro(valorObjeto(dados, "tipo", "Tipo"));
+      if (!tipoV) faltantes.push("Tipo");
+      if (faltantes.length > 0) {
+        throw new Error("Por favor, preencha os campos obrigatórios: " + faltantes.join(", ") + ".");
       }
-    });
-
-    if (faltantes.length > 0) {
-      throw new Error("Por favor, preencha os campos obrigatórios: " + faltantes.join(", ") + ".");
+    } else {
+      const regras = [{campo: "microrregiao", nome: "Microrregião"}, {campo: "comarca", nome: "Comarca"}, {campo: "setor", nome: "Setor"}, {campo: "tipo", nome: "Tipo"}];
+      const faltantes = [];
+      regras.forEach(regra => {
+        const valor = textoSeguro(valorObjeto(dados,regra.campo));
+        if (!valor) faltantes.push(regra.nome);
+      });
+      if (faltantes.length > 0) {
+        throw new Error("Por favor, preencha os campos obrigatórios: " + faltantes.join(", ") + ".");
+      }
     }
 
     const status = textoSeguro(valorObjeto(dados, "status", "Status")
@@ -147,5 +152,15 @@ class ValidationService {
 
   validarWhatsapp(whatsapp) {
     return this.validarTextoNumerico(whatsapp, "WhatsApp inválido.", 10, 13);
+  }
+
+  validarEmail(email) {
+    const texto = textoSeguro(email);
+    if (!texto) return true;
+    // Validação simples de e-mail institucional
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(texto)) {
+      throw new Error("E-mail inválido.");
+    }
+    return true;
   }
 }

@@ -117,6 +117,11 @@ class Database {
   telefonesUteis() { return this.getSheet(CONFIG.SHEETS.TELEFONES_UTEIS); }
   telefonesUteisOuNulo() { try { return this.getSpreadsheet().getSheetByName(CONFIG.SHEETS.TELEFONES_UTEIS); } catch(e) { return null; } }
 
+  telefones() { return this.getSheet(CONFIG.SHEETS.TELEFONES); }
+  telefonesOuNulo() { try { return this.getSpreadsheet().getSheetByName(CONFIG.SHEETS.TELEFONES); } catch(e) { return null; } }
+
+  notificacoesOuNulo() { try { return this.getSpreadsheet().getSheetByName(CONFIG.SHEETS.NOTIFICACOES); } catch(e) { return null; } }
+
   /** Modelo definitivo: MUNICIPIOS -> FORUM -> UNIDADES -> SETORES -> CONTATOS. */
   temModeloNormalizado() {
     try {

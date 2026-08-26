@@ -158,7 +158,7 @@ function processarDados() {
 
   todosTelefones.forEach(tel => {
     const comarca = String(
-      campoTelefone(tel, ["comarca"]) || "Sem comarca"
+      campoTelefone(tel, ["comarca","COMARCA","forum","FORUM","municipio","MUNICIPIO"]) || "Sem comarca"
     ).trim();
 
     const setor = String(

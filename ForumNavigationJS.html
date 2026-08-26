@@ -301,4 +301,18 @@
   // Compatibilidade com o nome antigo chamado por algumas telas.
   window.carregarTelefones = window.iniciarConsultaTelefones;
 })();
+
+// V4 fallback: if hierarquia empty, fallback to legacy iniciarConsultaTelefones
+(function(){
+ var legadoIniciar = window.iniciarConsultaTelefones;
+ window.iniciarConsultaTelefones = function(){
+   try{
+     if(typeof API!=="undefined" && API.obterHierarquiaPublicaForum){
+       var hier = API.obterHierarquiaPublicaForum();
+       if(hier && hier.municipios && hier.municipios.length>0) return window.iniciarNavegacaoForum ? window.iniciarNavegacaoForum() : legadoIniciar();
+     }
+   }catch(e){}
+   return legadoIniciar ? legadoIniciar.apply(this, arguments) : null;
+ };
+})();
 </script>

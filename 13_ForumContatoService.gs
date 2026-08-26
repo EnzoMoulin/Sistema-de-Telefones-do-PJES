@@ -397,7 +397,7 @@ function validarModeloForumContatos() {
   const diagnostico = construirHierarquiaForumContatos({});
 
   return {
-    ok: ausentes.length === 0 && !possuiTelefones,
+    ok: ausentes.length === 0,
     abasObrigatorias: obrigatorias,
     abasAusentes: ausentes,
     possuiTELEFONES: possuiTelefones,

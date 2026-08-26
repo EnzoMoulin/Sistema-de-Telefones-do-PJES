@@ -33,8 +33,9 @@ function instalarSistema() {
       spreadsheet
     );
 
-    // v3.34 — modelo normalizado (mantém TELEFONES legado para compat)
+    // V4 — modelo definitivo MUNICIPIOS -> FORUM -> UNIDADES -> SETORES -> CONTATOS (mantém TELEFONES legado para compat)
     criarAbaMunicipios(spreadsheet);
+    criarAbaForum(spreadsheet);
     criarAbaUnidades(spreadsheet);
     criarAbaSetores(spreadsheet);
     criarAbaContatos(spreadsheet);
@@ -144,6 +145,7 @@ function testarPlanilhaVinculada() {
 /**
  * Cria uma aba caso ela não exista
  * e garante a primeira linha de cabeçalho.
+ * Se a aba já existe, adiciona colunas faltantes (V4).
  */
 function garantirAbaComCabecalho(
   spreadsheet,
@@ -168,8 +170,19 @@ function garantirAbaComCabecalho(
     sheet.appendRow(
       cabecalho
     );
+    return sheet;
   }
-
+  // V4: garante colunas faltantes sem duplicar
+  try {
+    const atuais = DB.headers(sheet).map(normalizarChave);
+    cabecalho.forEach(function(header){
+      if (atuais.indexOf(normalizarChave(header)) === -1) {
+        const col = sheet.getLastColumn() + 1;
+        sheet.getRange(1, col).setValue(header);
+        atuais.push(normalizarChave(header));
+      }
+    });
+  } catch(e) {}
   return sheet;
 }
 
@@ -515,31 +528,38 @@ function garantirConfiguracao(
 }
 
 /**
- * v3.34 — Cria aba MUNICIPIOS.
+ * V4 — Cria aba MUNICIPIOS.
  */
 function criarAbaMunicipios(spreadsheet) {
-  return garantirAbaComCabecalho(spreadsheet, CONFIG.SHEETS.MUNICIPIOS, ["ID","NOME","CODIGO_IBGE","ATIVO"]);
+  return garantirAbaComCabecalho(spreadsheet, CONFIG.SHEETS.MUNICIPIOS, ["ID","NOME","CODIGO_IBGE","MICRORREGIAO","ATIVO"]);
 }
 
 /**
- * v3.34 — Cria aba UNIDADES.
+ * V4 — Cria aba FORUM (MUNICIPIO -> FORUM).
+ */
+function criarAbaForum(spreadsheet) {
+  return garantirAbaComCabecalho(spreadsheet, CONFIG.SHEETS.FORUM, ["ID","MUNICIPIO_ID","NOME","ENDERECO","CEP","EMAIL","ORDEM","ATIVO","OBSERVACAO"]);
+}
+
+/**
+ * V4 — Cria aba UNIDADES (FORUM -> UNIDADES).
  */
 function criarAbaUnidades(spreadsheet) {
-  return garantirAbaComCabecalho(spreadsheet, CONFIG.SHEETS.UNIDADES, ["ID","MUNICIPIO_ID","NOME","ENDERECO","CEP","EMAIL","ATIVO"]);
+  return garantirAbaComCabecalho(spreadsheet, CONFIG.SHEETS.UNIDADES, ["ID","FORUM_ID","MUNICIPIO_ID","NOME","ENDERECO","CEP","EMAIL","ORDEM","ATIVO","OBSERVACAO"]);
 }
 
 /**
- * v3.34 — Cria aba SETORES.
+ * V4 — Cria aba SETORES.
  */
 function criarAbaSetores(spreadsheet) {
-  return garantirAbaComCabecalho(spreadsheet, CONFIG.SHEETS.SETORES, ["ID","UNIDADE_ID","NOME","ENDERECO","CEP","OBSERVACAO","ATIVO"]);
+  return garantirAbaComCabecalho(spreadsheet, CONFIG.SHEETS.SETORES, ["ID","UNIDADE_ID","NOME","ENDERECO","CEP","OBSERVACAO","ORDEM","ATIVO"]);
 }
 
 /**
- * v3.34 — Cria aba CONTATOS.
+ * V4 — Cria aba CONTATOS (FORUM/UNIDADE/SETOR -> CONTATOS).
  */
 function criarAbaContatos(spreadsheet) {
-  return garantirAbaComCabecalho(spreadsheet, CONFIG.SHEETS.CONTATOS, ["ID","SETOR_ID","TIPO","DESCRICAO","VALOR","DATA_CRIACAO","DATA_ATUALIZACAO","ATIVO","OBSERVACAO"]);
+  return garantirAbaComCabecalho(spreadsheet, CONFIG.SHEETS.CONTATOS, ["ID","FORUM_ID","UNIDADE_ID","SETOR_ID","TIPO","DESCRICAO","VALOR","ORDEM","DATA_CRIACAO","DATA_ATUALIZACAO","ATIVO","OBSERVACAO"]);
 }
 
 /**

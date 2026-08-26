@@ -52,8 +52,9 @@ class TelefoneRepository {
   }
 
   listarNormalizado() {
-    // Carrega todas as tabelas normalizadas e faz join em memória
+    // V4: MUNICIPIOS -> FORUM -> UNIDADES -> SETORES -> CONTATOS
     const shMun = DB.municipiosOuNulo();
+    const shForum = DB.forumOuNulo();
     const shUni = DB.unidadesOuNulo();
     const shSet = DB.setoresOuNulo();
     const shCon = DB.contatosOuNulo();
@@ -64,21 +65,25 @@ class TelefoneRepository {
     const mapSet = shSet ? DB.map(shSet) : {};
     const dadosUni = shUni ? DB.read(shUni) : [];
     const mapUni = shUni ? DB.map(shUni) : {};
+    const dadosForum = shForum ? DB.read(shForum) : [];
+    const mapForum = shForum ? DB.map(shForum) : {};
     const dadosMun = shMun ? DB.read(shMun) : [];
     const mapMun = shMun ? DB.map(shMun) : {};
-    // Índices
+    // Indices CONTATOS
     const idxConId = mapCon.ID;
-    const idxConSetor = mapCon.SETOR_ID || mapCon.SETOR;
+    const idxConForum = mapCon.FORUMID || mapCon.FORUM;
+    const idxConUnidade = mapCon.UNIDADEID || mapCon.UNIDADE;
+    const idxConSetor = mapCon.SETORID || mapCon.SETOR;
     const idxConTipo = mapCon.TIPO;
     const idxConDescr = mapCon.DESCRICAO;
     const idxConValor = mapCon.VALOR;
     const idxConAtivo = mapCon.ATIVO;
     const idxConObs = mapCon.OBSERVACAO;
-    const idxConCri = mapCon.DATA_CRIACAO || mapCon.DATA;
-    const idxConAtu = mapCon.DATA_ATUALIZACAO;
+    const idxConCri = mapCon.DATACRIACAO || mapCon.DATA;
+    const idxConAtu = mapCon.DATAATUALIZACAO;
     // Mapas auxiliares
     const mapSetorById = {};
-    const idxSetId = mapSet.ID; const idxSetUni = mapSet.UNIDADE_ID; const idxSetNome = mapSet.NOME; const idxSetEnd = mapSet.ENDERECO; const idxSetCep = mapSet.CEP;
+    const idxSetId = mapSet.ID; const idxSetUni = mapSet.UNIDADEID; const idxSetNome = mapSet.NOME; const idxSetEnd = mapSet.ENDERECO; const idxSetCep = mapSet.CEP;
     for (const r of dadosSet) {
       const id = idxSetId !== undefined ? textoSeguro(r[idxSetId - 1]) : "";
       if (!id) continue;
@@ -90,55 +95,80 @@ class TelefoneRepository {
       };
     }
     const mapUniById = {};
-    const idxUniId = mapUni.ID; const idxUniMun = mapUni.MUNICIPIO_ID; const idxUniNome = mapUni.NOME; const idxUniEnd = mapUni.ENDERECO; const idxUniCep = mapUni.CEP; const idxUniEmail = mapUni.EMAIL;
+    const idxUniId = mapUni.ID; const idxUniForum = mapUni.FORUMID; const idxUniMun = mapUni.MUNICIPIOID; const idxUniNome = mapUni.NOME; const idxUniEnd = mapUni.ENDERECO; const idxUniCep = mapUni.CEP; const idxUniEmail = mapUni.EMAIL;
     for (const r of dadosUni) {
       const id = idxUniId !== undefined ? textoSeguro(r[idxUniId - 1]) : "";
       if (!id) continue;
       mapUniById[id] = {
         nome: idxUniNome !== undefined ? textoSeguro(r[idxUniNome - 1]) : "",
+        forumId: idxUniForum !== undefined ? textoSeguro(r[idxUniForum - 1]) : "",
         municipioId: idxUniMun !== undefined ? textoSeguro(r[idxUniMun - 1]) : "",
         endereco: idxUniEnd !== undefined ? textoSeguro(r[idxUniEnd - 1]) : "",
         cep: idxUniCep !== undefined ? textoSeguro(r[idxUniCep - 1]) : "",
         email: idxUniEmail !== undefined ? textoSeguro(r[idxUniEmail - 1]) : ""
       };
     }
+    const mapForumById = {};
+    const idxForumId = mapForum.ID; const idxForumMun = mapForum.MUNICIPIOID; const idxForumNome = mapForum.NOME; const idxForumEnd = mapForum.ENDERECO; const idxForumCep = mapForum.CEP; const idxForumEmail = mapForum.EMAIL;
+    for (const r of dadosForum) {
+      const id = idxForumId !== undefined ? textoSeguro(r[idxForumId - 1]) : "";
+      if (!id) continue;
+      mapForumById[id] = {
+        nome: idxForumNome !== undefined ? textoSeguro(r[idxForumNome - 1]) : "",
+        municipioId: idxForumMun !== undefined ? textoSeguro(r[idxForumMun - 1]) : "",
+        endereco: idxForumEnd !== undefined ? textoSeguro(r[idxForumEnd - 1]) : "",
+        cep: idxForumCep !== undefined ? textoSeguro(r[idxForumCep - 1]) : "",
+        email: idxForumEmail !== undefined ? textoSeguro(r[idxForumEmail - 1]) : ""
+      };
+    }
     const mapMunById = {};
-    const idxMunId = mapMun.ID; const idxMunNome = mapMun.NOME;
+    const idxMunId = mapMun.ID; const idxMunNome = mapMun.NOME; const idxMunMicro = mapMun.MICRORREGIAO;
     for (const r of dadosMun) {
       const id = idxMunId !== undefined ? textoSeguro(r[idxMunId - 1]) : "";
       if (!id) continue;
-      mapMunById[id] = idxMunNome !== undefined ? textoSeguro(r[idxMunNome - 1]) : "";
+      mapMunById[id] = {
+        nome: idxMunNome !== undefined ? textoSeguro(r[idxMunNome - 1]) : "",
+        microrregiao: idxMunMicro !== undefined ? textoSeguro(r[idxMunMicro - 1]) : ""
+      };
     }
     const resultado = [];
     for (const r of dadosCon) {
       const id = idxConId !== undefined ? textoSeguro(r[idxConId - 1]) : "";
       if (!id) continue;
-      const setorId = idxConSetor !== undefined ? textoSeguro(r[idxConSetor - 1]) : "";
+      const forumIdRaw = idxConForum !== undefined ? textoSeguro(r[idxConForum - 1]) : "";
+      const unidadeIdRaw = idxConUnidade !== undefined ? textoSeguro(r[idxConUnidade - 1]) : "";
+      const setorIdRaw = idxConSetor !== undefined ? textoSeguro(r[idxConSetor - 1]) : "";
       const tipoRaw = idxConTipo !== undefined ? textoSeguro(r[idxConTipo - 1]) : "";
       const descr = idxConDescr !== undefined ? textoSeguro(r[idxConDescr - 1]) : "";
       const valorRaw = idxConValor !== undefined ? textoSeguro(r[idxConValor - 1]) : "";
       const ativoRaw = idxConAtivo !== undefined ? r[idxConAtivo - 1] : "TRUE";
       const obs = idxConObs !== undefined ? textoSeguro(r[idxConObs - 1]) : "";
-      const setor = mapSetorById[setorId] || { nome: setorId, unidadeId: "", endereco: "", cep: "" };
-      const uni = mapUniById[setor.unidadeId] || { nome: setor.unidadeId, municipioId: "", endereco: "", cep: "", email: "" };
-      const munNome = mapMunById[uni.municipioId] || uni.municipioId || "";
-      // Endereço: setor tem prioridade, senão unidade
-      const endereco = setor.endereco || uni.endereco || "";
-      // Comarca legível: MUNICIPIO + UNIDADE (ex: Vitória (Fórum Cível))
-      const comarca = uni.nome ? (munNome ? (munNome + " (" + uni.nome + ")") : uni.nome) : munNome;
-      // Microrregião: não existe no novo modelo, tenta inferir via __mapa ou deixa vazio
-      let microrregiao = "";
-      try {
-        const shMapa = DB.getSpreadsheet().getSheetByName("__mapa");
-        if (shMapa) {
-          // Busca microrregião por município via hard-coded fallback (10 regiões LE 9.768)
-          const mapaMic = { "Vitória":"METROPOLITANA","Vila Velha":"METROPOLITANA","Serra":"METROPOLITANA","Cariacica":"METROPOLITANA","Viana":"METROPOLITANA","Guarapari":"METROPOLITANA","Fundão":"METROPOLITANA" };
-          microrregiao = mapaMic[munNome] || "";
-        }
-      } catch(e){}
+      // Resolve MUNICIPIOS -> FORUM -> UNIDADES -> SETORES -> CONTATOS
+      let setor = setorIdRaw ? (mapSetorById[setorIdRaw] || { nome: setorIdRaw, unidadeId: unidadeIdRaw, endereco: "", cep: "" }) : null;
+      let unidadeIdEfetivo = setor ? setor.unidadeId : unidadeIdRaw;
+      if (!unidadeIdEfetivo && unidadeIdRaw) unidadeIdEfetivo = unidadeIdRaw;
+      let uni = unidadeIdEfetivo ? (mapUniById[unidadeIdEfetivo] || { nome: unidadeIdEfetivo, forumId: forumIdRaw, municipioId: "", endereco: "", cep: "", email: "" }) : null;
+      let forumIdEfetivo = uni ? uni.forumId : forumIdRaw;
+      if (!forumIdEfetivo && forumIdRaw) forumIdEfetivo = forumIdRaw;
+      let forum = forumIdEfetivo ? (mapForumById[forumIdEfetivo] || { nome: forumIdEfetivo, municipioId: "", endereco: "", cep: "", email: "" }) : null;
+      let municipioIdEfetivo = forum ? forum.municipioId : "";
+      if (!municipioIdEfetivo && uni && uni.municipioId) municipioIdEfetivo = uni.municipioId;
+      let mun = municipioIdEfetivo ? (mapMunById[municipioIdEfetivo] || { nome: municipioIdEfetivo, microrregiao: "" }) : { nome: "", microrregiao: "" };
+      const munNome = mun.nome || municipioIdEfetivo || "";
+      const microrregiao = mun.microrregiao || "";
+      const endereco = (setor && setor.endereco) ? setor.endereco : (uni && uni.endereco ? uni.endereco : (forum ? forum.endereco : ""));
+      const forumNome = forum ? forum.nome : "";
+      const uniNome = uni ? uni.nome : "";
+      const setorNome = setor ? setor.nome : (setorIdRaw && !setor ? setorIdRaw : "");
+      let comarca = munNome;
+      if (forumNome && forumNome !== munNome) {
+        comarca = munNome ? (munNome + " (" + forumNome + ")") : forumNome;
+        if (uniNome && uniNome !== forumNome) comarca += " - " + uniNome;
+      } else if (uniNome) {
+        comarca = munNome ? (munNome + " (" + uniNome + ")") : uniNome;
+      }
       const ativoBool = paraBoolean(ativoRaw);
       const tipo = textoSeguro(tipoRaw);
-      // Mapeia VALOR para campos legados numero/ramal/whatsapp/email conforme TIPO
       let numero = "", ramal = "", whatsapp = "", email = "";
       const valor = textoSeguro(valorRaw);
       const tipoNorm = normalizarChave(tipo);
@@ -151,7 +181,14 @@ class TelefoneRepository {
         ID: id, id: id,
         microrregiao: microrregiao,
         comarca: comarca,
-        setor: setor.nome,
+        municipio: munNome,
+        municipioId: municipioIdEfetivo,
+        forum: forumNome,
+        forumId: forumIdEfetivo || "",
+        unidade: uniNome,
+        unidadeId: unidadeIdEfetivo || "",
+        setor: setorNome,
+        setorId: setorIdRaw,
         tipo: tipo,
         numero: numero,
         ramal: ramal,
@@ -162,9 +199,6 @@ class TelefoneRepository {
         observacao: descr || obs,
         descricao: descr,
         valor: valor,
-        municipioId: uni.municipioId,
-        unidadeId: setor.unidadeId,
-        setorId: setorId,
         DATA_CRIACAO: idxConCri !== undefined ? r[idxConCri - 1] : "",
         DATA_ATUALIZACAO: idxConAtu !== undefined ? r[idxConAtu - 1] : ""
       });
@@ -235,42 +269,102 @@ class TelefoneRepository {
     lock.waitLock(30000);
     try {
       const entrada = ehObjeto(dados) ? dados : {};
-      const setorId = textoSeguro(valorObjeto(entrada, "setorId", "SETOR_ID", "setor_id", "setor"));
-      // Tenta resolver SETOR_ID por nome se não veio ID (compat: comarca+setor)
-      let setorIdResolvido = setorId;
-      if (!setorIdResolvido || !setorIdResolvido.startsWith("SET")) {
-        const comarca = textoSeguro(valorObjeto(entrada, "comarca", "Comarca"));
-        const setorNome = textoSeguro(valorObjeto(entrada, "setor", "Setor"));
-        if (comarca && setorNome) {
-          const shSet = DB.setoresOuNulo(); const shUni = DB.unidadesOuNulo(); const shMun = DB.municipiosOuNulo();
-          if (shSet && shUni && shMun) {
-            const dadosSet = DB.read(shSet); const mapSet = DB.map(shSet);
-            const dadosUni = DB.read(shUni); const mapUni = DB.map(shUni);
-            const dadosMun = DB.read(shMun); const mapMun = DB.map(shMun);
-            for (const r of dadosSet) {
-              const sNome = mapSet.NOME !== undefined ? textoSeguro(r[mapSet.NOME - 1]) : "";
-              const sUniId = mapSet.UNIDADE_ID !== undefined ? textoSeguro(r[mapSet.UNIDADE_ID - 1]) : "";
-              if (normalizarChave(sNome) !== normalizarChave(setorNome)) continue;
-              for (const u of dadosUni) {
-                const uId = mapUni.ID !== undefined ? textoSeguro(u[mapUni.ID - 1]) : "";
-                const uNome = mapUni.NOME !== undefined ? textoSeguro(u[mapUni.NOME - 1]) : "";
-                const uMunId = mapUni.MUNICIPIO_ID !== undefined ? textoSeguro(u[mapUni.MUNICIPIO_ID - 1]) : "";
-                if (uId !== sUniId) continue;
-                for (const m of dadosMun) {
-                  const mId = mapMun.ID !== undefined ? textoSeguro(m[mapMun.ID - 1]) : "";
-                  const mNome = mapMun.NOME !== undefined ? textoSeguro(m[mapMun.NOME - 1]) : "";
-                  const label = uNome ? (mNome + " (" + uNome + ")") : mNome;
-                  if (normalizarChave(label) === normalizarChave(comarca) || normalizarChave(mNome) === normalizarChave(comarca) || normalizarChave(uNome) === normalizarChave(comarca)) {
-                    setorIdResolvido = mapSet.ID !== undefined ? textoSeguro(r[mapSet.ID - 1]) : "";
-                    break;
+      // V4: aceita FORUM_ID, UNIDADE_ID ou SETOR_ID (pelo menos um)
+      let forumId = textoSeguro(valorObjeto(entrada, "forumId", "FORUM_ID", "forum_id", "forum"));
+      let unidadeId = textoSeguro(valorObjeto(entrada, "unidadeId", "UNIDADE_ID", "unidade_id", "unidade"));
+      let setorId = textoSeguro(valorObjeto(entrada, "setorId", "SETOR_ID", "setor_id", "setor"));
+      // Compat: tenta resolver SETOR_ID por nome se veio nome em vez de ID (comarca+setor ou unidade+setor)
+      if ((!setorId || !/^SET/i.test(setorId)) && (textoSeguro(valorObjeto(entrada, "comarca", "Comarca")) || textoSeguro(valorObjeto(entrada, "forum", "Forum", "FORUM")))) {
+        const comarca = textoSeguro(valorObjeto(entrada, "comarca", "Comarca", "municipio", "Municipio"));
+        const setorNome = setorId || textoSeguro(valorObjeto(entrada, "setor", "Setor"));
+        const forumNome = textoSeguro(valorObjeto(entrada, "forum", "FORUM", "Forum"));
+        if (setorNome) {
+          try {
+            const shSet = DB.setoresOuNulo(); const shUni = DB.unidadesOuNulo(); const shForum = DB.forumOuNulo(); const shMun = DB.municipiosOuNulo();
+            if (shSet && shUni && shForum && shMun) {
+              const dadosSet = DB.read(shSet); const mapSet = DB.map(shSet);
+              const dadosUni = DB.read(shUni); const mapUni = DB.map(shUni);
+              const dadosForum = DB.read(shForum); const mapForum = DB.map(shForum);
+              const dadosMun = DB.read(shMun); const mapMun = DB.map(shMun);
+              outer: for (const r of dadosSet) {
+                const sNome = mapSet.NOME !== undefined ? textoSeguro(r[mapSet.NOME - 1]) : "";
+                const sUniId = mapSet.UNIDADEID !== undefined ? textoSeguro(r[mapSet.UNIDADEID - 1]) : "";
+                if (normalizarChave(sNome) !== normalizarChave(setorNome)) continue;
+                for (const u of dadosUni) {
+                  const uId = mapUni.ID !== undefined ? textoSeguro(u[mapUni.ID - 1]) : "";
+                  if (uId !== sUniId) continue;
+                  const uNome = mapUni.NOME !== undefined ? textoSeguro(u[mapUni.NOME - 1]) : "";
+                  const uForumId = mapUni.FORUMID !== undefined ? textoSeguro(u[mapUni.FORUMID - 1]) : "";
+                  for (const f of dadosForum) {
+                    const fId = mapForum.ID !== undefined ? textoSeguro(f[mapForum.ID - 1]) : "";
+                    if (uForumId && fId !== uForumId) continue;
+                    const fNome = mapForum.NOME !== undefined ? textoSeguro(f[mapForum.NOME - 1]) : "";
+                    const fMunId = mapForum.MUNICIPIOID !== undefined ? textoSeguro(f[mapForum.MUNICIPIOID - 1]) : "";
+                    let mNome = "";
+                    for (const m of dadosMun) {
+                      const mId = mapMun.ID !== undefined ? textoSeguro(m[mapMun.ID - 1]) : "";
+                      if (mId === fMunId) { mNome = mapMun.NOME !== undefined ? textoSeguro(m[mapMun.NOME - 1]) : ""; break; }
+                    }
+                    const labelComarca1 = mNome && fNome ? (mNome + " (" + fNome + ")") : (mNome || fNome || uNome);
+                    const labelComarca2 = uNome ? (mNome ? (mNome + " (" + uNome + ")") : uNome) : "";
+                    if (!comarca || normalizarChave(labelComarca1) === normalizarChave(comarca) || normalizarChave(labelComarca2) === normalizarChave(comarca) || normalizarChave(mNome) === normalizarChave(comarca) || normalizarChave(fNome) === normalizarChave(comarca) || normalizarChave(uNome) === normalizarChave(comarca) || (forumNome && normalizarChave(fNome) === normalizarChave(forumNome))) {
+                      setorId = mapSet.ID !== undefined ? textoSeguro(r[mapSet.ID - 1]) : "";
+                      if (setorId) { forumId = forumId || fId; unidadeId = unidadeId || uId; break outer; }
+                    }
                   }
                 }
               }
             }
-          }
+          } catch(e){}
         }
       }
-      if (!setorIdResolvido) throw new Error("SETOR_ID não informado e não foi possível resolver por Comarca/Setor.");
+      // Auto-complete: se tem setor, deriva unidade/forum; se tem unidade, deriva forum
+      if (setorId && (!unidadeId || !forumId)) {
+        try {
+          const shSet = DB.setoresOuNulo(); const shUni = DB.unidadesOuNulo();
+          if (shSet) {
+            const dadosSet = DB.read(shSet); const mapSet = DB.map(shSet);
+            for (const r of dadosSet) {
+              const sId = mapSet.ID !== undefined ? textoSeguro(r[mapSet.ID - 1]) : "";
+              if (sId === setorId) {
+                const sUniId = mapSet.UNIDADEID !== undefined ? textoSeguro(r[mapSet.UNIDADEID - 1]) : "";
+                if (sUniId && !unidadeId) unidadeId = sUniId;
+                break;
+              }
+            }
+          }
+          if (unidadeId && !forumId) {
+            const shUni = DB.unidadesOuNulo();
+            if (shUni) {
+              const dadosUni = DB.read(shUni); const mapUni = DB.map(shUni);
+              for (const u of dadosUni) {
+                const uId = mapUni.ID !== undefined ? textoSeguro(u[mapUni.ID - 1]) : "";
+                if (uId === unidadeId) {
+                  const uForum = mapUni.FORUMID !== undefined ? textoSeguro(u[mapUni.FORUMID - 1]) : "";
+                  if (uForum) forumId = uForum;
+                  break;
+                }
+              }
+            }
+          }
+        } catch(e){}
+      } else if (unidadeId && !forumId) {
+        try {
+          const shUni = DB.unidadesOuNulo();
+          if (shUni) {
+            const dadosUni = DB.read(shUni); const mapUni = DB.map(shUni);
+            for (const u of dadosUni) {
+              const uId = mapUni.ID !== undefined ? textoSeguro(u[mapUni.ID - 1]) : "";
+              if (uId === unidadeId) {
+                const uForum = mapUni.FORUMID !== undefined ? textoSeguro(u[mapUni.FORUMID - 1]) : "";
+                if (uForum) forumId = uForum;
+                break;
+              }
+            }
+          }
+        } catch(e){}
+      }
+      if (!forumId && !unidadeId && !setorId) throw new Error("Informe Fórum, Unidade ou Setor (FORUM_ID, UNIDADE_ID ou SETOR_ID).");
       const tipo = textoSeguro(valorObjeto(entrada, "tipo", "Tipo")) || "Telefone";
       const valor = textoSeguro(valorObjeto(entrada, "valor", "VALOR", "numero", "Numero", "telefone", "Telefone", "ramal", "Ramal", "whatsapp", "Whatsapp", "email", "EMAIL")) || textoSeguro(valorObjeto(entrada, "numero"));
       const descricao = textoSeguro(valorObjeto(entrada, "descricao", "DESCRICAO", "observacao", "Observacao"));
@@ -278,26 +372,28 @@ class TelefoneRepository {
       const momento = new Date();
       const shCon = DB.contatos();
       const headers = DB.headers(shCon);
-      const mapCon = DB.map(shCon);
       const ativo = "TRUE";
       const linhaObj = {};
       headers.forEach(h => {
         const k = normalizarChave(h);
         if (k === "ID") linhaObj[h] = id;
-        else if (k === "SETOR_ID" || k === "SETOR") linhaObj[h] = setorIdResolvido;
+        else if (k === "FORUMID") linhaObj[h] = forumId;
+        else if (k === "UNIDADEID") linhaObj[h] = unidadeId;
+        else if (k === "SETORID" || k === "SETOR") linhaObj[h] = setorId;
         else if (k === "TIPO") linhaObj[h] = tipo;
         else if (k === "DESCRICAO") linhaObj[h] = descricao;
         else if (k === "VALOR") linhaObj[h] = valor;
         else if (k === "ATIVO") linhaObj[h] = ativo;
-        else if (k === "DATA_CRIACAO" || k === "DATACRIACAO") linhaObj[h] = momento;
-        else if (k === "DATA_ATUALIZACAO" || k === "DATAATUALIZACAO") linhaObj[h] = momento;
+        else if (k === "DATACRIACAO") linhaObj[h] = momento;
+        else if (k === "DATAATUALIZACAO") linhaObj[h] = momento;
         else if (k === "OBSERVACAO") linhaObj[h] = descricao;
+        else if (k === "ORDEM") linhaObj[h] = valorObjeto(entrada, "ordem", "ORDEM") || "";
         else linhaObj[h] = "";
       });
       const linha = headers.map(h => linhaObj[h] !== undefined ? linhaObj[h] : "");
       shCon.getRange(shCon.getLastRow() + 1, 1, 1, linha.length).setValues([linha]);
       SpreadsheetApp.flush(); CACHE.limparTelefones();
-      const registro = { ID: id, id: id, setorId: setorIdResolvido, tipo: tipo, valor: valor, descricao: descricao, status: "ATIVO", DATA_CRIACAO: momento, DATA_ATUALIZACAO: momento };
+      const registro = { ID: id, id: id, forumId: forumId, unidadeId: unidadeId, setorId: setorId, tipo: tipo, valor: valor, descricao: descricao, status: "ATIVO", DATA_CRIACAO: momento, DATA_ATUALIZACAO: momento };
       this.registrarHistoricoSeguro(id, "CRIACAO", {}, registro);
       return serializarParaCliente(registro);
     } finally { lock.releaseLock(); }
@@ -335,7 +431,7 @@ class TelefoneRepository {
         endereco: escolherCampo("endereco", textoSeguro(atual.endereco)), // ← NOVO
         status: escolherCampo("status", textoSeguro(atual.status)) || "ATIVO",
         observacao: escolherCampo("observacao", textoSeguro(atual.observacao)),
-        DATA_CRIACAO: dataValida(atual.DATA_CRIACAO, new Date()),
+        DATA_CRIACAO: dataValida(atual.DATACRIACAO, new Date()),
         DATA_ATUALIZACAO: new Date()
       };
 
@@ -387,24 +483,76 @@ class TelefoneRepository {
       const valor = possuiCampo(entrada, "valor") || possuiCampo(entrada, "numero") ? textoSeguro(valorObjeto(entrada, "valor", "VALOR", "numero", "Numero")) : textoSeguro(atualRow[mapCon.VALOR - 1]);
       const descr = possuiCampo(entrada, "descricao") ? textoSeguro(valorObjeto(entrada, "descricao", "DESCRICAO")) : (mapCon.DESCRICAO !== undefined ? textoSeguro(atualRow[mapCon.DESCRICAO - 1]) : "");
       const ativo = possuiCampo(entrada, "status") ? (paraBoolean(valorObjeto(entrada, "status")) ? "TRUE" : "FALSE") : textoSeguro(atualRow[mapCon.ATIVO - 1]) || "TRUE";
+      let forumId = possuiCampo(entrada, "forumId", "FORUM_ID") ? textoSeguro(valorObjeto(entrada, "forumId", "FORUM_ID")) : (mapCon.FORUMID !== undefined ? textoSeguro(atualRow[mapCon.FORUMID - 1]) : "");
+      let unidadeId = possuiCampo(entrada, "unidadeId", "UNIDADE_ID") ? textoSeguro(valorObjeto(entrada, "unidadeId", "UNIDADE_ID")) : (mapCon.UNIDADEID !== undefined ? textoSeguro(atualRow[mapCon.UNIDADEID - 1]) : "");
+      let setorId = possuiCampo(entrada, "setorId", "SETOR_ID", "setor", "setor_id") ? textoSeguro(valorObjeto(entrada, "setorId", "SETOR_ID", "setor", "setor_id")) : (mapCon.SETORID !== undefined ? textoSeguro(atualRow[mapCon.SETORID - 1]) : (mapCon.SETOR !== undefined ? textoSeguro(atualRow[mapCon.SETOR - 1]) : ""));
+      if (possuiCampo(entrada, "setorId", "SETOR_ID") && setorId) {
+        try {
+          const shSet = DB.setoresOuNulo();
+          if (shSet) {
+            const dSet = DB.read(shSet); const mSet = DB.map(shSet);
+            for (const r of dSet) {
+              const sId = mSet.ID !== undefined ? textoSeguro(r[mSet.ID - 1]) : "";
+              if (sId === setorId) {
+                const sUni = mSet.UNIDADEID !== undefined ? textoSeguro(r[mSet.UNIDADEID - 1]) : "";
+                if (sUni && !unidadeId) unidadeId = sUni;
+                if (sUni) {
+                  const shUni = DB.unidadesOuNulo();
+                  if (shUni) {
+                    const dUni = DB.read(shUni); const mUni = DB.map(shUni);
+                    for (const u of dUni) {
+                      const uId = mUni.ID !== undefined ? textoSeguro(u[mUni.ID - 1]) : "";
+                      if (uId === sUni) {
+                        const uForum = mUni.FORUMID !== undefined ? textoSeguro(u[mUni.FORUMID - 1]) : "";
+                        if (uForum && !forumId) forumId = uForum;
+                        break;
+                      }
+                    }
+                  }
+                }
+                break;
+              }
+            }
+          }
+        } catch(e){}
+      } else if (possuiCampo(entrada, "unidadeId", "UNIDADE_ID") && unidadeId && !forumId) {
+        try {
+          const shUni = DB.unidadesOuNulo();
+          if (shUni) {
+            const dUni = DB.read(shUni); const mUni = DB.map(shUni);
+            for (const u of dUni) {
+              const uId = mUni.ID !== undefined ? textoSeguro(u[mUni.ID - 1]) : "";
+              if (uId === unidadeId) {
+                const uForum = mUni.FORUMID !== undefined ? textoSeguro(u[mUni.FORUMID - 1]) : "";
+                if (uForum) forumId = uForum;
+                break;
+              }
+            }
+          }
+        } catch(e){}
+      }
       const momento = new Date();
       const linhaObj = {};
       headers.forEach(h => {
         const k = normalizarChave(h);
         if (k === "ID") linhaObj[h] = idBusca;
-        else if (k === "SETOR_ID" || k === "SETOR") linhaObj[h] = mapCon.SETOR_ID !== undefined ? textoSeguro(atualRow[mapCon.SETOR_ID - 1]) : "";
+        else if (k === "FORUMID") linhaObj[h] = forumId;
+        else if (k === "UNIDADEID") linhaObj[h] = unidadeId;
+        else if (k === "SETORID" || k === "SETOR") linhaObj[h] = setorId;
         else if (k === "TIPO") linhaObj[h] = tipo;
         else if (k === "DESCRICAO") linhaObj[h] = descr;
         else if (k === "VALOR") linhaObj[h] = valor;
         else if (k === "ATIVO") linhaObj[h] = ativo;
-        else if (k === "DATA_ATUALIZACAO" || k === "DATAATUALIZACAO") linhaObj[h] = momento;
-        else if (k === "DATA_CRIACAO" || k === "DATACRIACAO") linhaObj[h] = atualRow[mapCon.DATA_CRIACAO - 1] || momento;
+        else if (k === "DATAATUALIZACAO") linhaObj[h] = momento;
+        else if (k === "DATACRIACAO") linhaObj[h] = atualRow[mapCon.DATACRIACAO - 1] || momento;
+        else if (k === "ORDEM") linhaObj[h] = possuiCampo(entrada, "ordem", "ORDEM") ? textoSeguro(valorObjeto(entrada, "ordem", "ORDEM")) : (mapCon.ORDEM !== undefined ? textoSeguro(atualRow[mapCon.ORDEM - 1]) : "");
+        else if (k === "OBSERVACAO") linhaObj[h] = possuiCampo(entrada, "observacao", "OBSERVACAO") ? textoSeguro(valorObjeto(entrada, "observacao", "OBSERVACAO")) : (mapCon.OBSERVACAO !== undefined ? textoSeguro(atualRow[mapCon.OBSERVACAO - 1]) : descr);
         else linhaObj[h] = atualRow[mapCon[k] - 1] !== undefined ? atualRow[mapCon[k] - 1] : "";
       });
       const linha = headers.map(h => linhaObj[h] !== undefined ? linhaObj[h] : "");
       shCon.getRange(linhaNum, 1, 1, linha.length).setValues([linha]);
       SpreadsheetApp.flush(); CACHE.limparTelefones();
-      const novo = { ID: idBusca, id: idBusca, tipo: tipo, valor: valor, descricao: descr, status: ativo === "TRUE" ? "ATIVO" : "INATIVO" };
+      const novo = { ID: idBusca, id: idBusca, forumId: forumId, unidadeId: unidadeId, setorId: setorId, tipo: tipo, valor: valor, descricao: descr, status: ativo === "TRUE" ? "ATIVO" : "INATIVO" };
       this.registrarHistoricoSeguro(idBusca, "EDICAO", {ID:idBusca}, novo);
       return serializarParaCliente(novo);
     } finally { lock.releaseLock(); }
