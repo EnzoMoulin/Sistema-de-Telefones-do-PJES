@@ -564,7 +564,8 @@ function indicesSolicitacao(linhaCabecalho) {
     EMAIL: ["EMAIL"],
     NOME: ["NOME"],
     COMARCA: ["COMARCA"],
-    PERFIL: ["PERFIL_SOLICITADO", "PERFIL"],
+    UNIDADES: ["UNIDADE_ID", "UNIDADES_IDS", "UNIDADE_IDS"],
+    PERFIL: ["PERFIL_SOLICITADO", "PERFIL", "NIVEL_SOLICITADO"],
     JUSTIFICATIVA: ["JUSTIFICATIVA"],
     STATUS: ["STATUS"],
     DATA: ["DATA_SOLICITACAO", "DATA"],
@@ -635,6 +636,7 @@ function listarSolicitacoes(authDados) {
     }
 
     const indices = indicesSolicitacao(dados[0]);
+    const catalogoUnidades = catalogoUnidadesAcessoPorId();
 
     const result =
       dados
@@ -644,16 +646,22 @@ function listarSolicitacoes(authDados) {
             .trim()
             .toUpperCase() === "PENDENTE"
         )
-        .map(row => ({
-          id: row[indices.ID],
-          email: row[indices.EMAIL],
-          nome: row[indices.NOME],
-          comarca: indices.COMARCA !== undefined ? row[indices.COMARCA] : "",
-          perfilSolicitado: row[indices.PERFIL],
-          justificativa: row[indices.JUSTIFICATIVA],
-          status: row[indices.STATUS],
-          data: row[indices.DATA]
-        }));
+        .map(row => {
+          const idsUnidades = indices.UNIDADES !== undefined
+            ? parseIdsUnidadesSolicitacao(row[indices.UNIDADES])
+            : [];
+          return {
+            id: row[indices.ID],
+            email: row[indices.EMAIL],
+            nome: row[indices.NOME],
+            unidades: idsUnidades.map(function(id) { return catalogoUnidades[id]; }).filter(Boolean),
+            unidadeIds: idsUnidades,
+            perfilSolicitado: perfilSolicitadoPorValor(row[indices.PERFIL]),
+            justificativa: row[indices.JUSTIFICATIVA],
+            status: row[indices.STATUS],
+            data: row[indices.DATA]
+          };
+        });
 
     return respostaSucesso(result);
   } catch (erro) {
@@ -769,6 +777,7 @@ function autenticarConsulta(dados) {
       nivel: usuario.nivel || nivelPorPerfil(usuario.perfil),
       ativo: true,
       comarcas: usuario.comarcas || [],
+      unidades: usuario.unidades || [],
       token: sessao.token,
       expiraEm: sessao.expiraEm
     };
@@ -793,6 +802,109 @@ function autenticarConsulta(dados) {
     registrarErroAPI("AUTENTICAR_CONSULTA", erro);
     return respostaErro(erro);
   }
+}
+
+function perfilSolicitadoPorValor(valor) {
+  const texto = String(valor === null || valor === undefined ? "" : valor).trim().toUpperCase();
+  if (texto === "3" || texto === "3.0") return CONFIG.PERFIS.GESTOR_SISTEMA;
+  if (texto === "2" || texto === "2.0") return CONFIG.PERFIS.GESTOR_CONTEUDO;
+  return texto;
+}
+
+function parseIdsUnidadesSolicitacao(valor) {
+  if (Array.isArray(valor)) {
+    return Array.from(new Set(valor.map(textoSeguro).filter(Boolean)));
+  }
+
+  const texto = textoSeguro(valor);
+  if (!texto) return [];
+
+  if (texto.charAt(0) === "[") {
+    try {
+      const lista = JSON.parse(texto);
+      if (Array.isArray(lista)) return parseIdsUnidadesSolicitacao(lista);
+    } catch (erroJson) {}
+  }
+
+  return Array.from(new Set(texto.split(/[,;|\n]+/).map(textoSeguro).filter(Boolean)));
+}
+
+function serializarIdsUnidadesSolicitacao(ids) {
+  return JSON.stringify(parseIdsUnidadesSolicitacao(ids));
+}
+
+function catalogoUnidadesAcessoPorId() {
+  const resposta = listarUnidadesParaAcesso();
+  if (!resposta || resposta.sucesso !== true || !Array.isArray(resposta.dados)) {
+    throw new Error((resposta && resposta.erro) || "Não foi possível carregar as unidades disponíveis.");
+  }
+  const mapa = {};
+  resposta.dados.forEach(function(unidade) { mapa[unidade.id] = unidade; });
+  return mapa;
+}
+
+function validarUnidadesSolicitadas(ids, obrigatorio) {
+  const unidades = parseIdsUnidadesSolicitacao(ids);
+  if (obrigatorio && unidades.length === 0) {
+    throw new Error("Selecione ao menos uma unidade.");
+  }
+  if (unidades.length > 203) {
+    throw new Error("A quantidade de unidades selecionadas é inválida.");
+  }
+
+  const catalogo = catalogoUnidadesAcessoPorId();
+  const invalidas = unidades.filter(function(id) { return !catalogo[id]; });
+  if (invalidas.length) {
+    throw new Error("Uma ou mais unidades selecionadas não existem ou estão inativas.");
+  }
+  return unidades;
+}
+
+function detalhesUnidadesSolicitadas(ids) {
+  const catalogo = catalogoUnidadesAcessoPorId();
+  return parseIdsUnidadesSolicitacao(ids).map(function(id) { return catalogo[id]; }).filter(Boolean);
+}
+
+/** Mantém exatamente os vínculos aprovados para o usuário. */
+function sincronizarAcessosUnidadesUsuario(usuarioId, idsUnidades) {
+  const idUsuario = textoSeguro(usuarioId);
+  if (!idUsuario) throw new Error("O usuário aprovado não possui ID.");
+
+  const ids = validarUnidadesSolicitadas(idsUnidades, false);
+  const solicitadas = new Set(ids);
+  const sheet = DB.acessosUnidades();
+  const mapa = DB.map(sheet);
+  const idxId = mapa.ID;
+  const idxUsuario = mapa.USUARIOID;
+  const idxUnidade = mapa.UNIDADEID;
+  const idxAtivo = mapa.ATIVO;
+
+  if ([idxId, idxUsuario, idxUnidade, idxAtivo].some(function(idx) { return idx === undefined; })) {
+    throw new Error("A aba ACESSOS_UNIDADES não possui os cabeçalhos ID, USUARIO_ID, UNIDADE_ID e ATIVO.");
+  }
+
+  const dados = sheet.getDataRange().getValues();
+  const existentes = new Set();
+  for (let i = 1; i < dados.length; i++) {
+    if (textoSeguro(dados[i][idxUsuario - 1]) !== idUsuario) continue;
+    const unidadeId = textoSeguro(dados[i][idxUnidade - 1]);
+    const deveAtivar = solicitadas.has(unidadeId) && !existentes.has(unidadeId);
+    sheet.getRange(i + 1, idxAtivo).setValue(deveAtivar);
+    if (deveAtivar) existentes.add(unidadeId);
+  }
+
+  const largura = DB.headers(sheet).length;
+  ids.forEach(function(unidadeId) {
+    if (existentes.has(unidadeId)) return;
+    const linha = new Array(largura).fill("");
+    linha[idxId - 1] = Utilities.getUuid();
+    linha[idxUsuario - 1] = idUsuario;
+    linha[idxUnidade - 1] = unidadeId;
+    linha[idxAtivo - 1] = true;
+    sheet.appendRow(linha);
+  });
+
+  return ids;
 }
 
 function solicitarAcesso(nome, perfil, justificativa, comarca, authDados) {
@@ -984,7 +1096,7 @@ function solicitarAcesso(nome, perfil, justificativa, comarca, authDados) {
 /**
  * Formulário público de acesso (aba "Formulário de Acesso").
  *
- * Qualquer visitante pode preencher: nome, comarca, e-mail,
+ * Qualquer visitante pode preencher: nome, unidades, e-mail,
  * perfil solicitado e justificativa. Os dados são gravados na
  * aba SOLICITACOES_ACESSO com status PENDENTE.
  */
@@ -1005,10 +1117,13 @@ function enviarFormularioAcesso(dados) {
         valorObjeto(entrada, "nome", "NOME")
       );
 
-    const comarca =
-      textoSeguro(
-        valorObjeto(entrada, "comarca", "COMARCA")
-      );
+    const unidadesInformadas = valorObjeto(
+      entrada,
+      "unidadeIds",
+      "unidades",
+      "UNIDADE_IDS",
+      "UNIDADES"
+    );
 
     const email =
       normalizarEmail(
@@ -1052,20 +1167,13 @@ function enviarFormularioAcesso(dados) {
       );
     }
 
-    if (comarca.length < 2) {
-      throw new Error(
-        "Informe a comarca em que você trabalha."
-      );
-    }
+    const unidadeIds = validarUnidadesSolicitadas(
+      unidadesInformadas,
+      perfilSolicitado === CONFIG.PERFIS.GESTOR_CONTEUDO
+    );
 
-    if (
-      comarca.length >
-      CONFIG.LIMITES.TAMANHO_MAXIMO_NOME
-    ) {
-      throw new Error(
-        "A comarca informada é muito grande."
-      );
-    }
+    // Gestor do Sistema possui escopo global.
+    if (perfilSolicitado === CONFIG.PERFIS.GESTOR_SISTEMA) unidadeIds.length = 0;
 
     if (justificativa.length < 10) {
       throw new Error(
@@ -1120,7 +1228,6 @@ function enviarFormularioAcesso(dados) {
       var idxPerfilUG = mapaUG.PERFIL;
       var idxNivelUG = mapaUG.NIVEL;
       var idxAtivoUG = mapaUG.ATIVO;
-      var idxComarcasUG = mapaUG.COMARCAS;
       var idxSenhaUG = mapaUG.SENHA;
       if (idxSenhaUG === undefined) {
         try{ var ssTmpG = DB.getSpreadsheet(); garantirColunaSenhaUsuarios(ssTmpG, sheetUsuariosGestor); mapaUG = DB.map(sheetUsuariosGestor); idxSenhaUG = mapaUG.SENHA; }catch(eMigG){}
@@ -1130,6 +1237,7 @@ function enviarFormularioAcesso(dados) {
         idxNomeUG === undefined ||
         idxAtivoUG === undefined ||
         idxSenhaUG === undefined ||
+        idxIdUG === undefined ||
         (idxNivelUG === undefined && idxPerfilUG === undefined)
       ) {
         throw new Error("A aba USUARIOS não possui os cabeçalhos esperados para autenticação.");
@@ -1138,6 +1246,7 @@ function enviarFormularioAcesso(dados) {
       var headersUG = DB.headers(sheetUsuariosGestor);
       var widthUG = headersUG.length;
       var linhaExistG = -1;
+      var usuarioIdGestor = "";
       for (var ig=1; ig<dadosUG.length; ig++){
         var emailLinG = idxEmailUG!==undefined ? normalizarEmail(dadosUG[ig][idxEmailUG-1]) : normalizarEmail(dadosUG[ig][0]);
         if (emailLinG === email){ linhaExistG = ig+1; break; }
@@ -1149,22 +1258,26 @@ function enviarFormularioAcesso(dados) {
         if (ativoExistG && (perfilExistG === CONFIG.PERFIS.GESTOR_SISTEMA || perfilExistG === CONFIG.PERFIS.GESTOR_CONTEUDO)) {
           throw new Error("Este e-mail já possui acesso administrativo ("+perfilExistG+").");
         }
+        usuarioIdGestor = textoSeguro(dadosUG[linhaExistG-1][idxIdUG-1]);
+        if (!usuarioIdGestor) {
+          usuarioIdGestor = gerarNovoIdUsuario(sheetUsuariosGestor);
+          sheetUsuariosGestor.getRange(linhaExistG, idxIdUG).setValue(usuarioIdGestor);
+        }
         // Atualiza para pendente (ATIVO=NAO) com nova senha e perfil solicitado
         if (idxNomeUG!==undefined) sheetUsuariosGestor.getRange(linhaExistG, idxNomeUG).setValue(nome);
         if (idxPerfilUG!==undefined) sheetUsuariosGestor.getRange(linhaExistG, idxPerfilUG).setValue(perfilSolicitado);
         if (idxNivelUG!==undefined) sheetUsuariosGestor.getRange(linhaExistG, idxNivelUG).setValue(nivelPorPerfil(perfilSolicitado));
         if (idxAtivoUG!==undefined) sheetUsuariosGestor.getRange(linhaExistG, idxAtivoUG).setValue(false);
-        if (idxComarcasUG!==undefined) sheetUsuariosGestor.getRange(linhaExistG, idxComarcasUG).setValue(comarca||"");
         if (idxSenhaUG!==undefined) sheetUsuariosGestor.getRange(linhaExistG, idxSenhaUG).setValue(senhaGestor);
       } else {
         var novaLinhaG = new Array(widthUG).fill("");
-        if (idxIdUG!==undefined) novaLinhaG[idxIdUG-1]=gerarNovoIdUsuario(sheetUsuariosGestor);
+        usuarioIdGestor=gerarNovoIdUsuario(sheetUsuariosGestor);
+        novaLinhaG[idxIdUG-1]=usuarioIdGestor;
         if (idxEmailUG!==undefined) novaLinhaG[idxEmailUG-1]=email;
         if (idxNomeUG!==undefined) novaLinhaG[idxNomeUG-1]=nome;
         if (idxPerfilUG!==undefined) novaLinhaG[idxPerfilUG-1]=perfilSolicitado;
         if (idxNivelUG!==undefined) novaLinhaG[idxNivelUG-1]=nivelPorPerfil(perfilSolicitado);
         if (idxAtivoUG!==undefined) novaLinhaG[idxAtivoUG-1]=false;
-        if (idxComarcasUG!==undefined) novaLinhaG[idxComarcasUG-1]=comarca||"";
         if (idxSenhaUG!==undefined) novaLinhaG[idxSenhaUG-1]=senhaGestor;
         if (novaLinhaG.every(function(v){ return !v; })) {
           throw new Error("A aba USUARIOS não possui os cabeçalhos esperados.");
@@ -1177,18 +1290,30 @@ function enviarFormularioAcesso(dados) {
       if (!sheetSolicGestor) throw new Error("Aba de solicitações de acesso não encontrada.");
       var dadosPlanilhaG = sheetSolicGestor.getDataRange().getValues();
       var indicesG = indicesSolicitacao(dadosPlanilhaG[0] || []);
-      if (indicesG.STATUS === undefined || indicesG.EMAIL === undefined) throw new Error("A aba SOLICITACOES_ACESSO não possui os cabeçalhos esperados. Execute instalarSistema().");
+      if (indicesG.STATUS === undefined || indicesG.EMAIL === undefined || indicesG.UNIDADES === undefined) throw new Error("A aba SOLICITACOES_ACESSO deve possuir a coluna UNIDADE_ID. Execute atualizarAbaSolicitacoesAcesso().");
       var pendenteExistG = dadosPlanilhaG.slice(1).some(function(row){ var eL = normalizarEmail(row[indicesG.EMAIL]); var sL = String(row[indicesG.STATUS]||"").trim().toUpperCase(); return eL===email && sL==="PENDENTE"; });
       if (pendenteExistG) {
         throw new Error("Já existe uma solicitação pendente para este e-mail.");
       }
       var idG = Utilities.getUuid();
-      var linhaSolicG = montarLinhaSolicitacao(indicesG, { ID: idG, EMAIL: email, NOME: nome, COMARCA: comarca, PERFIL: perfilSolicitado, JUSTIFICATIVA: justificativa, STATUS: "PENDENTE", DATA: new Date() });
+      var linhaSolicG = montarLinhaSolicitacao(indicesG, {
+        ID: idG,
+        EMAIL: email,
+        NOME: nome,
+        UNIDADES: serializarIdsUnidadesSolicitacao(unidadeIds),
+        PERFIL: nivelPorPerfil(perfilSolicitado),
+        JUSTIFICATIVA: justificativa,
+        STATUS: "PENDENTE",
+        DATA: new Date()
+      });
       sheetSolicGestor.appendRow(linhaSolicG);
       SpreadsheetApp.flush();
-      try{ notificarNovaSolicitacao(email, nome, perfilSolicitado, comarca, justificativa); }catch(eN){ registrarErroAPI("NOTIFICAR_NOVA_SOLICITACAO", eN); }
+      var resumoUnidades = perfilSolicitado === CONFIG.PERFIS.GESTOR_SISTEMA
+        ? "Todas as unidades"
+        : unidadeIds.length + " unidade(s) selecionada(s)";
+      try{ notificarNovaSolicitacao(email, nome, perfilSolicitado, resumoUnidades, justificativa); }catch(eN){ registrarErroAPI("NOTIFICAR_NOVA_SOLICITACAO", eN); }
       try{
-        const msgPerfil = nome + " (" + email + ") solicitou acesso como " + perfilSolicitado + (comarca ? " \u2014 comarca: " + comarca : "") + ".";
+        const msgPerfil = nome + " (" + email + ") solicitou acesso como " + perfilSolicitado + " — " + resumoUnidades + ".";
         notificarGestoresSistemaSobreSolicitacao("SOLICITACAO_PERFIL", msgPerfil, idG);
         try{ criarNotificacao(email, "SENHA_GERADA", "Sua senha de acesso foi gerada e enviada por e-mail. Aguarde a aprova\u00e7\u00e3o do Gestor do Sistema para ativar seu login.", idG); }catch(eSen){}
       }catch(eNotifG){ registrarErroAPI("NOTIFICAR_FORMULARIO_GESTOR", eNotifG); }
@@ -1237,10 +1362,10 @@ function localizarSolicitacaoAPI(sheet, id) {
         id: dados[i][indices.ID],
         email: normalizarEmail(dados[i][indices.EMAIL]),
         nome: textoSeguro(dados[i][indices.NOME]),
-        comarca: indices.COMARCA !== undefined ? textoSeguro(dados[i][indices.COMARCA]) : "",
-        perfil: String(dados[i][indices.PERFIL] || "")
-          .trim()
-          .toUpperCase(),
+        unidadeIds: indices.UNIDADES !== undefined
+          ? parseIdsUnidadesSolicitacao(dados[i][indices.UNIDADES])
+          : [],
+        perfil: perfilSolicitadoPorValor(dados[i][indices.PERFIL]),
         status: String(dados[i][indices.STATUS] || "")
           .trim()
           .toUpperCase()
@@ -1347,7 +1472,6 @@ function processarSolicitacaoAPI(id, novoStatus, authDados) {
       const idxPerfilU = mapaU.PERFIL;
       const idxNivelU = mapaU.NIVEL;
       const idxAtivoU = mapaU.ATIVO;
-      const idxComarcasU = mapaU.COMARCAS;
       const idxSenhaU = mapaU.SENHA;
       const idxIdU = mapaU.ID;
 
@@ -1355,6 +1479,7 @@ function processarSolicitacaoAPI(id, novoStatus, authDados) {
         idxEmailU === undefined ||
         idxAtivoU === undefined ||
         idxSenhaU === undefined ||
+        idxIdU === undefined ||
         (idxNivelU === undefined && idxPerfilU === undefined)
       ) {
         throw new Error("A aba USUARIOS não possui os cabeçalhos esperados para autenticação.");
@@ -1362,13 +1487,14 @@ function processarSolicitacaoAPI(id, novoStatus, authDados) {
 
       const dadosU = sheetUsuarios.getDataRange().getValues();
       const perfilSolicitadoNorm = String(solicitacao.perfil || "").trim().toUpperCase();
-      const comarcasSolicitadasRaw = String(solicitacao.comarca || "").trim();
-      const comarcasSolicitadasLista = comarcasSolicitadasRaw
-        ? comarcasSolicitadasRaw.split(/[,;|]+/).map(function(s){ return String(s||"").trim(); }).filter(Boolean)
-        : [];
+      const unidadesSolicitadas = validarUnidadesSolicitadas(
+        solicitacao.unidadeIds,
+        perfilSolicitadoNorm === CONFIG.PERFIS.GESTOR_CONTEUDO
+      );
 
       let usuarioExiste = false;
       let linhaUsuario = -1;
+      let usuarioIdAprovado = "";
 
       for (let i = 1; i < dadosU.length; i++) {
         const emailUsuario = idxEmailU !== undefined ? normalizarEmail(dadosU[i][idxEmailU - 1]) : normalizarEmail(dadosU[i][0]);
@@ -1385,18 +1511,10 @@ function processarSolicitacaoAPI(id, novoStatus, authDados) {
         if (idxPerfilU !== undefined) sheetUsuarios.getRange(linhaUsuario, idxPerfilU).setValue(perfilSolicitadoNorm);
         if (idxNivelU !== undefined) sheetUsuarios.getRange(linhaUsuario, idxNivelU).setValue(nivelPorPerfil(perfilSolicitadoNorm));
         sheetUsuarios.getRange(linhaUsuario, idxAtivoU).setValue(true);
-
-        if (perfilSolicitadoNorm === CONFIG.PERFIS.GESTOR_SISTEMA && idxComarcasU !== undefined) {
-          sheetUsuarios.getRange(linhaUsuario, idxComarcasU).setValue("");
-        } else if (idxComarcasU !== undefined) {
-          const existenteRaw = String(dadosU[linhaUsuario - 1][idxComarcasU - 1] || "").trim();
-          const existenteLista = existenteRaw ? existenteRaw.split(/[,;|]+/).map(function(s){ return String(s||"").trim(); }).filter(Boolean) : [];
-          const mergedMap = {};
-          existenteLista.forEach(function(c){ mergedMap[normalizarChave(c)] = c; });
-          comarcasSolicitadasLista.forEach(function(c){ const chave = normalizarChave(c); if (!mergedMap[chave]) mergedMap[chave] = c; });
-          sheetUsuarios.getRange(linhaUsuario, idxComarcasU).setValue(
-            Object.keys(mergedMap).map(function(chave){ return mergedMap[chave]; }).join(", ")
-          );
+        usuarioIdAprovado = textoSeguro(dadosU[linhaUsuario - 1][idxIdU - 1]);
+        if (!usuarioIdAprovado) {
+          usuarioIdAprovado = gerarNovoIdUsuario(sheetUsuarios);
+          sheetUsuarios.getRange(linhaUsuario, idxIdU).setValue(usuarioIdAprovado);
         }
 
         // Solicitações novas já têm senha; este fallback cobre solicitações legadas.
@@ -1418,16 +1536,14 @@ function processarSolicitacaoAPI(id, novoStatus, authDados) {
         // Compatibilidade com solicitações antigas em que o usuário ainda não existia.
         const senhaNova = gerarSenha20();
         const linhaNova = new Array(DB.headers(sheetUsuarios).length).fill("");
-        if (idxIdU !== undefined) linhaNova[idxIdU - 1] = gerarNovoIdUsuario(sheetUsuarios);
+        usuarioIdAprovado = gerarNovoIdUsuario(sheetUsuarios);
+        linhaNova[idxIdU - 1] = usuarioIdAprovado;
         linhaNova[idxEmailU - 1] = solicitacao.email;
         if (idxNomeU !== undefined) linhaNova[idxNomeU - 1] = solicitacao.nome;
         if (idxPerfilU !== undefined) linhaNova[idxPerfilU - 1] = perfilSolicitadoNorm;
         if (idxNivelU !== undefined) linhaNova[idxNivelU - 1] = nivelPorPerfil(perfilSolicitadoNorm);
         linhaNova[idxAtivoU - 1] = true;
         linhaNova[idxSenhaU - 1] = senhaNova;
-        if (idxComarcasU !== undefined && perfilSolicitadoNorm === CONFIG.PERFIS.GESTOR_CONTEUDO) {
-          linhaNova[idxComarcasU - 1] = comarcasSolicitadasLista.join(", ");
-        }
         sheetUsuarios.appendRow(linhaNova);
         try {
           adicionarEmailPendente(
@@ -1439,6 +1555,11 @@ function processarSolicitacaoAPI(id, novoStatus, authDados) {
           registrarErroAPI("EMAIL_SENHA_APROVACAO_LEGADA", erroSenhaNova);
         }
       }
+
+      sincronizarAcessosUnidadesUsuario(
+        usuarioIdAprovado,
+        perfilSolicitadoNorm === CONFIG.PERFIS.GESTOR_CONTEUDO ? unidadesSolicitadas : []
+      );
     }
 
     const aprovador =
@@ -2117,7 +2238,7 @@ function notificarNovaSolicitacao(
   emailSolicitante,
   nomeSolicitante,
   perfilSolicitado,
-  comarca,
+  unidadesResumo,
   justificativa
 ) {
   const gestorEmail =
@@ -2150,13 +2271,13 @@ function notificarNovaSolicitacao(
     emailSolicitante +
     "\n";
 
-  const comarcaTexto =
-    textoSeguro(comarca);
+  const unidadesTexto =
+    textoSeguro(unidadesResumo);
 
-  if (comarcaTexto) {
+  if (unidadesTexto) {
     corpo +=
-      "Comarca: " +
-      comarcaTexto +
+      "Unidades: " +
+      unidadesTexto +
       "\n";
   }
 

@@ -25,7 +25,7 @@ function restaurarSessaoConsulta(){
     if(Number(sess.expiraEm||0) <= Date.now()){ sessionStorage.removeItem("pjes_auth_sessao"); return false; }
     // se já logado via Google gestor, não sobrescreve
     if(usuarioAtual && usuarioAtual.logado && (usuarioAtual.perfil==="GESTOR_SISTEMA"||usuarioAtual.perfil==="GESTOR_CONTEUDO")) return true;
-    usuarioAtual = { nome: sess.nome||sess.email.split("@")[0], email: sess.email, perfil: sess.perfil || "USUARIO_CONSULTA", logado: true, ativo: true, comarcas: Array.isArray(sess.comarcas)?sess.comarcas:[], viaConsulta: true };
+    usuarioAtual = { nome: sess.nome||sess.email.split("@")[0], email: sess.email, perfil: sess.perfil || "USUARIO_CONSULTA", logado: true, ativo: true, comarcas: Array.isArray(sess.comarcas)?sess.comarcas:[], unidades: Array.isArray(sess.unidades)?sess.unidades:[], viaConsulta: true };
     return true;
   }catch(e){ return false; }
 }
@@ -131,7 +131,8 @@ function iniciarSistema() {
             perfil: dados.perfil || "USUARIO_CONSULTA",
             logado: true,
             ativo: dados.ativo === true,
-            comarcas: Array.isArray(dados.comarcas) ? dados.comarcas : []
+            comarcas: Array.isArray(dados.comarcas) ? dados.comarcas : [],
+            unidades: Array.isArray(dados.unidades) ? dados.unidades : []
           };
 
           atualizarInterfaceUsuario();
@@ -332,30 +333,29 @@ function atualizarInterfaceUsuario() {
     var comarcasWrap = document.getElementById("config-conta-comarcas-wrap");
     var comarcasList = document.getElementById("config-conta-comarcas");
     if (comarcasWrap && comarcasList) {
-      var comarcasUsuario = Array.isArray(usuario.comarcas) ? usuario.comarcas : [];
-      // Fallback: se usuarioAtual tiver comarcas em window
-      if (!comarcasUsuario.length && Array.isArray(usuarioAtual.comarcas)) {
-        comarcasUsuario = usuarioAtual.comarcas;
+      var unidadesUsuario = Array.isArray(usuario.unidades) ? usuario.unidades : [];
+      if (!unidadesUsuario.length && Array.isArray(usuarioAtual.unidades)) {
+        unidadesUsuario = usuarioAtual.unidades;
       }
       comarcasList.innerHTML = "";
       if (logado && perfil === "GESTOR_SISTEMA") {
         var chipAll = document.createElement("span");
         chipAll.className = "config-comarca-chip config-comarca-chip--all";
-        chipAll.textContent = "Todas as comarcas";
+        chipAll.textContent = "Todas as unidades";
         comarcasList.appendChild(chipAll);
         comarcasWrap.classList.remove("hidden");
-      } else if (logado && perfil === "GESTOR_CONTEUDO" && comarcasUsuario.length) {
-        comarcasUsuario.forEach(function(c){
+      } else if (logado && perfil === "GESTOR_CONTEUDO" && unidadesUsuario.length) {
+        unidadesUsuario.forEach(function(unidade){
           var chip = document.createElement("span");
           chip.className = "config-comarca-chip";
-          chip.textContent = String(c);
+          chip.textContent = [unidade.municipio, unidade.forum, unidade.nome].filter(Boolean).join(" › ");
           comarcasList.appendChild(chip);
         });
         comarcasWrap.classList.remove("hidden");
       } else if (logado && perfil === "GESTOR_CONTEUDO") {
         var chipTodas = document.createElement("span");
-        chipTodas.className = "config-comarca-chip config-comarca-chip--all";
-        chipTodas.textContent = "Todas as comarcas";
+        chipTodas.className = "config-comarca-chip";
+        chipTodas.textContent = "Nenhuma unidade vinculada";
         comarcasList.appendChild(chipTodas);
         comarcasWrap.classList.remove("hidden");
       } else {
@@ -583,9 +583,9 @@ function atualizarInterfaceUsuario() {
     var escopoInfo = document.getElementById("telefones-escopo-info");
 
     if (subtitulo && escopoInfo) {
-      if (logado && perfil === "GESTOR_CONTEUDO" && Array.isArray(usuario.comarcas) && usuario.comarcas.length > 0) {
-        subtitulo.textContent = "Gerenciamento de telefones — suas comarcas: " + usuario.comarcas.join(", ");
-        escopoInfo.textContent = "Você só pode adicionar/editar/excluir contatos das comarcas acima. Outras comarcas aparecem com 🔒 Solicitar acesso.";
+      if (logado && perfil === "GESTOR_CONTEUDO" && Array.isArray(usuario.unidades) && usuario.unidades.length > 0) {
+        subtitulo.textContent = "Gerenciamento de contatos — " + usuario.unidades.length + " unidade(s) autorizada(s)";
+        escopoInfo.textContent = "Você só pode adicionar, editar ou excluir contatos vinculados às suas unidades.";
         escopoInfo.style.display = "block";
       } else if (logado && perfil === "GESTOR_CONTEUDO") {
         subtitulo.textContent = "Gerenciamento de telefones do Poder Judiciário do Estado do Espírito Santo";
@@ -593,7 +593,7 @@ function atualizarInterfaceUsuario() {
         escopoInfo.style.display = "none";
       } else if (logado && perfil === "GESTOR_SISTEMA") {
         subtitulo.textContent = "Gerenciamento de telefones do Poder Judiciário do Estado do Espírito Santo";
-        escopoInfo.textContent = "Gestor do Sistema — acesso a todas as comarcas.";
+        escopoInfo.textContent = "Gestor do Sistema — acesso a todas as unidades.";
         escopoInfo.style.display = "block";
       } else {
         subtitulo.textContent = "Gerenciamento de telefones do Poder Judiciário do Estado do Espírito Santo";

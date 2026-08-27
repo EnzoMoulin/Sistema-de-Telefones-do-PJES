@@ -44,12 +44,12 @@ A autenticação administrativa usa e-mail institucional + senha de 20 caractere
 
 1. gera a senha;
 2. grava o usuário em `USUARIOS` com `ATIVO = FALSE`;
-3. grava a solicitação como `PENDENTE`;
+3. para Gestor de Conteúdo, exige uma ou mais unidades selecionadas por Município e Fórum e grava seus IDs na solicitação `PENDENTE`;
 4. envia a senha ao solicitante pela fila `EMAILS_PENDENTES`.
 
-Após a aprovação pelo Gestor do Sistema, `ATIVO` passa para `TRUE` e o login é liberado. A sessão usa um token temporário no `sessionStorage`; a senha não é mantida no navegador depois do login. O schema V4 esperado é `ID | NOME | EMAIL | NIVEL | SENHA | ATIVO`. O acesso pela conta Google permanece como compatibilidade para gestores já cadastrados.
+Após a aprovação pelo Gestor do Sistema, `ATIVO` passa para `TRUE`, cada unidade aprovada gera um vínculo ativo em `ACESSOS_UNIDADES (ID | USUARIO_ID | UNIDADE_ID | ATIVO)` e o login é liberado. Gestor do Sistema possui escopo global e não precisa de vínculos unitários. A sessão usa um token temporário no `sessionStorage`; a senha não é mantida no navegador depois do login. O schema V4 esperado é `ID | NOME | EMAIL | NIVEL | SENHA | ATIVO`. O acesso pela conta Google permanece como compatibilidade para gestores já cadastrados.
 
-O escopo de gestores de conteúdo é resolvido por `ACESSOS_UNIDADES` quando houver vínculos ativos.
+O escopo de gestores de conteúdo é resolvido exclusivamente por vínculos ativos em `ACESSOS_UNIDADES`; ausência de vínculo significa ausência de acesso administrativo às unidades.
 
 ## Abas principais
 

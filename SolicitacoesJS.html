@@ -187,11 +187,17 @@ function renderizarSolicitacoes(
       )
     );
 
-    tr.appendChild(
-      criarCelulaSolicitacao(
-        sol.comarca
-      )
+    const unidades = Array.isArray(sol.unidades) ? sol.unidades : [];
+    const celulaUnidades = criarCelulaSolicitacao(
+      String(sol.perfilSolicitado || "").toUpperCase() === "GESTOR_SISTEMA"
+        ? "Todas as unidades (acesso total)"
+        : unidades.map(function(unidade) {
+            return unidade.municipio + " › " + unidade.forum + " › " + unidade.nome;
+          }).join("\n")
     );
+    celulaUnidades.style.whiteSpace = "pre-line";
+    celulaUnidades.style.minWidth = "260px";
+    tr.appendChild(celulaUnidades);
 
     tr.appendChild(
       criarCelulaSolicitacao(
@@ -310,7 +316,7 @@ function renderizarSolicitacoes(
 function aprovarSolicitacao(id) {
   if (
     !confirm(
-      "Confirma a aprovação deste usuário como Gestor de Conteúdo?"
+      "Confirma a aprovação desta solicitação e das unidades selecionadas?"
     )
   ) {
     return;
