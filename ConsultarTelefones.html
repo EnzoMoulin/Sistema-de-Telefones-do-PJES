@@ -7,47 +7,28 @@ Arquivo: ConsultarTelefones.html
 
 <div class="telefones-container">
 
-  <div class="telefones-header">
-
-    <button id="btn-imprimir-consulta" class="hidden" style="display:none;" onclick="imprimirConsultaPDF()" aria-hidden="true" tabindex="-1"></button>
-
-  </div>
+  <button id="btn-imprimir-consulta" class="hidden" style="display:none;" onclick="imprimirConsultaPDF()" aria-hidden="true" tabindex="-1"></button>
 
   <div class="consulta-layout">
 
     <!-- =====================================================
-         COLUNA ESQUERDA — MAPA RESPONSIVO (ocupa todo esquerdo)
+         COLUNA ESQUERDA — MAPA RESPONSIVO
          ===================================================== -->
 
-    <aside class="consulta-esquerda">
-
-      <div id="consulta-mapa"></div>
-
-      <!-- DETALHES DO SETOR (sobrepoe mapa quando selecionado) -->
-
-      <div id="consulta-detalhes-conteudo" style="display:none;"></div>
-
-    </aside>
+    <section id="consulta-mapa" class="consulta-mapa-bloco" aria-label="Mapa dos municípios do Espírito Santo">
+      <div id="fc-map" class="fc-map" role="region" aria-label="Mapa interativo dos municípios do Espírito Santo"></div>
+    </section>
 
     <!-- =====================================================
-         COLUNA DIREITA — CONTATOS DO PJES (lista)
+         COLUNA DIREITA — NAVEGAÇÃO DE CONTATOS
          ===================================================== -->
 
-    <section id="consulta-detalhes" class="consulta-detalhes">
-
-      <div class="consulta-lista-wrapper">
-
-        <div
-          id="consulta-lista"
-          class="consulta-lista"
-        >
-          <div class="panel consulta-lista-vazio">
-            Selecione um município no mapa para ver os detalhes.
-          </div>
+    <section id="consulta-detalhes" class="consulta-detalhes" aria-label="Contatos do PJES">
+      <div class="fc-panel">
+        <div id="fc-content" aria-live="polite">
+          <div class="fc-empty">Carregando contatos...</div>
         </div>
-
       </div>
-
     </section>
 
   </div>
