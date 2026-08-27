@@ -29,9 +29,9 @@ function pesquisarHierarquiaPublicaForum(termo) {
   }
 }
 
-function validarArquiteturaForum() {
+function validarArquiteturaForum(authDados) {
   try {
-    new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
+    new AuthService(authDados).exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
     return respostaSucesso(validarModeloForumContatos());
   } catch (erro) {
     try { registrarErroAPI("VALIDAR_ARQUITETURA_FORUM", erro); } catch (e) {}
@@ -39,9 +39,9 @@ function validarArquiteturaForum() {
   }
 }
 
-function validarDadosReaisForumV4API() {
+function validarDadosReaisForumV4API(authDados) {
   try {
-    new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
+    new AuthService(authDados).exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
     return respostaSucesso(validarDadosReaisForumV4());
   } catch (erro) {
     try { registrarErroAPI("VALIDAR_DADOS_REAIS_FORUM_V4", erro); } catch (e) {}

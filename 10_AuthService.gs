@@ -6,9 +6,12 @@
  */
 
 class AuthService {
-  constructor() {
+  constructor(authDados) {
     this.cache = CacheService.getUserCache();
-    this.email = this.obterEmailDaSessao();
+    this.sessaoSenha = AuthService.obterSessaoSenha(authDados);
+    this.email = this.sessaoSenha
+      ? normalizarEmail(this.sessaoSenha.email)
+      : this.obterEmailDaSessao();
   }
 
   /**
@@ -24,6 +27,83 @@ class AuthService {
     } catch (erro) {
       return "";
     }
+  }
+
+  static extrairToken(authDados) {
+    if (typeof authDados === "string") return textoSeguro(authDados);
+    if (!authDados || typeof authDados !== "object") return "";
+    return textoSeguro(authDados.token || authDados.TOKEN || authDados.sessionToken);
+  }
+
+  static chaveSessaoSenha(token) {
+    return "AUTH_SENHA_" + hashSenha(token);
+  }
+
+  static criarSessaoSenha(usuario) {
+    const email = normalizarEmail(usuario && usuario.email);
+    const perfil = String((usuario && usuario.perfil) || "").trim().toUpperCase();
+
+    if (!email || !emailInstitucional(email)) {
+      throw new Error("Não foi possível criar a sessão de acesso.");
+    }
+
+    const token = Utilities.getUuid().replace(/-/g, "") + Utilities.getUuid().replace(/-/g, "");
+    const duracao = Math.min(Math.max(Number(CONFIG.AUTH.DURACAO_SESSAO_SEGUNDOS) || 3600, 60), 21600);
+    const expiraEm = Date.now() + duracao * 1000;
+    const sessao = { email: email, perfil: perfil, expiraEm: expiraEm };
+
+    CacheService.getScriptCache().put(
+      AuthService.chaveSessaoSenha(token),
+      JSON.stringify(sessao),
+      duracao
+    );
+
+    return { token: token, expiraEm: expiraEm };
+  }
+
+  static obterSessaoSenha(authDados) {
+    const token = AuthService.extrairToken(authDados);
+    if (!token) return null;
+
+    try {
+      const bruto = CacheService.getScriptCache().get(AuthService.chaveSessaoSenha(token));
+      if (!bruto) return null;
+
+      const sessao = JSON.parse(bruto);
+      if (!sessao || !sessao.email || Number(sessao.expiraEm || 0) <= Date.now()) {
+        CacheService.getScriptCache().remove(AuthService.chaveSessaoSenha(token));
+        return null;
+      }
+
+      return sessao;
+    } catch (erro) {
+      return null;
+    }
+  }
+
+  static chaveTentativasLogin(email) {
+    return "AUTH_FALHAS_" + hashSenha(normalizarEmail(email)).slice(0, 32);
+  }
+
+  static verificarLimiteLogin(email) {
+    const cache = CacheService.getScriptCache();
+    const tentativas = Number(cache.get(AuthService.chaveTentativasLogin(email)) || 0);
+    if (tentativas >= 5) {
+      throw new Error("Muitas tentativas de login. Aguarde 10 minutos e tente novamente.");
+    }
+  }
+
+  static registrarFalhaLogin(email) {
+    if (!email) return;
+    const cache = CacheService.getScriptCache();
+    const chave = AuthService.chaveTentativasLogin(email);
+    const tentativas = Number(cache.get(chave) || 0) + 1;
+    cache.put(chave, String(tentativas), 600);
+  }
+
+  static limparFalhasLogin(email) {
+    if (!email) return;
+    CacheService.getScriptCache().remove(AuthService.chaveTentativasLogin(email));
   }
 
   /**
@@ -82,7 +162,14 @@ class AuthService {
    *
    * Não encerra a conta Google.
    */
-  static limparSessao() {
+  static limparSessao(authDados) {
+    const token = AuthService.extrairToken(authDados);
+    if (token) {
+      try {
+        CacheService.getScriptCache().remove(AuthService.chaveSessaoSenha(token));
+      } catch (erroToken) {}
+    }
+
     const cache = CacheService.getUserCache();
 
     cache.remove("emailLogado");
@@ -118,14 +205,16 @@ class AuthService {
 
     const usuario = this.buscarUsuario(this.email);
 
-    return {
-      email: this.email,
-      nome: usuario.nome || this.email.split("@")[0],
-      perfil: usuario.ativo ? usuario.perfil : CONFIG.PERFIS.USUARIO_CONSULTA,
-      logado: true,
-      ativo: usuario.ativo === true,
-      comarcas: usuario.comarcas || []
-    };
+      return {
+        id: usuario.id || "",
+        email: this.email,
+        nome: usuario.nome || this.email.split("@")[0],
+        perfil: usuario.ativo ? usuario.perfil : CONFIG.PERFIS.USUARIO_CONSULTA,
+        nivel: usuario.nivel || nivelPorPerfil(usuario.perfil),
+        logado: usuario.ativo === true,
+        ativo: usuario.ativo === true,
+        comarcas: usuario.comarcas || []
+      };
   }
 
   /**
@@ -165,23 +254,10 @@ class AuthService {
           : textoSeguro(linha[1]);
 
       // v3.34 — NIVEL numérico (1/2/3) tem precedência sobre PERFIL string
-      let perfilInformado = CONFIG.PERFIS.USUARIO_CONSULTA;
-      if (idxNivel !== undefined && linha[idxNivel - 1] !== undefined && String(linha[idxNivel - 1]).trim() !== "") {
-        const nivelNum = parseInt(String(linha[idxNivel - 1]).trim(), 10);
-        if (CONFIG.NIVEIS && CONFIG.NIVEIS.POR_NIVEL && CONFIG.NIVEIS.POR_NIVEL[String(nivelNum)]) {
-          perfilInformado = CONFIG.NIVEIS.POR_NIVEL[String(nivelNum)];
-        } else if (nivelNum === 3) perfilInformado = CONFIG.PERFIS.GESTOR_SISTEMA;
-        else if (nivelNum === 2) perfilInformado = CONFIG.PERFIS.GESTOR_CONTEUDO;
-        else perfilInformado = CONFIG.PERFIS.USUARIO_CONSULTA;
-      } else {
-        perfilInformado =
-          String(
-            (idxPerfil !== undefined ? linha[idxPerfil - 1] : linha[2]) ||
-            CONFIG.PERFIS.USUARIO_CONSULTA
-          )
-            .trim()
-            .toUpperCase();
-      }
+      const perfilInformado = perfilUsuarioPorLinha(mapa, linha);
+      const nivel = idxNivel !== undefined
+        ? Number(linha[idxNivel - 1]) || nivelPorPerfil(perfilInformado)
+        : nivelPorPerfil(perfilInformado);
 
       const perfisValidos = [CONFIG.PERFIS.GESTOR_SISTEMA, CONFIG.PERFIS.GESTOR_CONTEUDO, CONFIG.PERFIS.USUARIO_CONSULTA];
 
@@ -254,9 +330,11 @@ class AuthService {
       }
 
       return {
+        id: idxId !== undefined ? textoSeguro(linha[idxId - 1]) : "",
         email: emailLinha,
         nome: nome,
         perfil: ativo ? perfilSeguro : CONFIG.PERFIS.USUARIO_CONSULTA,
+        nivel: nivel,
         ativo: ativo,
         comarcas: comarcas
       };
@@ -267,9 +345,11 @@ class AuthService {
      * Ele pode solicitar acesso, mas não pode editar.
      */
     return {
+      id: "",
       email: normalizarEmail(email),
       nome: normalizarEmail(email).split("@")[0],
       perfil: CONFIG.PERFIS.USUARIO_CONSULTA,
+      nivel: 1,
       ativo: false,
       comarcas: []
     };

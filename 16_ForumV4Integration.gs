@@ -54,24 +54,12 @@ function _v4ValorNormalizado(valor) {
   return limparTexto(valor);
 }
 
-function _v4Usuario() {
-  const sheet = DB.usuarios();
-  const mapa = DB.map(sheet);
-  const emailAtivo = normalizarEmail(AuthService.obterEmailAtivo());
-  const dados = DB.read(sheet);
-  for (const linha of dados) {
-    const email = normalizarEmail(_v4Col(mapa, linha, ["EMAIL"]));
-    if (email !== emailAtivo) continue;
-    const nivel = Number(_v4Col(mapa, linha, ["NIVEL"], 1)) || 1;
-    const ativo = paraBoolean(_v4Col(mapa, linha, ["ATIVO"], false));
-    const perfil = CONFIG.NIVEIS.POR_NIVEL[String(nivel)] || CONFIG.PERFIS.USUARIO_CONSULTA;
-    return { email, nome: textoSeguro(_v4Col(mapa, linha, ["NOME"])) || email, nivel, perfil, ativo, logado: !!emailAtivo };
-  }
-  return { email: emailAtivo, nome: emailAtivo, nivel: 1, perfil: CONFIG.PERFIS.USUARIO_CONSULTA, ativo: true, logado: !!emailAtivo };
+function _v4Usuario(authDados) {
+  return new AuthService(authDados).usuarioAtual();
 }
 
-function v4ObterUsuarioAtual() {
-  return respostaSucesso(_v4Usuario());
+function v4ObterUsuarioAtual(authDados) {
+  return respostaSucesso(_v4Usuario(authDados));
 }
 
 function _v4EscopoPermitido(usuario, forumId, unidadeId) {
@@ -88,7 +76,7 @@ function _v4EscopoPermitido(usuario, forumId, unidadeId) {
   acessos.forEach(l => {
     const uid = textoSeguro(_v4Col(mapa, l, ["UNIDADE_ID"]));
     const uidUsuario = textoSeguro(_v4Col(mapa, l, ["USUARIO_ID"]));
-    if (uid && (!uidUsuario || uidUsuario === usuario.email)) unidades.add(uid);
+    if (uid && (!uidUsuario || uidUsuario === usuario.id || uidUsuario === usuario.email)) unidades.add(uid);
   });
   if (unidadeId && unidades.has(unidadeId)) return true;
   if (!unidadeId && forumId) {
@@ -200,32 +188,32 @@ function _v4Flat(opcoes) {
   return out;
 }
 
-function v4ListarContatos() {
-  new AuthService().exigirPermissao(CONFIG.PERMISSOES.VISUALIZAR);
-  const usuario = _v4Usuario();
+function v4ListarContatos(authDados) {
+  new AuthService(authDados).exigirPermissao(CONFIG.PERMISSOES.VISUALIZAR);
+  const usuario = _v4Usuario(authDados);
   return respostaSucesso(_v4Flat({}).filter(x => _v4EscopoPermitido(usuario, x.forumId, x.unidadeId)));
 }
 
-function v4PesquisarContatos(texto) {
-  new AuthService().exigirPermissao(CONFIG.PERMISSOES.PESQUISAR);
+function v4PesquisarContatos(texto, authDados) {
+  new AuthService(authDados).exigirPermissao(CONFIG.PERMISSOES.PESQUISAR);
   const termo = textoSeguro(texto);
   if (termo && limparTexto(termo).length < CONFIG.LIMITES.TAMANHO_PESQUISA) return respostaSucesso([]);
-  const usuario = _v4Usuario();
+  const usuario = _v4Usuario(authDados);
   const dados = _v4Flat({}).filter(x => _v4EscopoPermitido(usuario, x.forumId, x.unidadeId));
   const t = limparTexto(termo);
   if (!t) return respostaSucesso(dados);
   return respostaSucesso(dados.filter(x => limparTexto([x.municipio, x.forum, x.unidade, x.setor, x.tipo, x.descricao, x.valor, x.email, x.endereco, x.observacao].join(" ")).includes(t)));
 }
 
-function v4ListarMunicipios() {
-  new AuthService().exigirPermissao(CONFIG.PERMISSOES.VISUALIZAR);
+function v4ListarMunicipios(authDados) {
+  new AuthService(authDados).exigirPermissao(CONFIG.PERMISSOES.VISUALIZAR);
   const hier = construirHierarquiaForumContatos({});
   return respostaSucesso((hier.municipios || []).map(m => m.nome));
 }
 
-function v4CarregarDashboard() {
-  new AuthService().exigirPermissao(CONFIG.PERMISSOES.VISUALIZAR);
-  const dados = v4ListarContatos().dados || [];
+function v4CarregarDashboard(authDados) {
+  new AuthService(authDados).exigirPermissao(CONFIG.PERMISSOES.VISUALIZAR);
+  const dados = v4ListarContatos(authDados).dados || [];
   const tipos = {}, setores = {}, comarcas = {}, foruns = {}, unidades = {}, municipios = {};
   dados.forEach(x => {
     const tipo = x.tipo || "Não informado";
@@ -251,7 +239,7 @@ function _v4DadosContatoPorId(id) {
   return { row, mapa, obj };
 }
 
-function _v4HistoricoRegistrar(contatoId, acao, antes, depois) {
+function _v4HistoricoRegistrar(contatoId, acao, antes, depois, authDados) {
   const sh = DB.historico();
   const headers = DB.headers(sh);
   const mapa = DB.map(sh);
@@ -263,24 +251,24 @@ function _v4HistoricoRegistrar(contatoId, acao, antes, depois) {
     if (k === "ACAO") return acao;
     if (k === "ANTES") return JSON.stringify(antes || {});
     if (k === "DEPOIS") return JSON.stringify(depois || {});
-    if (k === "USUARIO") return _v4Usuario().email || "SISTEMA";
+    if (k === "USUARIO") return _v4Usuario(authDados).email || "SISTEMA";
     if (k === "DATA" || k === "DATACRIACAO") return new Date();
     return "";
   });
   sh.getRange(sh.getLastRow() + 1, 1, 1, linha.length).setValues([linha]);
 }
 
-function v4ObterContato(id) {
-  new AuthService().exigirPermissao(CONFIG.PERMISSOES.VISUALIZAR);
+function v4ObterContato(id, authDados) {
+  new AuthService(authDados).exigirPermissao(CONFIG.PERMISSOES.VISUALIZAR);
   const dados = _v4Flat({}).find(x => x.ID === textoSeguro(id));
   return respostaSucesso(dados || null);
 }
 
-function v4CriarContato(dados) {
-  new AuthService().exigirPermissao(CONFIG.PERMISSOES.EDITAR);
+function v4CriarContato(dados, authDados) {
+  new AuthService(authDados).exigirPermissao(CONFIG.PERMISSOES.EDITAR);
   const entrada = ehObjeto(dados) ? dados : {};
   const contexto = _v4ResolverContexto(entrada);
-  const usuario = _v4Usuario();
+  const usuario = _v4Usuario(authDados);
   if (!_v4EscopoPermitido(usuario, contexto.forumId, contexto.unidadeId)) throw new Error("Sem permissão para este Fórum/Unidade.");
   const tipo = _v4TipoNormalizado(valorObjeto(entrada, "tipo", "TIPO"));
   const valor = textoSeguro(valorObjeto(entrada, "valor", "VALOR"));
@@ -313,17 +301,17 @@ function v4CriarContato(dados) {
     return "";
   });
   sh.getRange(sh.getLastRow() + 1, 1, 1, linha.length).setValues([linha]);
-  _v4HistoricoRegistrar(id, "CRIACAO", {}, { id, ...contexto, tipo, descricao, valor });
+  _v4HistoricoRegistrar(id, "CRIACAO", {}, { id, ...contexto, tipo, descricao, valor }, authDados);
   try { CACHE.limparTudo(); } catch (e) {}
-  return v4ObterContato(id);
+  return v4ObterContato(id, authDados);
 }
 
-function v4AtualizarContato(id, dados) {
-  new AuthService().exigirPermissao(CONFIG.PERMISSOES.EDITAR);
+function v4AtualizarContato(id, dados, authDados) {
+  new AuthService(authDados).exigirPermissao(CONFIG.PERMISSOES.EDITAR);
   const atual = _v4DadosContatoPorId(id);
   if (!atual) throw new Error("Contato não encontrado.");
-  const usuario = _v4Usuario();
-  const antigo = v4ObterContato(id).dados;
+  const usuario = _v4Usuario(authDados);
+  const antigo = v4ObterContato(id, authDados).dados;
   const entrada = ehObjeto(dados) ? dados : {};
   const contexto = _v4ResolverContexto(Object.assign({}, antigo, entrada));
   if (!_v4EscopoPermitido(usuario, contexto.forumId, contexto.unidadeId)) throw new Error("Sem permissão para este Fórum/Unidade.");
@@ -352,16 +340,16 @@ function v4AtualizarContato(id, dados) {
     return atualObj[h] === undefined ? "" : atualObj[h];
   });
   sh.getRange(rowIndex, 1, 1, linha.length).setValues([linha]);
-  _v4HistoricoRegistrar(id, "EDICAO", antigo, { id, ...contexto, tipo, descricao, valor });
+  _v4HistoricoRegistrar(id, "EDICAO", antigo, { id, ...contexto, tipo, descricao, valor }, authDados);
   try { CACHE.limparTudo(); } catch (e) {}
-  return v4ObterContato(id);
+  return v4ObterContato(id, authDados);
 }
 
-function v4ExcluirContato(id) {
-  new AuthService().exigirPermissao(CONFIG.PERMISSOES.EXCLUIR);
-  const atual = v4ObterContato(id).dados;
+function v4ExcluirContato(id, authDados) {
+  new AuthService(authDados).exigirPermissao(CONFIG.PERMISSOES.EXCLUIR);
+  const atual = v4ObterContato(id, authDados).dados;
   if (!atual) throw new Error("Contato não encontrado.");
-  const usuario = _v4Usuario();
+  const usuario = _v4Usuario(authDados);
   if (!_v4EscopoPermitido(usuario, atual.forumId, atual.unidadeId)) throw new Error("Sem permissão para este Fórum/Unidade.");
   const sh = DB.contatos();
   const mapa = DB.map(sh);
@@ -369,16 +357,16 @@ function v4ExcluirContato(id) {
   const idx = valores.findIndex(l => textoSeguro(_v4Col(mapa, l, ["ID"])) === textoSeguro(id));
   if (idx < 0) throw new Error("Contato não encontrado.");
   sh.deleteRow(idx + 2);
-  _v4HistoricoRegistrar(id, "EXCLUSAO", atual, {});
+  _v4HistoricoRegistrar(id, "EXCLUSAO", atual, {}, authDados);
   try { CACHE.limparTudo(); } catch (e) {}
   return respostaSucesso({ id, excluido: true });
 }
 
-function v4HistoricoContato(id) {
-  new AuthService().exigirPermissao(CONFIG.PERMISSOES.HISTORICO);
-  const atual = v4ObterContato(id).dados;
+function v4HistoricoContato(id, authDados) {
+  new AuthService(authDados).exigirPermissao(CONFIG.PERMISSOES.HISTORICO);
+  const atual = v4ObterContato(id, authDados).dados;
   if (!atual) return respostaSucesso([]);
-  if (!_v4EscopoPermitido(_v4Usuario(), atual.forumId, atual.unidadeId)) throw new Error("Sem permissão para este Fórum/Unidade.");
+  if (!_v4EscopoPermitido(_v4Usuario(authDados), atual.forumId, atual.unidadeId)) throw new Error("Sem permissão para este Fórum/Unidade.");
   const sh = DB.historico();
   const mapa = DB.map(sh);
   return respostaSucesso(DB.read(sh).filter(l => textoSeguro(_v4Col(mapa, l, ["CONTATO_ID", "TELEFONE_ID", "TELEFONEID"])) === textoSeguro(id)).map(l => {
