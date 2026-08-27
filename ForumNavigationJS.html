@@ -14,6 +14,7 @@
     setor: null,
     mapa: null,
     geojson: null,
+    resizeObserver: null,
     inicializado: false
   };
 
@@ -76,9 +77,8 @@
     var style = document.createElement("style");
     style.id = "fc-navigation-style";
     style.textContent = `
-      .fc-root{display:grid;grid-template-columns:minmax(280px,420px) 1fr;gap:18px;align-items:start}
-      .fc-map{min-height:520px;border-radius:14px;overflow:hidden;background:#e2e8f0}
-      .fc-panel{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;box-shadow:0 4px 16px rgba(15,23,42,.06)}
+      .fc-map{width:100%;height:100%;min-height:0;border-radius:10px;overflow:hidden;background:#e2e8f0}
+      .fc-panel{width:100%;height:100%;min-height:0;overflow-y:auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:clamp(16px,2vw,24px);box-shadow:0 4px 16px rgba(15,23,42,.06)}
       .fc-title{font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px}
       .fc-subtitle{color:#64748b;font-size:13px;margin:0 0 14px}
       .fc-search{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #cbd5e1;border-radius:10px;margin-bottom:10px;font-size:14px}
@@ -94,31 +94,12 @@
       .fc-table{width:100%;border-collapse:collapse;font-size:13px}.fc-table th,.fc-table td{padding:8px 7px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top}.fc-table th{font-size:11px;text-transform:uppercase;color:#64748b}
       .fc-inherit{margin-top:10px;padding:10px 12px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;color:#475569;font-size:12px}
       .fc-empty{padding:20px;border:1px dashed #cbd5e1;border-radius:12px;color:#64748b;text-align:center}
-      @media (max-width: 800px){
-        .fc-root{display:flex;flex-direction:column}
-        .fc-map-wrap{order:-2;width:100%}.fc-content-wrap{order:-1;width:100%}
-        .fc-map{min-height:360px}
-      }
     `;
     document.head.appendChild(style);
   }
 
-  function rootHtml() {
-    return '' +
-      '<div class="fc-root">' +
-        '<section class="fc-map-wrap"><div id="fc-map" class="fc-map"></div></section>' +
-        '<section class="fc-content-wrap"><div class="fc-panel">' +
-          '<div id="fc-content"></div>' +
-        '</div></section>' +
-      '</div>';
-  }
-
   function getHost() {
-    var host = document.getElementById("consulta-detalhes-conteudo");
-    if (!host) return null;
-    host.style.display = "block";
-    host.innerHTML = rootHtml();
-    return host;
+    return document.getElementById("fc-content");
   }
 
   function callServer(termo, cb) {
@@ -266,17 +247,49 @@
           estado.geojson = L.geoJSON(data, {
             style: function(){ return { color:'#2563eb', weight:1, fillColor:'#60a5fa', fillOpacity:.18 }; },
             onEachFeature: function(feature, layer){
+              var props = feature.properties || {};
+              var nome = String(props.name || props.NOME || props.NM_MUN || "Município");
+              layer.bindTooltip(esc(nome), { permanent:false, direction:"auto", sticky:true, className:"tooltip-premium" });
               layer.on('click', function(){
-                var props = feature.properties || {};
                 var cod = String(props.CD_MUN || props.codmun || props.id || props.code || '');
                 var m = (estado.dados && estado.dados.municipios || []).find(function(x){ return String(x.codigoIbge) === cod || String(x.codigoIbge).replace(/\D/g,'') === cod.replace(/\D/g,''); });
                 if (m) abrirMunicipio(m.id);
               });
             }
           }).addTo(estado.mapa);
+          try { estado.mapa.fitBounds(estado.geojson.getBounds(), { padding:[10,10] }); } catch (e) {}
+          setTimeout(function(){
+            try {
+              estado.mapa.invalidateSize();
+              estado.mapa.fitBounds(estado.geojson.getBounds(), { padding:[10,10] });
+            } catch (e) {}
+          }, 180);
         })
         .catch(function(err){ console.warn('GeoJSON não carregado', err); });
+      if (window.ResizeObserver) {
+        if (estado.resizeObserver) estado.resizeObserver.disconnect();
+        estado.resizeObserver = new ResizeObserver(function(){
+          try { if (estado.mapa) estado.mapa.invalidateSize(); } catch (e) {}
+        });
+        estado.resizeObserver.observe(el);
+      }
     } catch(e) { console.warn('Mapa não inicializado', e); }
+  }
+
+  function atualizarMapaIntegrado() {
+    if (!estado.inicializado) {
+      window.iniciarConsultaTelefones();
+      return false;
+    }
+    setTimeout(function(){
+      try {
+        if (estado.mapa) {
+          estado.mapa.invalidateSize();
+          if (estado.geojson) estado.mapa.fitBounds(estado.geojson.getBounds(), { padding:[10,10] });
+        }
+      } catch (e) {}
+    }, 80);
+    return true;
   }
 
   window.fcInicio = function(){ renderInicio(); };
@@ -290,7 +303,11 @@
     estado.inicializado = true;
     injectStyle();
     var host = getHost();
-    if (!host) return;
+    if (!host) {
+      estado.inicializado = false;
+      return;
+    }
+    host.innerHTML = '<div class="fc-empty">Carregando contatos...</div>';
     callServer("", function(dados){
       estado.dados = dados || { municipios: [] };
       renderInicio();
@@ -300,6 +317,8 @@
 
   // Compatibilidade com o nome antigo chamado por algumas telas.
   window.carregarTelefones = window.iniciarConsultaTelefones;
+  window.renderizarMapaConsulta = atualizarMapaIntegrado;
+  window.tentarInicializarMapa = atualizarMapaIntegrado;
 })();
 
 // V4 fallback: if hierarquia empty, fallback to legacy iniciarConsultaTelefones

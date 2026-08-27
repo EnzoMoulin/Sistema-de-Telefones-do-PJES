@@ -1208,9 +1208,10 @@ body{
 
 .consulta-layout{
   display:grid;
-  grid-template-columns:minmax(340px,38%) minmax(0,1fr);
-  gap:16px;
-  height:calc(100vh - 185px);
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:clamp(16px,2vw,24px);
+  height:calc(100vh - 116px);
+  height:calc(100dvh - 116px);
   min-height:520px;
   align-items:stretch
 }
@@ -1281,16 +1282,23 @@ body{
   height:100%;
   display:flex;
   flex-direction:column;
-  overflow:hidden
+  overflow:hidden;
+  border-radius:14px
 }
 
 #consulta-mapa{
-  flex:1;
   width:100%;
   height:100%;
-  min-height:400px;
+  min-width:0;
+  min-height:0;
   display:flex;
   flex-direction:column;
+  padding:12px;
+  overflow:hidden;
+  background:#fff;
+  border:1px solid #e2e8f0;
+  border-radius:14px;
+  box-shadow:0 4px 16px rgba(15,23,42,.06)
 }
 
 .mapa-panel{
@@ -1571,18 +1579,14 @@ body.mapa-aberto{
   .consulta-layout{
     grid-template-columns:1fr;
     height:auto;
-    min-height:0
-  }
-
-  .consulta-esquerda{
-    height:55vh;
-    min-height:420px;
+    min-height:0;
+    gap:16px
   }
 
   #consulta-mapa{
-    min-height:400px;
-    height:100%;
-    flex:1;
+    height:clamp(420px,55vh,620px);
+    height:clamp(420px,55dvh,620px);
+    min-height:420px
   }
 
   #mapa-leaflet{
@@ -1594,16 +1598,22 @@ body.mapa-aberto{
   .consulta-lista{max-height:40vh}
 
   .consulta-detalhes{
-    height:65vh;
-    min-height:500px
+    height:clamp(520px,68vh,760px);
+    height:clamp(520px,68dvh,760px);
+    min-height:520px
   }
 }
 
 @media(max-width:900px){
   .sidebar{
     width:80px;
-    min-width:80px
+    min-width:80px;
+    overflow-x:hidden
   }
+
+  #texto-status-acesso{display:none}
+
+  #btn-status-acesso{padding:10px 8px!important}
 
   .main-container,.main-content{
     width:calc(100% - 80px);
@@ -1645,6 +1655,21 @@ body.mapa-aberto{
 }
 
 @media(max-width:760px){
+  .consulta-layout{gap:14px}
+
+  #consulta-mapa{
+    height:clamp(340px,52vh,480px);
+    height:clamp(340px,52dvh,480px);
+    min-height:340px;
+    padding:8px
+  }
+
+  .consulta-detalhes{
+    height:clamp(520px,72vh,700px);
+    height:clamp(520px,72dvh,700px);
+    min-height:520px
+  }
+
   .mapa-overlay{padding:8px}
 
   .mapa-overlay-painel{
