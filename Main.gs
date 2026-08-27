@@ -150,10 +150,9 @@ function obterUsuarioAdmin(email) {
     const mapa = DB.map(sheet);
     const idxEmail = mapa.EMAIL;
     const idxNome = mapa.NOME;
-    const idxPerfil = mapa.PERFIL;
     const idxAtivo = mapa.ATIVO;
 
-    if (!idxEmail || !idxPerfil || !idxAtivo) {
+    if (!idxEmail || (!mapa.PERFIL && !mapa.NIVEL) || !idxAtivo) {
       return null;
     }
 
@@ -165,7 +164,7 @@ function obterUsuarioAdmin(email) {
       }
 
       const nome = textoSeguro(idxNome ? linha[idxNome - 1] : "");
-      const perfil = String(linha[idxPerfil - 1] || "").trim().toUpperCase();
+      const perfil = perfilUsuarioPorLinha(mapa, linha);
       const ativo = paraBoolean(linha[idxAtivo - 1]);
 
       const ehAdministrativo =

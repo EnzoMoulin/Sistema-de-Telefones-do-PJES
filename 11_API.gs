@@ -530,9 +530,9 @@ function obterUsuarioAtual() {
   }
 }
 
-function encerrarSessao() {
+function encerrarSessao(authDados) {
   try {
-    AuthService.limparSessao();
+    AuthService.limparSessao(authDados);
     return respostaSucesso(true);
   } catch (erro) {
     registrarErroAPI(
@@ -612,9 +612,9 @@ function montarLinhaSolicitacao(indices, campos) {
   return linha;
 }
 
-function listarSolicitacoes() {
+function listarSolicitacoes(authDados) {
   try {
-    new AuthService().exigirPerfil(
+    new AuthService(authDados).exigirPerfil(
       CONFIG.PERFIS.GESTOR_SISTEMA
     );
 
@@ -666,9 +666,9 @@ function listarSolicitacoes() {
   }
 }
 
-function contarSolicitacoesPendentes() {
+function contarSolicitacoesPendentes(authDados) {
   try {
-    new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
+    new AuthService(authDados).exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
     const sheet = DB.solicitacoesAcesso();
     if (!sheet) return respostaSucesso({ total: 0 });
     const dados = sheet.getDataRange().getValues();
@@ -691,77 +691,111 @@ function contarSolicitacoesPendentes() {
  * institucional. Justificativa e comarca são opcionais
  * para manter compatibilidade com chamadas antigas.
  */
-function autenticarConsulta(dados){
-  try{
-    var entrada = ehObjeto(dados)?dados:{};
-    var email = normalizarEmail(valorObjeto(entrada, "email", "EMAIL"));
-    var senha = textoSeguro(valorObjeto(entrada, "senha", "SENHA", "password"));
-    if(!emailValidoAPI(email)) throw new Error("Informe um e-mail válido.");
-    if(!senha) throw new Error("Informe a senha.");
-    var sheet = DB.usuarios();
-    var mapa = DB.map(sheet);
-    var idxEmail = mapa.EMAIL;
-    var idxNome = mapa.NOME;
-    var idxPerfil = mapa.PERFIL;
-    var idxAtivo = mapa.ATIVO;
-    var idxSenha = mapa.SENHA;
-    var idxComarcas = mapa.COMARCAS;
-    var dadosU = sheet.getDataRange().getValues();
-    var headers = DB.headers(sheet);
-    // garante coluna SENHA se faltar
-    if(idxSenha===undefined){
-      try{ var ssTmp2=DB.getSpreadsheet(); garantirColunaSenhaUsuarios(ssTmp2, sheet); mapa=DB.map(sheet); idxSenha=mapa.SENHA; headers=DB.headers(sheet);}catch(e){}
+function autenticarConsulta(dados) {
+  let email = "";
+  try {
+    const entrada = ehObjeto(dados) ? dados : {};
+    email = normalizarEmail(valorObjeto(entrada, "email", "EMAIL"));
+    const senha = textoSeguro(valorObjeto(entrada, "senha", "SENHA", "password"));
+
+    if (!emailValidoAPI(email) || !emailInstitucional(email)) {
+      throw new Error("Informe um e-mail institucional válido.");
     }
-    var encontrado = null;
-    for(var i=1;i<dadosU.length;i++){
-      var emailLin = idxEmail!==undefined ? normalizarEmail(dadosU[i][idxEmail-1]) : normalizarEmail(dadosU[i][0]);
-      if(emailLin===email){
-        var senhaPlan = idxSenha!==undefined ? textoSeguro(dadosU[i][idxSenha-1]) : "";
-        if(senhaPlan !== senha){
-          throw new Error("Senha incorreta.");
+    if (senha.length !== 20) {
+      throw new Error("A senha deve ter exatamente 20 caracteres.");
+    }
+    AuthService.verificarLimiteLogin(email);
+
+    const sheet = DB.usuarios();
+    let mapa = DB.map(sheet);
+    if (mapa.SENHA === undefined) {
+      garantirColunaSenhaUsuarios(DB.getSpreadsheet(), sheet);
+      mapa = DB.map(sheet);
+    }
+
+    if (mapa.EMAIL === undefined || mapa.SENHA === undefined || mapa.ATIVO === undefined) {
+      throw new Error("A aba USUARIOS não possui os cabeçalhos EMAIL, SENHA e ATIVO.");
+    }
+
+    const linha = DB.read(sheet).find(function(item) {
+      return normalizarEmail(item[mapa.EMAIL - 1]) === email;
+    });
+
+    if (!linha) {
+      throw new Error("E-mail ou senha incorretos.");
+    }
+
+    const senhaArmazenada = textoSeguro(linha[mapa.SENHA - 1]);
+    if (!senhaArmazenada || !senhasIguaisConstante(senhaArmazenada, senha)) {
+      throw new Error("E-mail ou senha incorretos.");
+    }
+
+    const perfil = perfilUsuarioPorLinha(mapa, linha);
+    const ehGestor = perfil === CONFIG.PERFIS.GESTOR_CONTEUDO || perfil === CONFIG.PERFIS.GESTOR_SISTEMA;
+    if (!ehGestor) {
+      throw new Error("Este e-mail não possui acesso administrativo.");
+    }
+
+    if (!paraBoolean(linha[mapa.ATIVO - 1])) {
+      try {
+        const sheetPendente = DB.solicitacoesAcesso();
+        const dadosPendentes = sheetPendente.getDataRange().getValues();
+        const indicesPendentes = indicesSolicitacao(dadosPendentes[0] || []);
+        const temPendente = dadosPendentes.slice(1).some(function(item) {
+          return indicesPendentes.EMAIL !== undefined &&
+            indicesPendentes.STATUS !== undefined &&
+            normalizarEmail(item[indicesPendentes.EMAIL]) === email &&
+            String(item[indicesPendentes.STATUS] || "").trim().toUpperCase() === "PENDENTE";
+        });
+        if (temPendente) {
+          throw new Error("Acesso em andamento. Quando sua conta for aprovada você conseguirá entrar.");
         }
-        var perfilLin = idxPerfil!==undefined ? String(dadosU[i][idxPerfil-1]||"").trim().toUpperCase() : "";
-        var ativoLin = idxAtivo!==undefined ? paraBoolean(dadosU[i][idxAtivo-1]) : false;
-        var nomeLin = idxNome!==undefined ? textoSeguro(dadosU[i][idxNome-1]) : "";
-        var comarcasLin = idxComarcas!==undefined ? parseComarcas(dadosU[i][idxComarcas-1]) : [];
-        // Login por senha é para GESTOR (Conteúdo/Sistema). Consulta não usa senha.
-        var ehGestorPerfil = (perfilLin === CONFIG.PERFIS.GESTOR_CONTEUDO || perfilLin === CONFIG.PERFIS.GESTOR_SISTEMA);
-        if(!ehGestorPerfil){
-          throw new Error("Este e-mail não possui acesso de Gestor. Use o acesso de visitante ou solicite acesso como Gestor.");
+      } catch (erroPendente) {
+        if (String(erroPendente && erroPendente.message || "").indexOf("Acesso em andamento") !== -1) {
+          throw erroPendente;
         }
-        if(!ativoLin){
-          try{
-            var shPend = DB.solicitacoesAcesso();
-            var dadosPend = shPend.getDataRange().getValues();
-            var idxPend = indicesSolicitacao(dadosPend[0]||[]);
-            var temPendente = false;
-            if(idxPend.STATUS!==undefined && idxPend.EMAIL!==undefined){
-              temPendente = dadosPend.slice(1).some(function(r){ return normalizarEmail(r[idxPend.EMAIL])===email && String(r[idxPend.STATUS]||"").trim().toUpperCase()==="PENDENTE"; });
-            }
-            if(temPendente) throw new Error("Acesso em andamento. Quando sua conta for aprovada você conseguirá entrar.");
-          }catch(ePendMsg){ if(String(ePendMsg.message||"").indexOf("Acesso em andamento")!==-1) throw ePendMsg; }
-          throw new Error("Usuário inativo. Procure o Gestor do Sistema.");
-        }
-        encontrado = { email: email, nome: nomeLin || email.split("@")[0], perfil: perfilLin, ativo: true, comarcas: comarcasLin };
-        try{
-          const gestoresLogin = obterEmailsGestoresSistema();
-          const msgLogin = (nomeLin || email.split("@")[0]) + " (" + email + ") fez login no sistema como " + perfilLin + ".";
-          gestoresLogin.forEach(function(emailG){
-            try{ if(normalizarEmail(emailG) !== email) criarNotificacao(emailG, "LOGIN", msgLogin, email); }catch(e){}
-          });
-        }catch(eLoginNotif){ try{ registrarErroAPI("NOTIFICAR_LOGIN", eLoginNotif); }catch(e){} }
-        break;
       }
+      throw new Error("Usuário inativo. Procure o Gestor do Sistema.");
     }
-    if(!encontrado) throw new Error("E-mail não cadastrado. Preencha o Formulário de Acesso para receber sua senha.");
-    return respostaSucesso(encontrado);
-  }catch(erro){
+
+    const usuario = new AuthService().buscarUsuario(email);
+    const sessao = AuthService.criarSessaoSenha(usuario);
+    AuthService.limparFalhasLogin(email);
+    const resposta = {
+      id: usuario.id || "",
+      email: usuario.email,
+      nome: usuario.nome || email.split("@")[0],
+      perfil: usuario.perfil,
+      nivel: usuario.nivel || nivelPorPerfil(usuario.perfil),
+      ativo: true,
+      comarcas: usuario.comarcas || [],
+      token: sessao.token,
+      expiraEm: sessao.expiraEm
+    };
+
+    try {
+      const gestoresLogin = obterEmailsGestoresSistema();
+      const msgLogin = resposta.nome + " (" + email + ") fez login no sistema como " + resposta.perfil + ".";
+      gestoresLogin.forEach(function(emailGestor) {
+        try {
+          if (normalizarEmail(emailGestor) !== email) criarNotificacao(emailGestor, "LOGIN", msgLogin, email);
+        } catch (erroNotificacao) {}
+      });
+    } catch (erroLoginNotif) {
+      try { registrarErroAPI("NOTIFICAR_LOGIN", erroLoginNotif); } catch (erroLog) {}
+    }
+
+    return respostaSucesso(resposta);
+  } catch (erro) {
+    if (String(erro && erro.message || "").indexOf("E-mail ou senha incorretos") !== -1) {
+      try { AuthService.registrarFalhaLogin(email); } catch (erroLimite) {}
+    }
     registrarErroAPI("AUTENTICAR_CONSULTA", erro);
     return respostaErro(erro);
   }
 }
 
-function solicitarAcesso(nome, perfil, justificativa, comarca) {
+function solicitarAcesso(nome, perfil, justificativa, comarca, authDados) {
   const lock =
     LockService.getScriptLock();
 
@@ -772,7 +806,7 @@ function solicitarAcesso(nome, perfil, justificativa, comarca) {
     bloqueado = true;
 
     const usuario =
-      new AuthService().usuarioAtual();
+      new AuthService(authDados).usuarioAtual();
 
     if (
       !usuario.logado ||
@@ -1080,14 +1114,25 @@ function enviarFormularioAcesso(dados) {
       var senhaGestor = gerarSenha20();
       var sheetUsuariosGestor = DB.usuarios();
       var mapaUG = DB.map(sheetUsuariosGestor);
+      var idxIdUG = mapaUG.ID;
       var idxEmailUG = mapaUG.EMAIL;
       var idxNomeUG = mapaUG.NOME;
       var idxPerfilUG = mapaUG.PERFIL;
+      var idxNivelUG = mapaUG.NIVEL;
       var idxAtivoUG = mapaUG.ATIVO;
       var idxComarcasUG = mapaUG.COMARCAS;
       var idxSenhaUG = mapaUG.SENHA;
       if (idxSenhaUG === undefined) {
         try{ var ssTmpG = DB.getSpreadsheet(); garantirColunaSenhaUsuarios(ssTmpG, sheetUsuariosGestor); mapaUG = DB.map(sheetUsuariosGestor); idxSenhaUG = mapaUG.SENHA; }catch(eMigG){}
+      }
+      if (
+        idxEmailUG === undefined ||
+        idxNomeUG === undefined ||
+        idxAtivoUG === undefined ||
+        idxSenhaUG === undefined ||
+        (idxNivelUG === undefined && idxPerfilUG === undefined)
+      ) {
+        throw new Error("A aba USUARIOS não possui os cabeçalhos esperados para autenticação.");
       }
       var dadosUG = sheetUsuariosGestor.getDataRange().getValues();
       var headersUG = DB.headers(sheetUsuariosGestor);
@@ -1098,7 +1143,7 @@ function enviarFormularioAcesso(dados) {
         if (emailLinG === email){ linhaExistG = ig+1; break; }
       }
       if (linhaExistG !== -1) {
-        var perfilExistG = idxPerfilUG!==undefined ? String(dadosUG[linhaExistG-1][idxPerfilUG-1]||"").trim().toUpperCase() : "";
+        var perfilExistG = perfilUsuarioPorLinha(mapaUG, dadosUG[linhaExistG-1]);
         var ativoExistG = idxAtivoUG!==undefined ? paraBoolean(dadosUG[linhaExistG-1][idxAtivoUG-1]) : false;
         // Se já é GESTOR ativo, bloqueia
         if (ativoExistG && (perfilExistG === CONFIG.PERFIS.GESTOR_SISTEMA || perfilExistG === CONFIG.PERFIS.GESTOR_CONTEUDO)) {
@@ -1107,19 +1152,22 @@ function enviarFormularioAcesso(dados) {
         // Atualiza para pendente (ATIVO=NAO) com nova senha e perfil solicitado
         if (idxNomeUG!==undefined) sheetUsuariosGestor.getRange(linhaExistG, idxNomeUG).setValue(nome);
         if (idxPerfilUG!==undefined) sheetUsuariosGestor.getRange(linhaExistG, idxPerfilUG).setValue(perfilSolicitado);
-        if (idxAtivoUG!==undefined) sheetUsuariosGestor.getRange(linhaExistG, idxAtivoUG).setValue("NÃO");
+        if (idxNivelUG!==undefined) sheetUsuariosGestor.getRange(linhaExistG, idxNivelUG).setValue(nivelPorPerfil(perfilSolicitado));
+        if (idxAtivoUG!==undefined) sheetUsuariosGestor.getRange(linhaExistG, idxAtivoUG).setValue(false);
         if (idxComarcasUG!==undefined) sheetUsuariosGestor.getRange(linhaExistG, idxComarcasUG).setValue(comarca||"");
         if (idxSenhaUG!==undefined) sheetUsuariosGestor.getRange(linhaExistG, idxSenhaUG).setValue(senhaGestor);
       } else {
         var novaLinhaG = new Array(widthUG).fill("");
+        if (idxIdUG!==undefined) novaLinhaG[idxIdUG-1]=gerarNovoIdUsuario(sheetUsuariosGestor);
         if (idxEmailUG!==undefined) novaLinhaG[idxEmailUG-1]=email;
         if (idxNomeUG!==undefined) novaLinhaG[idxNomeUG-1]=nome;
         if (idxPerfilUG!==undefined) novaLinhaG[idxPerfilUG-1]=perfilSolicitado;
-        if (idxAtivoUG!==undefined) novaLinhaG[idxAtivoUG-1]="NÃO";
+        if (idxNivelUG!==undefined) novaLinhaG[idxNivelUG-1]=nivelPorPerfil(perfilSolicitado);
+        if (idxAtivoUG!==undefined) novaLinhaG[idxAtivoUG-1]=false;
         if (idxComarcasUG!==undefined) novaLinhaG[idxComarcasUG-1]=comarca||"";
         if (idxSenhaUG!==undefined) novaLinhaG[idxSenhaUG-1]=senhaGestor;
         if (novaLinhaG.every(function(v){ return !v; })) {
-          sheetUsuariosGestor.appendRow([email, nome, perfilSolicitado, "NÃO", comarca||"", senhaGestor]);
+          throw new Error("A aba USUARIOS não possui os cabeçalhos esperados.");
         } else {
           sheetUsuariosGestor.appendRow(novaLinhaG);
         }
@@ -1203,7 +1251,7 @@ function localizarSolicitacaoAPI(sheet, id) {
   return null;
 }
 
-function processarSolicitacaoAPI(id, novoStatus) {
+function processarSolicitacaoAPI(id, novoStatus, authDados) {
   const lock =
     LockService.getScriptLock();
 
@@ -1213,7 +1261,7 @@ function processarSolicitacaoAPI(id, novoStatus) {
     lock.waitLock(30000);
     bloqueado = true;
 
-    new AuthService().exigirPerfil(
+    new AuthService(authDados).exigirPerfil(
       CONFIG.PERFIS.GESTOR_SISTEMA
     );
 
@@ -1288,12 +1336,29 @@ function processarSolicitacaoAPI(id, novoStatus) {
         );
       }
 
-      const mapaU = DB.map(sheetUsuarios);
+      let mapaU = DB.map(sheetUsuarios);
+      if (mapaU.SENHA === undefined) {
+        garantirColunaSenhaUsuarios(ss, sheetUsuarios);
+        mapaU = DB.map(sheetUsuarios);
+      }
+
       const idxEmailU = mapaU.EMAIL;
       const idxNomeU = mapaU.NOME;
       const idxPerfilU = mapaU.PERFIL;
+      const idxNivelU = mapaU.NIVEL;
       const idxAtivoU = mapaU.ATIVO;
       const idxComarcasU = mapaU.COMARCAS;
+      const idxSenhaU = mapaU.SENHA;
+      const idxIdU = mapaU.ID;
+
+      if (
+        idxEmailU === undefined ||
+        idxAtivoU === undefined ||
+        idxSenhaU === undefined ||
+        (idxNivelU === undefined && idxPerfilU === undefined)
+      ) {
+        throw new Error("A aba USUARIOS não possui os cabeçalhos esperados para autenticação.");
+      }
 
       const dadosU = sheetUsuarios.getDataRange().getValues();
       const perfilSolicitadoNorm = String(solicitacao.perfil || "").trim().toUpperCase();
@@ -1317,76 +1382,67 @@ function processarSolicitacaoAPI(id, novoStatus) {
       if (usuarioExiste) {
         // Nome
         if (idxNomeU !== undefined) sheetUsuarios.getRange(linhaUsuario, idxNomeU).setValue(solicitacao.nome);
-        else sheetUsuarios.getRange(linhaUsuario, 2).setValue(solicitacao.nome);
+        if (idxPerfilU !== undefined) sheetUsuarios.getRange(linhaUsuario, idxPerfilU).setValue(perfilSolicitadoNorm);
+        if (idxNivelU !== undefined) sheetUsuarios.getRange(linhaUsuario, idxNivelU).setValue(nivelPorPerfil(perfilSolicitadoNorm));
+        sheetUsuarios.getRange(linhaUsuario, idxAtivoU).setValue(true);
 
-        // Perfil + comarcas + ativo
-        if (perfilSolicitadoNorm === CONFIG.PERFIS.GESTOR_SISTEMA) {
-          if (idxPerfilU !== undefined) sheetUsuarios.getRange(linhaUsuario, idxPerfilU).setValue(CONFIG.PERFIS.GESTOR_SISTEMA);
-          else sheetUsuarios.getRange(linhaUsuario, 3).setValue(CONFIG.PERFIS.GESTOR_SISTEMA);
-          if (idxAtivoU !== undefined) sheetUsuarios.getRange(linhaUsuario, idxAtivoU).setValue("SIM");
-          else sheetUsuarios.getRange(linhaUsuario, 4).setValue("SIM");
-          // Sistema = todas -> limpa COMARCAS
-          if (idxComarcasU !== undefined) sheetUsuarios.getRange(linhaUsuario, idxComarcasU).setValue("");
-        } else {
-          // Gestor de Conteúdo: mescla comarcas existentes + solicitadas
-          if (idxPerfilU !== undefined) sheetUsuarios.getRange(linhaUsuario, idxPerfilU).setValue(CONFIG.PERFIS.GESTOR_CONTEUDO);
-          else sheetUsuarios.getRange(linhaUsuario, 3).setValue(CONFIG.PERFIS.GESTOR_CONTEUDO);
-          if (idxAtivoU !== undefined) sheetUsuarios.getRange(linhaUsuario, idxAtivoU).setValue("SIM");
-          else sheetUsuarios.getRange(linhaUsuario, 4).setValue("SIM");
+        if (perfilSolicitadoNorm === CONFIG.PERFIS.GESTOR_SISTEMA && idxComarcasU !== undefined) {
+          sheetUsuarios.getRange(linhaUsuario, idxComarcasU).setValue("");
+        } else if (idxComarcasU !== undefined) {
+          const existenteRaw = String(dadosU[linhaUsuario - 1][idxComarcasU - 1] || "").trim();
+          const existenteLista = existenteRaw ? existenteRaw.split(/[,;|]+/).map(function(s){ return String(s||"").trim(); }).filter(Boolean) : [];
+          const mergedMap = {};
+          existenteLista.forEach(function(c){ mergedMap[normalizarChave(c)] = c; });
+          comarcasSolicitadasLista.forEach(function(c){ const chave = normalizarChave(c); if (!mergedMap[chave]) mergedMap[chave] = c; });
+          sheetUsuarios.getRange(linhaUsuario, idxComarcasU).setValue(
+            Object.keys(mergedMap).map(function(chave){ return mergedMap[chave]; }).join(", ")
+          );
+        }
 
-          if (idxComarcasU !== undefined) {
-            const existenteRaw = String(dadosU[linhaUsuario - 1][idxComarcasU - 1] || "").trim();
-            const existenteLista = existenteRaw ? existenteRaw.split(/[,;|]+/).map(function(s){ return String(s||"").trim(); }).filter(Boolean) : [];
-            const mergedMap = {};
-            existenteLista.forEach(function(c){ mergedMap[normalizarChave(c)] = c; });
-            comarcasSolicitadasLista.forEach(function(c){ var k = normalizarChave(c); if (!mergedMap[k]) mergedMap[k] = c; });
-            const merged = Object.keys(mergedMap).map(function(k){ return mergedMap[k]; });
-            // Se já tinha vazio (=todas), manter vazio não faz sentido ao adicionar — merged será as solicitadas
-            // Se existente era vazio (todas) e agora pede conteudo com lista, vira lista
-            const valorComarcas = merged.length ? merged.join(", ") : "";
-            sheetUsuarios.getRange(linhaUsuario, idxComarcasU).setValue(valorComarcas);
+        // Solicitações novas já têm senha; este fallback cobre solicitações legadas.
+        const senhaExistente = textoSeguro(dadosU[linhaUsuario - 1][idxSenhaU - 1]);
+        if (senhaExistente.length !== 20) {
+          const senhaLegada = gerarSenha20();
+          sheetUsuarios.getRange(linhaUsuario, idxSenhaU).setValue(senhaLegada);
+          try {
+            adicionarEmailPendente(
+              solicitacao.email,
+              "Sua senha de acesso — Sistema de Telefones PJES",
+              "Olá " + solicitacao.nome + ",\n\nSua solicitação foi aprovada.\n\nSenha (20 caracteres): " + senhaLegada + "\n\nUse seu e-mail institucional e esta senha em Acesso Administrativo."
+            );
+          } catch (erroSenhaLegada) {
+            registrarErroAPI("EMAIL_SENHA_APROVACAO_LEGADA", erroSenhaLegada);
           }
         }
       } else {
-        // Novo usuário
-        if (perfilSolicitadoNorm === CONFIG.PERFIS.GESTOR_SISTEMA) {
-          const linhaNovaSistema = [];
-          // Monta via mapa para respeitar ordem das colunas
-          const headersU = DB.headers(sheetUsuarios);
-          const widthU = headersU.length;
-          for (let c = 0; c < widthU; c++) linhaNovaSistema.push("");
-          if (idxEmailU !== undefined) linhaNovaSistema[idxEmailU - 1] = solicitacao.email;
-          if (idxNomeU !== undefined) linhaNovaSistema[idxNomeU - 1] = solicitacao.nome;
-          if (idxPerfilU !== undefined) linhaNovaSistema[idxPerfilU - 1] = CONFIG.PERFIS.GESTOR_SISTEMA;
-          if (idxAtivoU !== undefined) linhaNovaSistema[idxAtivoU - 1] = "SIM";
-          if (idxComarcasU !== undefined) linhaNovaSistema[idxComarcasU - 1] = "";
-          // fallback se mapa incompleto
-          if (linhaNovaSistema.every(function(v){ return !v; })) {
-            sheetUsuarios.appendRow([solicitacao.email, solicitacao.nome, CONFIG.PERFIS.GESTOR_SISTEMA, "SIM"]);
-          } else {
-            sheetUsuarios.appendRow(linhaNovaSistema);
-          }
-        } else {
-          const comarcasValor = comarcasSolicitadasLista.join(", ");
-          const headersU2 = DB.headers(sheetUsuarios);
-          const widthU2 = headersU2.length;
-          const linhaNovaConteudo = new Array(widthU2).fill("");
-          if (idxEmailU !== undefined) linhaNovaConteudo[idxEmailU - 1] = solicitacao.email;
-          if (idxNomeU !== undefined) linhaNovaConteudo[idxNomeU - 1] = solicitacao.nome;
-          if (idxPerfilU !== undefined) linhaNovaConteudo[idxPerfilU - 1] = CONFIG.PERFIS.GESTOR_CONTEUDO;
-          if (idxAtivoU !== undefined) linhaNovaConteudo[idxAtivoU - 1] = "SIM";
-          if (idxComarcasU !== undefined) linhaNovaConteudo[idxComarcasU - 1] = comarcasValor;
-          if (linhaNovaConteudo.every(function(v){ return !v; })) {
-            sheetUsuarios.appendRow([solicitacao.email, solicitacao.nome, CONFIG.PERFIS.GESTOR_CONTEUDO, "SIM", comarcasValor]);
-          } else {
-            sheetUsuarios.appendRow(linhaNovaConteudo);
-          }
+        // Compatibilidade com solicitações antigas em que o usuário ainda não existia.
+        const senhaNova = gerarSenha20();
+        const linhaNova = new Array(DB.headers(sheetUsuarios).length).fill("");
+        if (idxIdU !== undefined) linhaNova[idxIdU - 1] = gerarNovoIdUsuario(sheetUsuarios);
+        linhaNova[idxEmailU - 1] = solicitacao.email;
+        if (idxNomeU !== undefined) linhaNova[idxNomeU - 1] = solicitacao.nome;
+        if (idxPerfilU !== undefined) linhaNova[idxPerfilU - 1] = perfilSolicitadoNorm;
+        if (idxNivelU !== undefined) linhaNova[idxNivelU - 1] = nivelPorPerfil(perfilSolicitadoNorm);
+        linhaNova[idxAtivoU - 1] = true;
+        linhaNova[idxSenhaU - 1] = senhaNova;
+        if (idxComarcasU !== undefined && perfilSolicitadoNorm === CONFIG.PERFIS.GESTOR_CONTEUDO) {
+          linhaNova[idxComarcasU - 1] = comarcasSolicitadasLista.join(", ");
+        }
+        sheetUsuarios.appendRow(linhaNova);
+        try {
+          adicionarEmailPendente(
+            solicitacao.email,
+            "Sua senha de acesso — Sistema de Telefones PJES",
+            "Olá " + solicitacao.nome + ",\n\nSua solicitação foi aprovada.\n\nSenha (20 caracteres): " + senhaNova + "\n\nUse seu e-mail institucional e esta senha em Acesso Administrativo."
+          );
+        } catch (erroSenhaNova) {
+          registrarErroAPI("EMAIL_SENHA_APROVACAO_LEGADA", erroSenhaNova);
         }
       }
     }
 
     const aprovador =
-      obterEmailSessaoAPI();
+      new AuthService(authDados).usuarioAtual().email || obterEmailSessaoAPI();
 
     const indices =
       indicesSolicitacao(
@@ -1459,34 +1515,20 @@ function processarSolicitacaoAPI(id, novoStatus) {
   }
 }
 
-function aprovarSolicitacao(id) {
-  const lock = LockService.getScriptLock();
-  let bloqueado = false;
-  try {
-    lock.waitLock(15000);
-    bloqueado = true;
-    return processarSolicitacaoAPI(
-      id,
-      "APROVADO"
-    );
-  } finally {
-    if (bloqueado) lock.releaseLock();
-  }
+function aprovarSolicitacao(id, authDados) {
+  return processarSolicitacaoAPI(
+    id,
+    "APROVADO",
+    authDados
+  );
 }
 
-function rejeitarSolicitacao(id) {
-  const lock = LockService.getScriptLock();
-  let bloqueado = false;
-  try {
-    lock.waitLock(15000);
-    bloqueado = true;
-    return processarSolicitacaoAPI(
-      id,
-      "REJEITADO"
-    );
-  } finally {
-    if (bloqueado) lock.releaseLock();
-  }
+function rejeitarSolicitacao(id, authDados) {
+  return processarSolicitacaoAPI(
+    id,
+    "REJEITADO",
+    authDados
+  );
 }
 
 /**
@@ -1499,10 +1541,10 @@ function listarHistoricoGeral(authDados) {
   try {
     let usuarioHistPerm = null;
     try {
-      new AuthService().exigirPermissao(
+      new AuthService(authDados).exigirPermissao(
         CONFIG.PERMISSOES.HISTORICO
       );
-      usuarioHistPerm = new AuthService().usuarioAtual();
+      usuarioHistPerm = new AuthService(authDados).usuarioAtual();
     } catch (ePermHist) {
       if (authDados && typeof authDados === "object") {
         try {
@@ -2501,9 +2543,12 @@ function obterEmailsGestoresSistema() {
     const sheet = DB.usuarios();
     const mapa = DB.map(sheet);
     const idxEmail = mapa.EMAIL;
-    const idxPerfil = mapa.PERFIL;
     const idxAtivo = mapa.ATIVO;
-    if (idxEmail === undefined || idxPerfil === undefined || idxAtivo === undefined) {
+    if (
+      idxEmail === undefined ||
+      idxAtivo === undefined ||
+      (mapa.PERFIL === undefined && mapa.NIVEL === undefined)
+    ) {
       const fallback = obterConfiguracaoAPI("EMAIL_GESTOR");
       if (fallback && emailValidoAPI(fallback)) {
         lista.push(normalizarEmail(fallback));
@@ -2511,7 +2556,7 @@ function obterEmailsGestoresSistema() {
       return lista;
     }
     DB.read(sheet).forEach(linha => {
-      const perfil = String(linha[idxPerfil - 1] || "").trim().toUpperCase();
+      const perfil = perfilUsuarioPorLinha(mapa, linha);
       const ativo = paraBoolean(linha[idxAtivo - 1]);
       const email = normalizarEmail(linha[idxEmail - 1]);
       if (
@@ -2613,10 +2658,10 @@ function criarNotificacao(destinatarioEmail, tipo, mensagem, referencia) {
   }
 }
 
-function listarNotificacoes(email) {
+function listarNotificacoes(email, authDados) {
   try {
     let emailAlvo = normalizarEmail(email);
-    const usuario = new AuthService().usuarioAtual();
+    const usuario = new AuthService(authDados).usuarioAtual();
     if (!emailAlvo) {
       emailAlvo = normalizarEmail(usuario.email || obterEmailSessaoAPI() || "");
     }
@@ -2678,7 +2723,7 @@ function listarNotificacoes(email) {
   }
 }
 
-function marcarNotificacaoLida(id) {
+function marcarNotificacaoLida(id, authDados) {
   const lock = LockService.getScriptLock();
   let precisaLiberar = false;
   try {
@@ -2688,7 +2733,7 @@ function marcarNotificacaoLida(id) {
     }
     const idBusca = textoSeguro(id);
     if (!idBusca) throw new Error("ID da notifica\u00e7\u00e3o \u00e9 obrigat\u00f3rio.");
-    const usuario = new AuthService().usuarioAtual();
+    const usuario = new AuthService(authDados).usuarioAtual();
     const emailSessao = normalizarEmail(usuario.email || obterEmailSessaoAPI() || "");
     if (!emailSessao) throw new Error("\u00c9 necess\u00e1rio estar autenticado.");
     const sheet = obterAbaNotificacoesAPI();
@@ -2729,7 +2774,7 @@ function marcarTodasLidas(email, authDados) {
       precisaLiberar = true;
     }
     let emailAlvo = normalizarEmail(email);
-    let usuario = new AuthService().usuarioAtual();
+    let usuario = new AuthService(authDados).usuarioAtual();
     let emailSessao = normalizarEmail(usuario.email || "");
     if ((!usuario.logado || !emailSessao) && authDados && typeof authDados === "object") {
       try {
@@ -2786,7 +2831,7 @@ function marcarTodasLidas(email, authDados) {
 function contarNaoLidas(email, authDados) {
   try {
     let emailAlvo = normalizarEmail(email);
-    let usuario = new AuthService().usuarioAtual();
+    let usuario = new AuthService(authDados).usuarioAtual();
     let emailSessao = normalizarEmail(usuario.email || "");
     if ((!usuario.logado || !emailSessao) && authDados && typeof authDados === "object") {
       try {
@@ -2952,9 +2997,9 @@ function obterConfiguracaoAPI(chave) {
  * ==========================================================
  */
 
-function listarUsuarios() {
+function listarUsuarios(authDados) {
   try {
-    new AuthService().exigirPerfil(
+    new AuthService(authDados).exigirPerfil(
       CONFIG.PERFIS.GESTOR_SISTEMA
     );
 
@@ -2962,8 +3007,8 @@ function listarUsuarios() {
     const mapa = DB.map(sheet);
     const dados = DB.read(sheet);
 
+    const idxEmail = mapa.EMAIL;
     const idxNome = mapa.NOME;
-    const idxPerfil = mapa.PERFIL;
     const idxAtivo = mapa.ATIVO;
     const idxComarcas = mapa.COMARCAS;
 
@@ -2974,17 +3019,16 @@ function listarUsuarios() {
     const resultado =
       dados
         .filter(linha => {
-          const perfil =
-            String(idxPerfil ? linha[idxPerfil - 1] : "")
-              .trim()
-              .toUpperCase();
+          const perfil = perfilUsuarioPorLinha(mapa, linha);
 
           return perfil !== CONFIG.PERFIS.USUARIO_CONSULTA;
         })
         .map(linha => ({
-          email: textoSeguro(linha[0]),
+          id: mapa.ID !== undefined ? textoSeguro(linha[mapa.ID - 1]) : "",
+          email: idxEmail !== undefined ? normalizarEmail(linha[idxEmail - 1]) : "",
           nome: textoSeguro(idxNome ? linha[idxNome - 1] : ""),
-          perfil: String(idxPerfil ? linha[idxPerfil - 1] : "").trim().toUpperCase(),
+          perfil: perfilUsuarioPorLinha(mapa, linha),
+          nivel: mapa.NIVEL !== undefined ? Number(linha[mapa.NIVEL - 1]) || 1 : nivelPorPerfil(perfilUsuarioPorLinha(mapa, linha)),
           ativo: paraBoolean(idxAtivo ? linha[idxAtivo - 1] : false),
           comarcas: idxComarcas !== undefined ? textoSeguro(linha[idxComarcas - 1]) : ""
         }));
@@ -3046,7 +3090,7 @@ function solicitarPermissaoComarca(comarca, authDados) {
     }
     if (!usuario || !usuario.logado) {
       try {
-        const authTmp = new AuthService();
+        const authTmp = new AuthService(authDados);
         authTmp.exigirPermissao(CONFIG.PERMISSOES.EDITAR);
         const uTmp = authTmp.usuarioAtual();
         if (uTmp && uTmp.logado) usuario = uTmp;
@@ -3244,17 +3288,11 @@ function solicitarPermissaoComarca(comarca, authDados) {
       const sheet = DB.usuarios();
       const mapa = DB.map(sheet);
 
-      const idxPerfil = mapa.PERFIL;
       const idxAtivo = mapa.ATIVO;
       const idxEmail = mapa.EMAIL;
 
       DB.read(sheet).forEach(linha => {
-        const perfil =
-          String(
-            idxPerfil ? linha[idxPerfil - 1] : ""
-          )
-            .trim()
-            .toUpperCase();
+        const perfil = perfilUsuarioPorLinha(mapa, linha);
 
         const ativo =
           paraBoolean(
@@ -3398,7 +3436,7 @@ function cancelarSolicitacaoComarca(comarca, authDados) {
     }
     if (!usuario || !usuario.logado) {
       try {
-        const authTmp2 = new AuthService();
+        const authTmp2 = new AuthService(authDados);
         authTmp2.exigirPermissao(CONFIG.PERMISSOES.EDITAR);
         const uTmp2 = authTmp2.usuarioAtual();
         if (uTmp2 && uTmp2.logado) usuario = uTmp2;
@@ -3546,7 +3584,7 @@ function cancelarSolicitacaoComarca(comarca, authDados) {
  * - não é possível editar a própria conta (evita trava acidental);
  * - não é possível remover o último gestor do sistema ativo.
  */
-function atualizarUsuario(email, dados) {
+function atualizarUsuario(email, dados, authDados) {
   const lock = LockService.getScriptLock();
   let bloqueado = false;
 
@@ -3554,7 +3592,7 @@ function atualizarUsuario(email, dados) {
     lock.waitLock(30000);
     bloqueado = true;
 
-    const auth = new AuthService();
+    const auth = new AuthService(authDados);
 
     auth.exigirPerfil(
       CONFIG.PERFIS.GESTOR_SISTEMA
@@ -3619,6 +3657,7 @@ function atualizarUsuario(email, dados) {
     let idxEmail = mapa.EMAIL;
     let idxNome = mapa.NOME;
     let idxPerfil = mapa.PERFIL;
+    let idxNivel = mapa.NIVEL;
     let idxAtivo = mapa.ATIVO;
     let idxComarcas = mapa.COMARCAS;
     let idxSenha = mapa.SENHA;
@@ -3645,10 +3684,7 @@ function atualizarUsuario(email, dados) {
       throw new Error("Usuário não encontrado na aba USUARIOS.");
     }
 
-    const perfilAtual =
-      String(dadosSheet[linhaEncontrada - 1][idxPerfil - 1] || "")
-        .trim()
-        .toUpperCase();
+    const perfilAtual = perfilUsuarioPorLinha(mapa, dadosSheet[linhaEncontrada - 1]);
 
     const ativoAtual =
       paraBoolean(dadosSheet[linhaEncontrada - 1][idxAtivo - 1]);
@@ -3709,10 +3745,7 @@ function atualizarUsuario(email, dados) {
       for (let i = 1; i < dadosSheet.length; i++) {
         if (i === linhaEncontrada - 1) continue;
 
-        const perfil =
-          String(dadosSheet[i][idxPerfil - 1] || "")
-            .trim()
-            .toUpperCase();
+        const perfil = perfilUsuarioPorLinha(mapa, dadosSheet[i]);
 
         const ativo =
           paraBoolean(dadosSheet[i][idxAtivo - 1]);
@@ -3738,6 +3771,10 @@ function atualizarUsuario(email, dados) {
 
     if (idxPerfil !== undefined && possuiPerfil) {
       sheet.getRange(linhaEncontrada, idxPerfil).setValue(perfilNovo);
+    }
+
+    if (idxNivel !== undefined && possuiPerfil) {
+      sheet.getRange(linhaEncontrada, idxNivel).setValue(nivelPorPerfil(perfilNovo));
     }
 
     if (idxAtivo !== undefined && possuiAtivo) {
@@ -3796,7 +3833,7 @@ function atualizarUsuario(email, dados) {
  * Valida e-mail institucional (@tjes.jus.br), perfil,
  * comarcas e verifica duplicidade.
  */
-function criarUsuario(dados) {
+function criarUsuario(dados, authDados) {
   const lock = LockService.getScriptLock();
   let bloqueado = false;
 
@@ -3804,7 +3841,7 @@ function criarUsuario(dados) {
     lock.waitLock(30000);
     bloqueado = true;
 
-    const auth = new AuthService();
+    const auth = new AuthService(authDados);
     auth.exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
 
     const entrada = ehObjeto(dados) ? dados : {};
@@ -3867,6 +3904,8 @@ function criarUsuario(dados) {
     let idxEmail = mapa.EMAIL;
     let idxNome = mapa.NOME;
     let idxPerfil = mapa.PERFIL;
+    let idxNivel = mapa.NIVEL;
+    let idxId = mapa.ID;
     let idxAtivo = mapa.ATIVO;
     let idxComarcas = mapa.COMARCAS;
     let idxSenha = mapa.SENHA;
@@ -3880,7 +3919,7 @@ function criarUsuario(dados) {
       } catch (eSenha) {}
     }
 
-    if (!idxEmail || !idxPerfil || !idxAtivo) {
+    if (!idxEmail || (!idxPerfil && !idxNivel) || !idxAtivo) {
       throw new Error("Aba USUARIOS sem cabeçalhos esperados. Execute instalarSistema().");
     }
 
@@ -3906,9 +3945,11 @@ function criarUsuario(dados) {
 
     const novaLinha = new Array(headers.length).fill("");
 
+    if (idxId) novaLinha[idxId - 1] = gerarNovoIdUsuario(sheet);
     if (idxEmail) novaLinha[idxEmail - 1] = email;
     if (idxNome) novaLinha[idxNome - 1] = nome;
     if (idxPerfil) novaLinha[idxPerfil - 1] = perfil;
+    if (idxNivel) novaLinha[idxNivel - 1] = nivelPorPerfil(perfil);
     if (idxAtivo) novaLinha[idxAtivo - 1] = ativo ? "SIM" : "NÃO";
     if (idxComarcas !== undefined) novaLinha[idxComarcas - 1] = comarcasSerial;
     if (idxSenha !== undefined) novaLinha[idxSenha - 1] = senhaGerada;
@@ -3964,7 +4005,7 @@ function criarUsuario(dados) {
  * - não pode excluir a própria conta;
  * - não pode excluir o último gestor do sistema ativo.
  */
-function excluirUsuario(email) {
+function excluirUsuario(email, authDados) {
   const lock = LockService.getScriptLock();
   let bloqueado = false;
 
@@ -3972,7 +4013,7 @@ function excluirUsuario(email) {
     lock.waitLock(30000);
     bloqueado = true;
 
-    const auth = new AuthService();
+    const auth = new AuthService(authDados);
     auth.exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
 
     const emailAlvo = normalizarEmail(email);
@@ -3990,7 +4031,6 @@ function excluirUsuario(email) {
     const sheet = DB.usuarios();
     const mapa = DB.map(sheet);
     const idxEmail = mapa.EMAIL;
-    const idxPerfil = mapa.PERFIL;
     const idxAtivo = mapa.ATIVO;
 
     if (!idxEmail) {
@@ -4011,7 +4051,7 @@ function excluirUsuario(email) {
       throw new Error("Usuário não encontrado na aba USUARIOS.");
     }
 
-    const perfilAtual = String(dadosSheet[linhaEncontrada - 1][idxPerfil - 1] || "").trim().toUpperCase();
+    const perfilAtual = perfilUsuarioPorLinha(mapa, dadosSheet[linhaEncontrada - 1]);
     const ativoAtual = paraBoolean(dadosSheet[linhaEncontrada - 1][idxAtivo - 1]);
 
     if (perfilAtual === CONFIG.PERFIS.GESTOR_SISTEMA && ativoAtual) {
@@ -4020,7 +4060,7 @@ function excluirUsuario(email) {
       for (let i = 1; i < dadosSheet.length; i++) {
         if (i === linhaEncontrada - 1) continue;
 
-        const perfil = String(dadosSheet[i][idxPerfil - 1] || "").trim().toUpperCase();
+        const perfil = perfilUsuarioPorLinha(mapa, dadosSheet[i]);
         const ativo = paraBoolean(dadosSheet[i][idxAtivo - 1]);
 
         if (perfil === CONFIG.PERFIS.GESTOR_SISTEMA && ativo) {

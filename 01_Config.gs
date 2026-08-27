@@ -8,7 +8,7 @@
 const CONFIG = {
   SISTEMA: {
     NOME: "Sistema Inteligente de Gestão de Telefones do Poder Judiciário do Estado do Espírito Santo",
-    VERSAO: "4.2"
+    VERSAO: "4.3"
   },
 
   WEB_APP: {

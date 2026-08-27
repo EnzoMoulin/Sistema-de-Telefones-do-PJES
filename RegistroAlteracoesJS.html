@@ -21,11 +21,7 @@ function carregarRegistroAlteracoes() {
 
   let authDadosHist = null;
   try {
-    const rawHist = localStorage.getItem("pjes_consulta_sessao");
-    if (rawHist) {
-      const sessHist = JSON.parse(rawHist);
-      if (sessHist && sessHist.email && sessHist.senha) authDadosHist = { email: sessHist.email, senha: sessHist.senha };
-    }
+    if (typeof obterAutenticacaoAPI === "function") authDadosHist = obterAutenticacaoAPI();
   } catch (eHist) {}
 
   const runner = google.script.run
@@ -44,7 +40,7 @@ function carregarRegistroAlteracoes() {
         }
         if (ehLoginHist) {
           // GC via senha ainda não refletiu em google session: tenta tratar como vazio
-          const temAuthHist = !!(authDadosHist && authDadosHist.email);
+          const temAuthHist = !!(authDadosHist && authDadosHist.token);
           if (temAuthHist) { renderizarHistoricoGeral([]); return; }
         }
         container.innerHTML =
@@ -70,7 +66,7 @@ function carregarRegistroAlteracoes() {
           '</p>' +
         '</div>';
     });
-  if (authDadosHist && authDadosHist.email && authDadosHist.senha) {
+  if (authDadosHist && authDadosHist.token) {
     runner.listarHistoricoGeral(authDadosHist);
   } else {
     runner.listarHistoricoGeral();

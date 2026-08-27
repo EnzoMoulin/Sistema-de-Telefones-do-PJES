@@ -1,7 +1,7 @@
 <!--
 ==========================================================
 SISTEMA DE TELEFONES TJES
-Arquivo: Login.html — Login do Usuário de Consulta (e-mail + senha 20)
+Arquivo: Login.html — Acesso Administrativo (e-mail + senha 20)
 ==========================================================
 -->
 <style>
@@ -34,7 +34,7 @@ Arquivo: Login.html — Login do Usuário de Consulta (e-mail + senha 20)
 <div class="lg-wrap">
   <div class="lg-card">
     <div class="lg-head">
-      <h2>Login</h2>
+      <h2>Acesso Administrativo</h2>
       <p>Entre com seu e-mail institucional e sua senha de 20 caracteres.<br><small style="opacity:.85">Se seu acesso ainda não foi aprovado, verá: <em>Acesso em andamento. Quando sua conta for aprovada você conseguirá entrar.</em></small></p>
     </div>
     <div class="lg-body">
@@ -116,8 +116,16 @@ function fazerLoginConsulta(){
       if(btn){ btn.disabled=false; btn.textContent="Entrar →"; }
       if(resp && resp.sucesso===true && resp.dados){
         try{
-          // NOTA: armazena senha para auto-login via autenticarConsulta; expiracao reduzida para 2h em AppJS.restaurarSessaoConsulta mitiga risco. Ideal: migrar para sessionStorage + hash.
-          localStorage.setItem("pjes_consulta_sessao", JSON.stringify({ email: resp.dados.email, nome: resp.dados.nome, perfil: resp.dados.perfil, comarcas: resp.dados.comarcas||[], senha: senha, ts: Date.now() }));
+          sessionStorage.setItem("pjes_auth_sessao", JSON.stringify({
+            token: resp.dados.token,
+            expiraEm: resp.dados.expiraEm,
+            email: resp.dados.email,
+            nome: resp.dados.nome,
+            perfil: resp.dados.perfil,
+            nivel: resp.dados.nivel,
+            comarcas: resp.dados.comarcas || []
+          }));
+          localStorage.removeItem("pjes_consulta_sessao");
         }catch(e){}
         usuarioAtual = { nome: resp.dados.nome || email.split("@")[0], email: resp.dados.email, perfil: resp.dados.perfil || "GESTOR_CONTEUDO", logado: true, ativo: true, comarcas: Array.isArray(resp.dados.comarcas)?resp.dados.comarcas:[], viaConsulta:true };
         try{ atualizarInterfaceUsuario(); }catch(e){}

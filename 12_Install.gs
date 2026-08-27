@@ -221,7 +221,7 @@ function criarAbaUsuarios(
   // v3.34 — detecta modelo: se já existe MUNICIPIOS/CONTATOS, usa NIVEL schema; senão legado PERFIL
   const temNormalizado = !!(spreadsheet.getSheetByName(CONFIG.SHEETS.MUNICIPIOS) && spreadsheet.getSheetByName(CONFIG.SHEETS.CONTATOS));
   const cabecalho = temNormalizado
-    ? ["ID","NOME","EMAIL","NIVEL","ATIVO"]
+    ? ["ID","NOME","EMAIL","NIVEL","SENHA","ATIVO"]
     : [
         "EMAIL",
         "NOME",
@@ -248,8 +248,9 @@ function criarAbaUsuarios(
       sheet
     );
   } else {
-    // v3.34 — normalizado: garante ID/NIVEL se faltarem
+    // V4 — normalizado: garante ID/NIVEL/SENHA se faltarem.
     garantirColunaIdNivelUsuarios(spreadsheet, sheet);
+    garantirColunaSenhaUsuarios(spreadsheet, sheet);
   }
 
   return sheet;
@@ -317,6 +318,69 @@ function garantirColunaSenhaUsuarios(spreadsheet, sheet){
   sheet.insertColumns(Math.max(ultima,1)+1, 1);
   sheet.getRange(1, Math.max(ultima,1)+1).setValue("SENHA");
   return sheet;
+}
+
+function gerarNovoIdUsuario(sheet) {
+  const mapa = DB.map(sheet);
+  const idxId = mapa.ID;
+  let maior = 0;
+
+  if (idxId !== undefined) {
+    DB.read(sheet).forEach(function(linha) {
+      const encontrado = textoSeguro(linha[idxId - 1]).match(/^USR(\d+)$/i);
+      if (encontrado) maior = Math.max(maior, Number(encontrado[1]) || 0);
+    });
+  }
+
+  return "USR" + String(maior + 1).padStart(4, "0");
+}
+
+/**
+ * Migração única para instalações que já possuíam gestores antes da coluna SENHA.
+ * Gera senha somente para usuários administrativos ativos que ainda estão sem senha
+ * e coloca a mensagem na fila EMAILS_PENDENTES, sem expor senhas em logs/retorno.
+ */
+function migrarAutenticacaoUsuarios() {
+  new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
+
+  const spreadsheet = DB.getSpreadsheet();
+  const sheet = DB.usuarios();
+  garantirColunaSenhaUsuarios(spreadsheet, sheet);
+
+  const mapa = DB.map(sheet);
+  const dados = sheet.getDataRange().getValues();
+  let geradas = 0;
+
+  if (
+    mapa.EMAIL === undefined ||
+    mapa.ATIVO === undefined ||
+    mapa.SENHA === undefined ||
+    (mapa.NIVEL === undefined && mapa.PERFIL === undefined)
+  ) {
+    throw new Error("A aba USUARIOS não possui os cabeçalhos esperados.");
+  }
+
+  for (let i = 1; i < dados.length; i++) {
+    const perfil = perfilUsuarioPorLinha(mapa, dados[i]);
+    const administrativo = perfil === CONFIG.PERFIS.GESTOR_SISTEMA || perfil === CONFIG.PERFIS.GESTOR_CONTEUDO;
+    const ativo = paraBoolean(dados[i][mapa.ATIVO - 1]);
+    const senhaAtual = textoSeguro(dados[i][mapa.SENHA - 1]);
+    const email = normalizarEmail(dados[i][mapa.EMAIL - 1]);
+
+    if (!administrativo || !ativo || senhaAtual || !emailValidoAPI(email) || !emailInstitucional(email)) continue;
+
+    const senha = gerarSenha20();
+    sheet.getRange(i + 1, mapa.SENHA).setValue(senha);
+    adicionarEmailPendente(
+      email,
+      "Sua senha de acesso — Sistema de Telefones PJES",
+      "Sua senha para Acesso Administrativo foi criada.\n\nSenha (20 caracteres): " + senha + "\n\nUse seu e-mail institucional e esta senha na tela de Login."
+    );
+    geradas++;
+  }
+
+  SpreadsheetApp.flush();
+  return "Migração concluída. Senhas geradas: " + geradas + ".";
 }
 
 /**
@@ -591,10 +655,10 @@ function garantirGestorInicial(
     return;
   }
 
-  const dados =
-    sheet
-      .getDataRange()
-      .getValues();
+  const dados = sheet.getDataRange().getValues();
+  const mapa = DB.map(sheet);
+  const idxEmail = mapa.EMAIL;
+  const idxAtivo = mapa.ATIVO;
 
   let gestorExistente =
     false;
@@ -607,21 +671,16 @@ function garantirGestorInicial(
     i < dados.length;
     i++
   ) {
-    const perfil =
-      String(
-        dados[i][2] || ""
-      )
-        .trim()
-        .toUpperCase();
+    const perfil = perfilUsuarioPorLinha(mapa, dados[i]);
 
     const ativo =
       paraBoolean(
-        dados[i][3]
+        idxAtivo !== undefined ? dados[i][idxAtivo - 1] : dados[i][3]
       );
 
     const email =
       normalizarEmail(
-        dados[i][0]
+        idxEmail !== undefined ? dados[i][idxEmail - 1] : dados[i][0]
       );
 
     if (
@@ -652,12 +711,24 @@ function garantirGestorInicial(
       emailAtual
     )
   ) {
-    sheet.appendRow([
-      emailAtual,
-      emailAtual.split("@")[0],
-      CONFIG.PERFIS.GESTOR_SISTEMA,
-      "SIM"
-    ]);
+    const linhaGestor = new Array(DB.headers(sheet).length).fill("");
+    const senhaInicial = gerarSenha20();
+    if (mapa.ID !== undefined) linhaGestor[mapa.ID - 1] = gerarNovoIdUsuario(sheet);
+    if (mapa.NOME !== undefined) linhaGestor[mapa.NOME - 1] = emailAtual.split("@")[0];
+    if (mapa.EMAIL !== undefined) linhaGestor[mapa.EMAIL - 1] = emailAtual;
+    if (mapa.NIVEL !== undefined) linhaGestor[mapa.NIVEL - 1] = CONFIG.NIVEIS.NIVEL_3;
+    if (mapa.PERFIL !== undefined) linhaGestor[mapa.PERFIL - 1] = CONFIG.PERFIS.GESTOR_SISTEMA;
+    if (mapa.SENHA !== undefined) linhaGestor[mapa.SENHA - 1] = senhaInicial;
+    if (mapa.ATIVO !== undefined) linhaGestor[mapa.ATIVO - 1] = true;
+    sheet.appendRow(linhaGestor);
+
+    try {
+      adicionarEmailPendente(
+        emailAtual,
+        "Sua senha de acesso — Sistema de Telefones PJES",
+        "Seu acesso inicial como Gestor do Sistema foi criado.\n\nSenha (20 caracteres): " + senhaInicial + "\n\nUse seu e-mail institucional e esta senha em Acesso Administrativo."
+      );
+    } catch (erroEmailInicial) {}
 
     primeiroGestorEmail =
       emailAtual;

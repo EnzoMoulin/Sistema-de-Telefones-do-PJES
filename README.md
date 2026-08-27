@@ -40,7 +40,16 @@ O frontend mantém os nomes históricos de API para evitar regressões, mas `API
 
 Essa camada opera diretamente sobre `CONTATOS` e usa `FORUM_ID`, `UNIDADE_ID` e `SETOR_ID`, preservando contatos diretos do Fórum e a herança de endereço/e-mail.
 
-A autenticação de usuários continua baseada na conta Google e na aba `USUARIOS`, com `NIVEL` convertido para o perfil do sistema. O escopo de gestores de conteúdo é resolvido por `ACESSOS_UNIDADES` quando houver vínculos ativos.
+A autenticação administrativa usa e-mail institucional + senha de 20 caracteres. Ao enviar o **Formulário de Acesso**, o sistema:
+
+1. gera a senha;
+2. grava o usuário em `USUARIOS` com `ATIVO = FALSE`;
+3. grava a solicitação como `PENDENTE`;
+4. envia a senha ao solicitante pela fila `EMAILS_PENDENTES`.
+
+Após a aprovação pelo Gestor do Sistema, `ATIVO` passa para `TRUE` e o login é liberado. A sessão usa um token temporário no `sessionStorage`; a senha não é mantida no navegador depois do login. O schema V4 esperado é `ID | NOME | EMAIL | NIVEL | SENHA | ATIVO`. O acesso pela conta Google permanece como compatibilidade para gestores já cadastrados.
+
+O escopo de gestores de conteúdo é resolvido por `ACESSOS_UNIDADES` quando houver vínculos ativos.
 
 ## Abas principais
 
@@ -62,8 +71,10 @@ A autenticação de usuários continua baseada na conta Google e na aba `USUARIO
 
 1. `registrarPlanilhaVinculada()` — vincula a planilha ativa.
 2. `instalarSistemaForum()` — garante o schema V4 sem criar `TELEFONES`.
-3. `validarIntegridadeForumV4()` — valida estrutura/IDs.
-4. `validarDadosReaisForumV4()` — valida a planilha vinculada, sem alterar dados:
+3. `migrarAutenticacaoUsuarios()` — execução única: gera e envia senha para gestores ativos que já existiam antes da coluna `SENHA`.
+4. `processarFilaDeEmails()` — envia as senhas que estão em `EMAILS_PENDENTES` (ou mantenha o gatilho já configurado).
+5. `validarIntegridadeForumV4()` — valida estrutura/IDs.
+6. `validarDadosReaisForumV4()` — valida a planilha vinculada, sem alterar dados:
    - abas obrigatórias;
    - ausência de `TELEFONES`;
    - IDs duplicados;

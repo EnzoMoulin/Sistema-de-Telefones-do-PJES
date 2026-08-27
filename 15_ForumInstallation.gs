@@ -19,7 +19,7 @@ function instalarSistemaForum() {
     // Demais abas operacionais permanecem, mas TELEFONES não é criada.
     garantirAbaForumV4(ss, CONFIG.SHEETS.TELEFONES_UTEIS, ["ID","NOME","TIPO","VALOR","ATIVO"]);
     garantirAbaForumV4(ss, CONFIG.SHEETS.ACESSOS_UNIDADES, ["ID","USUARIO_ID","UNIDADE_ID","ATIVO"]);
-    garantirAbaForumV4(ss, CONFIG.SHEETS.USUARIOS, ["ID","NOME","EMAIL","NIVEL","ATIVO"]);
+    garantirAbaForumV4(ss, CONFIG.SHEETS.USUARIOS, ["ID","NOME","EMAIL","NIVEL","SENHA","ATIVO"]);
     garantirAbaForumV4(ss, CONFIG.SHEETS.CONFIGURACAO, ["CHAVE","VALOR"]);
     garantirAbaForumV4(ss, CONFIG.SHEETS.HISTORICO, ["ID","CONTATO_ID","ACAO","ANTES","DEPOIS","USUARIO","DATA"]);
     garantirAbaForumV4(ss, CONFIG.SHEETS.LOG, ["ID","DATA","USUARIO","TIPO","ACAO","MENSAGEM"]);

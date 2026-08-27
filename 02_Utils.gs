@@ -280,17 +280,73 @@ function arraySeguro(valor) {
  */
 
 /**
- * Gera senha aleatória de 20 caracteres (A-Z, a-z) via CSPRNG (Utilities.getUuid).
+ * Gera senha aleatória de exatamente 20 caracteres.
+ *
+ * O alfabeto evita símbolos que costumam ser alterados ao copiar/colar
+ * e mantém compatibilidade com a tela de login.
  */
-function gerarSenha20(){
-  var chars="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-  var out="";
-  for(var i=0;i<20;i++){
-    var bytes=Utilities.getUuid().replace(/-/g,"");
-    var idx=parseInt(bytes.substr((i*2)%32,2),16)%chars.length;
-    out+=chars.charAt(idx);
+function gerarSenha20() {
+  const caracteres = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  let senha = "";
+  let entropia = "";
+
+  while (senha.length < 20) {
+    if (entropia.length < 2) {
+      entropia += Utilities.getUuid().replace(/-/g, "");
+    }
+
+    const byte = parseInt(entropia.slice(0, 2), 16);
+    entropia = entropia.slice(2);
+
+    // Rejeita a faixa excedente para não introduzir viés de módulo.
+    const limite = Math.floor(256 / caracteres.length) * caracteres.length;
+    if (byte < limite) {
+      senha += caracteres.charAt(byte % caracteres.length);
+    }
   }
-  return out;
+
+  return senha;
+}
+
+function nivelPorPerfil(perfil) {
+  const chave = String(perfil || "").trim().toUpperCase();
+  const mapa = CONFIG.NIVEIS && CONFIG.NIVEIS.POR_PERFIL;
+  return Number((mapa && mapa[chave]) || 1);
+}
+
+function perfilPorNivel(nivel) {
+  const mapa = CONFIG.NIVEIS && CONFIG.NIVEIS.POR_NIVEL;
+  return (mapa && mapa[String(Number(nivel) || 1)]) || CONFIG.PERFIS.USUARIO_CONSULTA;
+}
+
+/**
+ * Resolve o perfil de uma linha de USUARIOS nos dois schemas suportados:
+ * V4 (NIVEL 1/2/3) e legado (PERFIL textual).
+ */
+function perfilUsuarioPorLinha(mapa, linha) {
+  if (mapa && mapa.NIVEL !== undefined) {
+    return perfilPorNivel(linha[mapa.NIVEL - 1]);
+  }
+
+  if (mapa && mapa.PERFIL !== undefined) {
+    const perfil = String(linha[mapa.PERFIL - 1] || "").trim().toUpperCase();
+    return perfil || CONFIG.PERFIS.USUARIO_CONSULTA;
+  }
+
+  return CONFIG.PERFIS.USUARIO_CONSULTA;
+}
+
+function senhasIguaisConstante(a, b) {
+  const esquerda = String(a || "");
+  const direita = String(b || "");
+  let diferenca = esquerda.length ^ direita.length;
+  const tamanho = Math.max(esquerda.length, direita.length);
+
+  for (let i = 0; i < tamanho; i++) {
+    diferenca |= (esquerda.charCodeAt(i) || 0) ^ (direita.charCodeAt(i) || 0);
+  }
+
+  return diferenca === 0;
 }
 
 function hashSenha(senha){

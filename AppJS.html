@@ -18,13 +18,11 @@ document.addEventListener("DOMContentLoaded", iniciarSistema);
 
 function restaurarSessaoConsulta(){
   try{
-    var raw = localStorage.getItem("pjes_consulta_sessao");
+    var raw = sessionStorage.getItem("pjes_auth_sessao");
     if(!raw) return false;
     var sess = JSON.parse(raw);
-    if(!sess || !sess.email || !sess.perfil) return false;
-    // expira em 2h (mitiga exposicao de senha em localStorage; veja Login.html)
-    var ts = Number(sess.ts||0);
-    if(ts && (Date.now() - ts) > 2*60*60*1000){ localStorage.removeItem("pjes_consulta_sessao"); return false; }
+    if(!sess || !sess.token || !sess.email || !sess.perfil) return false;
+    if(Number(sess.expiraEm||0) <= Date.now()){ sessionStorage.removeItem("pjes_auth_sessao"); return false; }
     // se já logado via Google gestor, não sobrescreve
     if(usuarioAtual && usuarioAtual.logado && (usuarioAtual.perfil==="GESTOR_SISTEMA"||usuarioAtual.perfil==="GESTOR_CONTEUDO")) return true;
     usuarioAtual = { nome: sess.nome||sess.email.split("@")[0], email: sess.email, perfil: sess.perfil || "USUARIO_CONSULTA", logado: true, ativo: true, comarcas: Array.isArray(sess.comarcas)?sess.comarcas:[], viaConsulta: true };
@@ -33,7 +31,8 @@ function restaurarSessaoConsulta(){
 }
 
 function encerrarSessaoConsulta(){
-  try{ localStorage.removeItem("pjes_consulta_sessao"); }catch(e){}
+  try{ sessionStorage.removeItem("pjes_auth_sessao"); }catch(e){}
+  try{ localStorage.removeItem("pjes_consulta_sessao"); }catch(eLegado){}
 }
 
 function usuarioVisitante() {
@@ -60,7 +59,8 @@ function mensagemErroFrontend(erro, fallback) {
  * o dashboard e a consulta.
  */
 function iniciarSistema() {
-  try{ restaurarSessaoConsulta(); }catch(eRestaura){}
+  var sessaoSenhaRestaurada = false;
+  try{ sessaoSenhaRestaurada = restaurarSessaoConsulta(); }catch(eRestaura){}
   /*
    * A sessão administrativa chega pronta do servidor:
    * com a versão única, o doGet já identificou a conta Google
@@ -82,7 +82,7 @@ function iniciarSistema() {
       logado: true,
       ativo: true
     };
-  } else {
+  } else if (!sessaoSenhaRestaurada) {
     usuarioAtual = usuarioVisitante();
   }
 
