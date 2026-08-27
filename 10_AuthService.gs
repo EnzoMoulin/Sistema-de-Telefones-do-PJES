@@ -188,7 +188,8 @@ class AuthService {
         perfil: CONFIG.PERFIS.USUARIO_CONSULTA,
         logado: false,
         ativo: false,
-        comarcas: []
+        comarcas: [],
+        unidades: []
       };
     }
 
@@ -199,7 +200,8 @@ class AuthService {
         perfil: CONFIG.PERFIS.USUARIO_CONSULTA,
         logado: false,
         ativo: false,
-        comarcas: []
+        comarcas: [],
+        unidades: []
       };
     }
 
@@ -213,7 +215,8 @@ class AuthService {
         nivel: usuario.nivel || nivelPorPerfil(usuario.perfil),
         logado: usuario.ativo === true,
         ativo: usuario.ativo === true,
-        comarcas: usuario.comarcas || []
+        comarcas: usuario.comarcas || [],
+        unidades: usuario.unidades || []
       };
   }
 
@@ -228,8 +231,6 @@ class AuthService {
     const mapa = DB.map(sheet);
 
     // v3.34 — suporta ambos: legado (EMAIL/NOME/PERFIL/ATIVO/COMARCAS) e novo (ID/NOME/EMAIL/NIVEL/ATIVO + ACESSOS_UNIDADES)
-    const idxComarcas = mapa.COMARCAS;
-    const idxUnidades = mapa.UNIDADE_ID || mapa.UNIDADES || mapa.ACESSOS;
     const idxNivel = mapa.NIVEL;
     const idxId = mapa.ID;
 
@@ -268,66 +269,30 @@ class AuthService {
           ? paraBoolean(linha[idxAtivo - 1])
           : paraBoolean(linha[3]);
 
-      // v3.34 — comarcas via COMARCAS (legado) ou ACESSOS_UNIDADES (novo N:N)
-      let comarcas = [];
-      if (idxComarcas !== undefined && String(linha[idxComarcas - 1] || "").trim() !== "") {
-        comarcas = parseComarcas(linha[idxComarcas - 1]);
-      } else if (idxId !== undefined) {
-        // Novo modelo: busca em ACESSOS_UNIDADES por USUARIO_ID
-        try {
-          const uid = textoSeguro(linha[idxId - 1]);
-          if (uid) {
-            const sheetAcc = DB.acessosUnidadesOuNulo();
-            if (sheetAcc) {
-              const dadosAcc = DB.read(sheetAcc);
-              const mapaAcc = DB.map(sheetAcc);
-              const idxAccUid = mapaAcc.USUARIO_ID || mapaAcc.USUARIO || mapaAcc.ID_USUARIO;
-              const idxAccUni = mapaAcc.UNIDADE_ID || mapaAcc.UNIDADE || mapaAcc.ID_UNIDADE;
-              const idxAccAtivo = mapaAcc.ATIVO;
-              // Mapa UNIDADES para resolver NOME da unidade (usado como comarca)
-              const sheetUni = DB.unidadesOuNulo();
-              let mapaUni = null, dadosUni = [];
-              if (sheetUni) { dadosUni = DB.read(sheetUni); mapaUni = DB.map(sheetUni); }
-              const idxUniId = mapaUni ? (mapaUni.ID) : undefined;
-              const idxUniNome = mapaUni ? (mapaUni.NOME) : undefined;
-              const idxUniMun = mapaUni ? (mapaUni.MUNICIPIO_ID || mapaUni.MUNICIPIO) : undefined;
-              const sheetMun = DB.municipiosOuNulo();
-              let mapaMun = null, dadosMun = [];
-              if (sheetMun) { dadosMun = DB.read(sheetMun); mapaMun = DB.map(sheetMun); }
-              const idxMunId = mapaMun ? (mapaMun.ID) : undefined;
-              const idxMunNome = mapaMun ? (mapaMun.NOME) : undefined;
-              for (const a of dadosAcc) {
-                const aUid = idxAccUid !== undefined ? textoSeguro(a[idxAccUid - 1]) : "";
-                const aUni = idxAccUni !== undefined ? textoSeguro(a[idxAccUni - 1]) : "";
-                const aAtivo = idxAccAtivo !== undefined ? paraBoolean(a[idxAccAtivo - 1]) : true;
-                if (aUid === uid && aAtivo && aUni) {
-                  // Resolve unidade → municipio para exibir como comarca legível
-                  let label = aUni;
-                  if (mapaUni && dadosUni.length) {
-                    for (const u of dadosUni) {
-                      const uId = idxUniId !== undefined ? textoSeguro(u[idxUniId - 1]) : "";
-                      if (uId === aUni) {
-                        const uNome = idxUniNome !== undefined ? textoSeguro(u[idxUniNome - 1]) : "";
-                        const uMunId = idxUniMun !== undefined ? textoSeguro(u[idxUniMun - 1]) : "";
-                        let mNome = "";
-                        if (uMunId && mapaMun) {
-                          for (const m of dadosMun) {
-                            const mId = idxMunId !== undefined ? textoSeguro(m[idxMunId - 1]) : "";
-                            if (mId === uMunId) { mNome = idxMunNome !== undefined ? textoSeguro(m[idxMunNome - 1]) : ""; break; }
-                          }
-                        }
-                        label = mNome ? (mNome + " - " + uNome) : uNome;
-                        break;
-                      }
-                    }
-                  }
-                  comarcas.push(label);
-                }
-              }
-            }
+      // O escopo V4 vem exclusivamente de ACESSOS_UNIDADES.
+      let unidades = [];
+      let comarcas = []; // alias temporário de municípios para componentes legados de consulta
+      try {
+        const uid = idxId !== undefined ? textoSeguro(linha[idxId - 1]) : "";
+        const sheetAcc = uid ? DB.acessosUnidadesOuNulo() : null;
+        if (sheetAcc) {
+          const mapaAcc = DB.map(sheetAcc);
+          const catalogoResposta = listarUnidadesParaAcesso();
+          const catalogo = {};
+          if (catalogoResposta && catalogoResposta.sucesso === true) {
+            (catalogoResposta.dados || []).forEach(function(item) { catalogo[item.id] = item; });
           }
-        } catch(eAcc){}
-      }
+          DB.read(sheetAcc).forEach(function(acesso) {
+            const usuarioId = textoSeguro(_fcCampo(mapaAcc, acesso, ["USUARIO_ID"]));
+            const unidadeId = textoSeguro(_fcCampo(mapaAcc, acesso, ["UNIDADE_ID"]));
+            const ativoAcesso = paraBoolean(_fcCampo(mapaAcc, acesso, ["ATIVO"], false));
+            if (usuarioId !== uid || !ativoAcesso || !catalogo[unidadeId]) return;
+            const unidade = catalogo[unidadeId];
+            unidades.push(unidade);
+            if (comarcas.indexOf(unidade.municipio) === -1) comarcas.push(unidade.municipio);
+          });
+        }
+      } catch (erroAcessos) {}
 
       return {
         id: idxId !== undefined ? textoSeguro(linha[idxId - 1]) : "",
@@ -336,7 +301,8 @@ class AuthService {
         perfil: ativo ? perfilSeguro : CONFIG.PERFIS.USUARIO_CONSULTA,
         nivel: nivel,
         ativo: ativo,
-        comarcas: comarcas
+        comarcas: comarcas,
+        unidades: unidades
       };
     }
 
@@ -351,7 +317,8 @@ class AuthService {
       perfil: CONFIG.PERFIS.USUARIO_CONSULTA,
       nivel: 1,
       ativo: false,
-      comarcas: []
+      comarcas: [],
+      unidades: []
     };
   }
 

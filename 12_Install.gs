@@ -414,8 +414,8 @@ function criarAbaSolicitacoesAcesso(
         "ID",
         "EMAIL",
         "NOME",
-        "COMARCA",
-        "PERFIL_SOLICITADO",
+        "NIVEL_SOLICITADO",
+        "UNIDADE_ID",
         "JUSTIFICATIVA",
         "STATUS",
         "DATA_SOLICITACAO",
@@ -425,11 +425,19 @@ function criarAbaSolicitacoesAcesso(
     );
   }
 
-  garantirColunaComarca(
-    spreadsheet,
-    sheet
-  );
+  garantirColunaUnidadeSolicitacao(sheet);
 
+  return sheet;
+}
+
+/** Garante onde os IDs múltiplos ficam armazenados até a aprovação. */
+function garantirColunaUnidadeSolicitacao(sheet) {
+  const headers = DB.headers(sheet);
+  const existe = headers.some(function(header) {
+    const chave = normalizarChave(header);
+    return chave === "UNIDADEID" || chave === "UNIDADESIDS" || chave === "UNIDADEIDS";
+  });
+  if (!existe) sheet.getRange(1, sheet.getLastColumn() + 1).setValue("UNIDADE_ID");
   return sheet;
 }
 
@@ -474,7 +482,7 @@ function garantirColunaComarca(
 
 /**
  * Executa apenas a migração da aba SOLICITACOES_ACESSO
- * (adiciona a coluna COMARCA em instalações antigas).
+ * (adiciona a coluna UNIDADE_ID em instalações antigas).
  */
 function atualizarAbaSolicitacoesAcesso() {
   const spreadsheet = DB.getSpreadsheet();
@@ -490,14 +498,11 @@ function atualizarAbaSolicitacoesAcesso() {
     );
   }
 
-  garantirColunaComarca(
-    spreadsheet,
-    sheet
-  );
+  garantirColunaUnidadeSolicitacao(sheet);
 
   SpreadsheetApp.flush();
 
-  return "Coluna COMARCA garantida na aba SOLICITACOES_ACESSO.";
+  return "Coluna UNIDADE_ID garantida na aba SOLICITACOES_ACESSO.";
 }
 
 /**

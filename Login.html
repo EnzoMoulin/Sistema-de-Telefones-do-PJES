@@ -123,11 +123,12 @@ function fazerLoginConsulta(){
             nome: resp.dados.nome,
             perfil: resp.dados.perfil,
             nivel: resp.dados.nivel,
-            comarcas: resp.dados.comarcas || []
+            comarcas: resp.dados.comarcas || [],
+            unidades: resp.dados.unidades || []
           }));
           localStorage.removeItem("pjes_consulta_sessao");
         }catch(e){}
-        usuarioAtual = { nome: resp.dados.nome || email.split("@")[0], email: resp.dados.email, perfil: resp.dados.perfil || "GESTOR_CONTEUDO", logado: true, ativo: true, comarcas: Array.isArray(resp.dados.comarcas)?resp.dados.comarcas:[], viaConsulta:true };
+        usuarioAtual = { nome: resp.dados.nome || email.split("@")[0], email: resp.dados.email, perfil: resp.dados.perfil || "GESTOR_CONTEUDO", logado: true, ativo: true, comarcas: Array.isArray(resp.dados.comarcas)?resp.dados.comarcas:[], unidades: Array.isArray(resp.dados.unidades)?resp.dados.unidades:[], viaConsulta:true };
         try{ atualizarInterfaceUsuario(); }catch(e){}
         exibirMensagemLogin("Login realizado! Bem-vindo, " + (resp.dados.nome||"") + ".", "success");
         if(typeof mostrarToast==="function") mostrarToast("Login realizado!", "success");

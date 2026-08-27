@@ -67,16 +67,20 @@ function _v4EscopoPermitido(usuario, forumId, unidadeId) {
   if (usuario.perfil !== CONFIG.PERFIS.GESTOR_CONTEUDO) return false;
 
   const sheet = DB.acessosUnidadesOuNulo();
-  if (!sheet) return true;
+  if (!sheet || !usuario.id) return false;
   const mapa = DB.map(sheet);
-  const acessos = DB.read(sheet).filter(l => paraBoolean(_v4Col(mapa, l, ["ATIVO"], false)));
-  if (!acessos.length) return true;
+  const acessos = DB.read(sheet).filter(function(linha) {
+    const ativo = paraBoolean(_v4Col(mapa, linha, ["ATIVO"], false));
+    const usuarioId = textoSeguro(_v4Col(mapa, linha, ["USUARIO_ID"]));
+    return ativo && (usuarioId === usuario.id || usuarioId === usuario.email);
+  });
+  if (!acessos.length) return false;
 
   const unidades = new Set();
   acessos.forEach(l => {
     const uid = textoSeguro(_v4Col(mapa, l, ["UNIDADE_ID"]));
     const uidUsuario = textoSeguro(_v4Col(mapa, l, ["USUARIO_ID"]));
-    if (uid && (!uidUsuario || uidUsuario === usuario.id || uidUsuario === usuario.email)) unidades.add(uid);
+    if (uid && (uidUsuario === usuario.id || uidUsuario === usuario.email)) unidades.add(uid);
   });
   if (unidadeId && unidades.has(unidadeId)) return true;
   if (!unidadeId && forumId) {
@@ -261,6 +265,9 @@ function _v4HistoricoRegistrar(contatoId, acao, antes, depois, authDados) {
 function v4ObterContato(id, authDados) {
   new AuthService(authDados).exigirPermissao(CONFIG.PERMISSOES.VISUALIZAR);
   const dados = _v4Flat({}).find(x => x.ID === textoSeguro(id));
+  if (dados && !_v4EscopoPermitido(_v4Usuario(authDados), dados.forumId, dados.unidadeId)) {
+    throw new Error("Sem permissão para este Fórum/Unidade.");
+  }
   return respostaSucesso(dados || null);
 }
 

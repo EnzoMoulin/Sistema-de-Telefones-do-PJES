@@ -47,6 +47,7 @@ const API = {
     criarRunnerAPI(sucesso, erro).solicitarAcesso(nome, perfil, justificativa, comarca, obterAutenticacaoAPI());
   },
   enviarFormularioAcesso(dados, sucesso, erro) { criarRunnerAPI(sucesso, erro).enviarFormularioAcesso(dados); },
+  listarUnidadesParaAcesso(sucesso, erro) { criarRunnerAPI(sucesso, erro).listarUnidadesParaAcesso(); },
   listarSolicitacoes(sucesso, erro) { criarRunnerAPI(sucesso, erro).listarSolicitacoes(obterAutenticacaoAPI()); },
   contarSolicitacoesPendentes(sucesso, erro) { criarRunnerAPI(sucesso, erro).contarSolicitacoesPendentes(obterAutenticacaoAPI()); },
   aprovarSolicitacao(id, sucesso, erro) { criarRunnerAPI(sucesso, erro).aprovarSolicitacao(id, obterAutenticacaoAPI()); },

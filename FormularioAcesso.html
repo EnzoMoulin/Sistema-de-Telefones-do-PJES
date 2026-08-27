@@ -6,834 +6,114 @@ Arquivo: FormularioAcesso.html
 -->
 
 <style>
-  .fa-wrap {
-    max-width: 760px;
-    margin: 0 auto;
-  }
+  .fa-wrap{max-width:900px;margin:0 auto}.fa-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 10px 25px -8px rgba(15,23,42,.12);overflow:hidden}.fa-head{background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 55%,#3b82f6 100%);padding:26px 30px;color:#fff;position:relative}.fa-head:after{content:"🔑";position:absolute;right:24px;top:50%;transform:translateY(-50%);font-size:42px;opacity:.25}.fa-head h2{margin:0 0 6px;font-size:20px;font-weight:800}.fa-head p{margin:0;font-size:13px;opacity:.92;max-width:650px;line-height:1.5}.fa-body{padding:26px 30px 30px}.fa-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.fa-full{grid-column:1/-1}.fa-field{display:flex;flex-direction:column;gap:6px}.fa-field label{font-size:13px;font-weight:700;color:#334155;display:flex;align-items:center;gap:6px}.fa-field input,.fa-field select,.fa-field textarea{width:100%;box-sizing:border-box;padding:11px 13px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:14px;font-family:inherit;color:#0f172a;background:#f8fafc}.fa-field input:focus,.fa-field select:focus,.fa-field textarea:focus{outline:none;border-color:#2563eb;background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.15)}.fa-hint{font-size:12px;color:#64748b;line-height:1.45}.fa-nome-bloqueado{background:#f1f5f9!important;color:#475569!important;cursor:not-allowed!important}
 
-  .fa-card {
-    background: #ffffff;
-    border-radius: 16px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 10px 25px -8px rgba(15, 23, 42, 0.12);
-    overflow: hidden;
-  }
+  .fa-unidades{border:1px solid #cbd5e1;border-radius:14px;background:#f8fafc;overflow:hidden}.fa-unidades-topo{padding:14px 16px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.fa-unidades-topo strong{display:block;font-size:14px;color:#0f172a}.fa-unidades-contador{background:#dbeafe;color:#1d4ed8;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:800;white-space:nowrap}.fa-unidades-filtros{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:9px;padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0}.fa-unidades-filtros input,.fa-unidades-filtros select{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;font-size:13px}.fa-unidades-acoes{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 16px;background:#fff;border-bottom:1px solid #e2e8f0}.fa-link-btn{border:0;background:transparent;color:#2563eb;font-size:12px;font-weight:700;cursor:pointer;padding:5px}.fa-link-btn:hover{text-decoration:underline}.fa-unidades-lista{max-height:340px;overflow:auto;background:#fff}.fa-unidades-vazio{padding:28px 18px;text-align:center;color:#64748b;font-size:13px;line-height:1.5}.fa-grupo-municipio{position:sticky;top:0;z-index:2;padding:8px 14px;background:#eff6ff;color:#1e40af;font-size:12px;font-weight:800;border-top:1px solid #dbeafe;border-bottom:1px solid #dbeafe}.fa-grupo-forum{padding:8px 16px 6px;color:#475569;font-size:12px;font-weight:800;background:#f8fafc;border-bottom:1px solid #f1f5f9}.fa-unidade-item{display:flex;gap:10px;align-items:flex-start;padding:10px 16px 10px 24px;border-bottom:1px solid #f1f5f9;cursor:pointer}.fa-unidade-item:hover{background:#f8fafc}.fa-unidade-item input{width:17px;height:17px;flex:0 0 17px;margin:2px 0 0;accent-color:#2563eb}.fa-unidade-item-nome{font-size:13px;color:#0f172a;font-weight:650;line-height:1.35}.fa-unidade-item-obs{display:block;margin-top:2px;color:#64748b;font-size:11px;font-weight:400}.fa-selecionadas{padding:12px 16px;background:#f8fafc;border-top:1px solid #e2e8f0}.fa-selecionadas-titulo{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:800;color:#475569;margin-bottom:8px}.fa-selecionadas-lista{display:flex;flex-wrap:wrap;gap:6px;max-height:130px;overflow:auto}.fa-unidade-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:6px 8px;border:1px solid #bfdbfe;background:#eff6ff;color:#1e40af;border-radius:8px;font-size:11px}.fa-unidade-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fa-unidade-chip button{border:0;background:transparent;color:#1d4ed8;font-weight:900;cursor:pointer;padding:0;line-height:1}.fa-info{margin-top:18px;padding:12px 16px;border-radius:10px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;font-size:13px;line-height:1.5;display:flex;gap:10px}.fa-msg{margin-top:16px;border-radius:10px;padding:13px 16px;font-size:13px;font-weight:600;line-height:1.5}.fa-acoes{margin-top:24px;display:flex;justify-content:flex-end}.fa-btn{padding:12px 28px;border:0;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#2563eb,#3b82f6);color:#fff;box-shadow:0 4px 12px -4px rgba(37,99,235,.5)}.fa-btn:disabled{opacity:.6;cursor:not-allowed}.hidden{display:none!important}
 
-  .fa-head {
-    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%);
-    padding: 26px 30px;
-    color: #ffffff;
-    position: relative;
-  }
-
-  .fa-head::after {
-    content: "🔑";
-    position: absolute;
-    right: 24px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 42px;
-    opacity: 0.25;
-  }
-
-  .fa-head h2 {
-    margin: 0 0 6px;
-    font-size: 20px;
-    font-weight: 800;
-    letter-spacing: 0.3px;
-  }
-
-  .fa-head p {
-    margin: 0;
-    font-size: 13px;
-    opacity: 0.9;
-    max-width: 480px;
-    line-height: 1.5;
-  }
-
-  .fa-body {
-    padding: 26px 30px 30px;
-  }
-
-  .fa-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-  }
-
-  .fa-grid .fa-full {
-    grid-column: 1 / -1;
-  }
-
-  .fa-field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .fa-field label {
-    font-size: 13px;
-    font-weight: 700;
-    color: #334155;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .fa-field label .fa-ic {
-    font-size: 15px;
-  }
-
-  .fa-field input,
-  .fa-field select,
-  .fa-field textarea {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 11px 13px;
-    border: 1.5px solid #cbd5e1;
-    border-radius: 10px;
-    font-size: 14px;
-    font-family: inherit;
-    color: #0f172a;
-    background: #f8fafc;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-  }
-
-  .fa-field input:focus,
-  .fa-field select:focus,
-  .fa-field textarea:focus {
-    outline: none;
-    border-color: #2563eb;
-    background: #ffffff;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-  }
-
-  .fa-hint {
-    font-size: 12px;
-    color: #64748b;
-    line-height: 1.4;
-  }
-
-  /* ---- Combobox de comarcas ---- */
-  .fa-combobox {
-    position: relative;
-  }
-
-  .fa-combobox input {
-    padding-right: 36px;
-    cursor: text;
-  }
-
-  .fa-combobox .fa-combobox-seta {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 12px;
-    color: #64748b;
-    pointer-events: none;
-    transition: transform 0.2s ease;
-  }
-
-  .fa-combobox.aberto .fa-combobox-seta {
-    transform: translateY(-50%) rotate(180deg);
-  }
-
-  .fa-combobox-lista {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    right: 0;
-    max-height: 240px;
-    overflow-y: auto;
-    margin: 0;
-    padding: 6px;
-    list-style: none;
-    background: #ffffff;
-    border: 1.5px solid #cbd5e1;
-    border-radius: 12px;
-    box-shadow: 0 12px 28px -10px rgba(15, 23, 42, 0.25);
-    z-index: 50;
-  }
-
-  .fa-combobox-lista li {
-    padding: 9px 12px;
-    border-radius: 8px;
-    font-size: 14px;
-    color: #0f172a;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .fa-combobox-lista li .fa-combobox-ic {
-    font-size: 13px;
-    opacity: 0.6;
-  }
-
-  .fa-combobox-lista li:hover,
-  .fa-combobox-lista li.ativo {
-    background: #eff6ff;
-    color: #1d4ed8;
-  }
-
-  .fa-combobox-lista li.fa-combobox-vazio {
-    cursor: default;
-    color: #94a3b8;
-    font-style: italic;
-    justify-content: center;
-  }
-
-  .fa-combobox-lista li.fa-combobox-vazio:hover {
-    background: transparent;
-    color: #94a3b8;
-  }
-
-  .fa-acoes {
-    margin-top: 24px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-  }
-
-  .fa-btn {
-    padding: 12px 28px;
-    border: none;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
-    color: #ffffff;
-    box-shadow: 0 4px 12px -4px rgba(37, 99, 235, 0.5);
-    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
-  }
-
-  .fa-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 16px -4px rgba(37, 99, 235, 0.55);
-  }
-
-  .fa-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  .fa-info {
-    margin-top: 18px;
-    padding: 12px 16px;
-    border-radius: 10px;
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
-    color: #1e40af;
-    font-size: 13px;
-    line-height: 1.5;
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-  }
-
-  .fa-msg {
-    margin-top: 16px;
-    border-radius: 10px;
-    padding: 13px 16px;
-    font-size: 13px;
-    font-weight: 600;
-    line-height: 1.5;
-  }
-
-  /* ---- Multi picker de comarcas (Formulário) ---- */
-  .fa-comarcas-picker{position:relative;}
-  .fa-comarcas-btn{
-    width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;
-    padding:11px 13px;border:1.5px solid #cbd5e1;border-radius:10px;background:#f8fafc;
-    font-size:14px;color:#0f172a;cursor:pointer;transition:border-color .15s, box-shadow .15s, background .15s;
-    text-align:left;
-  }
-  .fa-comarcas-btn:hover{border-color:#94a3b8;background:#ffffff;}
-  .fa-comarcas-btn:focus{outline:none;border-color:#2563eb;background:#ffffff;box-shadow:0 0 0 3px rgba(37,99,235,.15);}
-  .fa-comarcas-btn-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .fa-comarcas-btn-text.vazio{color:#64748b;font-style:italic;}
-  .fa-comarcas-btn-seta{color:#94a3b8;font-size:11px;flex:0 0 auto;}
-  .fa-comarcas-painel{
-    position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:40;
-    background:#ffffff;border:1.5px solid #cbd5e1;border-radius:12px;
-    box-shadow:0 12px 28px -10px rgba(15,23,42,.25);padding:8px;
-    max-height:320px;display:flex;flex-direction:column;
-  }
-  .fa-comarcas-busca{
-    padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px;box-sizing:border-box;width:100%;
-  }
-  .fa-comarcas-lista{overflow-y:auto;flex:1;min-height:60px;}
-  .fa-comarcas-lista label{
-    display:flex;align-items:center;justify-content:flex-start;gap:8px;padding:6px 8px;border-radius:8px;font-size:13px;cursor:pointer;width:100%;box-sizing:border-box;
-  }
-  .fa-comarcas-lista label:hover{background:#f8fafc;}
-  .fa-comarcas-rodape{
-    display:flex;justify-content:space-between;gap:8px;margin-top:8px;border-top:1px solid #f1f5f9;padding-top:8px;
-  }
-  .fa-nome-bloqueado{
-    background:#f1f5f9 !important;color:#475569 !important;cursor:not-allowed !important;
-  }
-
-  @media (max-width: 640px) {
-    .fa-grid {
-      grid-template-columns: 1fr;
-    }
-    .fa-body,
-    .fa-head {
-      padding-left: 20px;
-      padding-right: 20px;
-    }
-  }
+  @media(max-width:700px){.fa-grid,.fa-unidades-filtros{grid-template-columns:1fr}.fa-body,.fa-head{padding-left:18px;padding-right:18px}.fa-unidades-topo{flex-direction:column}.fa-unidades-acoes{align-items:flex-start;flex-direction:column}.fa-unidade-item{padding-left:16px}}
 </style>
 
 <div class="fa-wrap">
-
   <div class="fa-card">
-
     <div class="fa-head">
       <h2>🔑 Solicitação de Acesso Administrativo</h2>
-      <p>
-        Solicite acesso como <strong>Gestor de Conteúdo</strong> (comarcas específicas) ou
-        <strong>Gestor do Sistema</strong> (acesso total). Você receberá uma senha de 20 caracteres por e-mail, que só funcionará após aprovação.
-      </p>
+      <p>Solicite acesso como <strong>Gestor de Conteúdo</strong> para unidades específicas ou como <strong>Gestor do Sistema</strong> para acesso total. A senha de 20 caracteres só funcionará após a aprovação.</p>
     </div>
-
     <div class="fa-body">
-
-            <div class="fa-grid">
-
-        <div class="fa-field">
-          <label for="acesso-nome"><span class="fa-ic">👤</span> Nome completo *</label>
-          <input type="text" id="acesso-nome" maxlength="150" autocomplete="name" placeholder="Seu nome completo" required>
-        </div>
-
+      <div class="fa-grid">
+        <div class="fa-field fa-full"><label for="acesso-nome">👤 Nome completo *</label><input type="text" id="acesso-nome" maxlength="150" autocomplete="name" placeholder="Seu nome completo" required></div>
         <div class="fa-field fa-full">
-          <label for="acesso-perfil"><span class="fa-ic">🎖️</span> Perfil solicitado *</label>
-          <select id="acesso-perfil" required>
-            <option value="GESTOR_CONTEUDO">Gestor de Conteúdo — edita telefones das comarcas selecionadas</option>
-            <option value="GESTOR_SISTEMA">Gestor do Sistema - acesso total a todas comarcas, edita telefones e controla os usuários</option>
-          </select>
-          <span class="fa-hint" id="perfil-hint" style="display:block;margin-top:6px;"></span>
+          <label for="acesso-perfil">🎖️ Perfil solicitado *</label>
+          <select id="acesso-perfil" required><option value="GESTOR_CONTEUDO">Gestor de Conteúdo — gerencia somente as unidades selecionadas</option><option value="GESTOR_SISTEMA">Gestor do Sistema — acesso administrativo total</option></select>
+          <span class="fa-hint" id="perfil-hint">O Gestor de Conteúdo deve selecionar ao menos uma unidade.</span>
         </div>
-
-        <div class="fa-field" id="grupo-fa-comarcas">
-          <label><span class="fa-ic">🏛️</span> Comarcas onde trabalha <span id="fa-comarcas-req">*</span></label>
-          <div id="fa-comarcas-picker"></div>
-          <input type="hidden" id="acesso-comarca-valor">
-          <span class="fa-hint">Selecione uma ou mais comarcas. Use a busca para filtrar.</span>
-        </div>
-
-        <div class="fa-field fa-full">
-          <label for="acesso-email"><span class="fa-ic">📧</span> E-mail institucional *</label>
-          <div style="display:flex;align-items:stretch;gap:0;">
-            <input type="text" id="acesso-email" maxlength="80" autocomplete="off" placeholder="nome" required style="flex:1;border-radius:10px 0 0 10px;">
-            <span class="dominio-sufixo" style="display:flex;align-items:center;padding:0 12px;background:#f1f5f9;border:1.5px solid #cbd5e1;border-left:0;border-radius:0 10px 10px 0;font-size:13px;color:#475569;font-weight:600;white-space:nowrap;">@tjes.jus.br</span>
+        <div class="fa-field fa-full" id="grupo-fa-unidades">
+          <label>🏢 Unidades em que terá acesso *</label>
+          <span class="fa-hint">Localize pelo Município ou Fórum. A busca também encontra palavras do nome da Unidade.</span>
+          <div class="fa-unidades" aria-label="Seletor de unidades">
+            <div class="fa-unidades-topo"><div><strong>Selecione uma ou mais unidades</strong><span class="fa-hint">As escolhas permanecem marcadas ao trocar os filtros.</span></div><span class="fa-unidades-contador" id="fa-unidades-contador">0 selecionadas</span></div>
+            <div class="fa-unidades-filtros"><input type="search" id="fa-unidades-busca" placeholder="Buscar unidade, fórum ou município…" autocomplete="off"><select id="fa-municipio-filtro" aria-label="Filtrar por Município"><option value="">Escolha o Município</option></select><select id="fa-forum-filtro" aria-label="Filtrar por Fórum" disabled><option value="">Todos os Fóruns</option></select></div>
+            <div class="fa-unidades-acoes"><span class="fa-hint" id="fa-unidades-resultado">Carregando unidades…</span><div><button type="button" class="fa-link-btn" id="fa-selecionar-visiveis">Selecionar resultados</button><button type="button" class="fa-link-btn" id="fa-limpar-unidades">Limpar seleção</button></div></div>
+            <div class="fa-unidades-lista" id="fa-unidades-lista" role="group" aria-label="Unidades disponíveis"><div class="fa-unidades-vazio">Carregando a lista de unidades…</div></div>
+            <div class="fa-selecionadas"><div class="fa-selecionadas-titulo"><span>Unidades selecionadas</span><span id="fa-selecionadas-resumo">Nenhuma</span></div><div class="fa-selecionadas-lista" id="fa-selecionadas-lista"><span class="fa-hint">As unidades escolhidas aparecerão aqui.</span></div></div>
           </div>
-          <span class="fa-hint">Utilize o e-mail corporativo do TJES (@tjes.jus.br).</span>
         </div>
-
         <div class="fa-field fa-full">
-          <label for="acesso-justificativa"><span class="fa-ic">✍️</span> Justificativa *</label>
-          <textarea id="acesso-justificativa" rows="4" maxlength="2000" minlength="10" placeholder="Descreva o motivo da solicitação de acesso..." required></textarea>
-          <span class="fa-hint">Mínimo de 10 caracteres.</span>
+          <label for="acesso-email">📧 E-mail institucional *</label>
+          <div style="display:flex;align-items:stretch"><input type="text" id="acesso-email" maxlength="80" autocomplete="off" placeholder="nome" required style="flex:1;border-radius:10px 0 0 10px"><span class="dominio-sufixo" style="display:flex;align-items:center;padding:0 12px;background:#f1f5f9;border:1.5px solid #cbd5e1;border-left:0;border-radius:0 10px 10px 0;font-size:13px;color:#475569;font-weight:600">@tjes.jus.br</span></div>
+          <span class="fa-hint">Utilize o e-mail corporativo do TJES.</span>
         </div>
-
+        <div class="fa-field fa-full"><label for="acesso-justificativa">✍️ Justificativa *</label><textarea id="acesso-justificativa" rows="4" maxlength="2000" minlength="10" placeholder="Descreva o motivo da solicitação de acesso…" required></textarea><span class="fa-hint">Mínimo de 10 caracteres.</span></div>
       </div>
-
-      <div class="fa-info">
-        <span>ℹ️</span>
-        <span>
-          Após o envio, o Gestor do Sistema receberá um e-mail com a sua
-          solicitação e você será notificado assim que ela for analisada.
-        </span>
-      </div>
-
+      <div class="fa-info"><span>ℹ️</span><span>Após o envio, a senha será gerada e a solicitação seguirá para análise. Os vínculos em <strong>ACESSOS_UNIDADES</strong> serão ativados somente quando o Gestor do Sistema aprovar.</span></div>
       <div id="formulario-acesso-mensagem" class="fa-msg hidden" role="alert"></div>
-
-      <div class="fa-acoes">
-        <button type="button" id="btn-enviar-formulario-acesso" class="fa-btn" onclick="enviarFormularioAcesso()">
-          Enviar solicitação →
-        </button>
-      </div>
-
+      <div class="fa-acoes"><button type="button" id="btn-enviar-formulario-acesso" class="fa-btn" onclick="enviarFormularioAcesso()">Enviar solicitação →</button></div>
     </div>
-
   </div>
-
 </div>
 
 <script>
-/**
- * ==========================================================
- * FORMULÁRIO DE ACESSO — Multi comarcas + perfil ambos + nome bloqueado
- * ==========================================================
- *
- * - Visitante: preenche tudo.
- * - Gestor de Conteúdo (logado): nome e email vêm de usuarioAtual (nome bloqueado),
- *   pode pedir Gestor de Conteúdo (+ comarcas) OU Gestor do Sistema (promoção).
- * - Comarcas: multi seleção via checkboxes, vazio não existe mais — ao menos 1.
- */
+var unidadesFormulario=[];
+var unidadesFormularioPorId={};
+var unidadesSelecionadasFormulario={};
 
-var comarcasFormulario = [];
-var faComarcasSelecionadas = {};
-var faPerfilHintTimer = null;
+function normalizarBuscaUnidade(valor){return String(valor||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();}
+function ehGestorConteudoLogado(){try{return !!(usuarioAtual&&usuarioAtual.logado===true&&String(usuarioAtual.perfil||"").toUpperCase()==="GESTOR_CONTEUDO");}catch(e){return false;}}
 
-function normalizarComarca(valor) {
-  return String(valor || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .toLowerCase();
+function carregarUnidadesFormulario(){
+  if(typeof API==="undefined"||typeof API.listarUnidadesParaAcesso!=="function"){exibirMensagemFormularioAcesso("O catálogo de unidades não está disponível.","error");return;}
+  API.listarUnidadesParaAcesso(function(resposta){
+    if(!resposta||resposta.sucesso!==true||!Array.isArray(resposta.dados)){exibirMensagemFormularioAcesso((resposta&&resposta.erro)||"Não foi possível carregar as unidades.","error");return;}
+    unidadesFormulario=resposta.dados;unidadesFormularioPorId={};unidadesFormulario.forEach(function(u){unidadesFormularioPorId[u.id]=u;});preencherFiltroMunicipios();renderizarUnidadesFormulario();atualizarSelecionadasFormulario();
+  },function(erro){exibirMensagemFormularioAcesso((erro&&erro.message)||"Falha ao carregar as unidades.","error");});
 }
 
-function ehGestorConteudoLogado() {
-  try {
-    return typeof usuarioAtual !== "undefined" && usuarioAtual && usuarioAtual.logado === true && String(usuarioAtual.perfil||"").toUpperCase() === "GESTOR_CONTEUDO";
-  } catch(e){ return false; }
+function preencherFiltroMunicipios(){
+  var select=document.getElementById("fa-municipio-filtro");if(!select)return;var mapa={};unidadesFormulario.forEach(function(u){mapa[u.municipioId]=u.municipio;});select.innerHTML='<option value="">Escolha o Município</option>';Object.keys(mapa).sort(function(a,b){return mapa[a].localeCompare(mapa[b],"pt-BR");}).forEach(function(id){var op=document.createElement("option");op.value=id;op.textContent=mapa[id];select.appendChild(op);});
 }
 
-function carregarComarcasCombobox() {
-  function usarLista(lista) {
-    comarcasFormulario = Array.isArray(lista) ? lista : [];
-    var datalistModal = document.getElementById("lista-comarcas-modal");
-    if (datalistModal) {
-      datalistModal.textContent = "";
-      comarcasFormulario.forEach(function(nome) {
-        var option = document.createElement("option");
-        option.value = nome;
-        datalistModal.appendChild(option);
-      });
-    }
-    construirPickerComarcas();
-  }
-
-  if (typeof API !== "undefined" && typeof API.listarComarcas === "function") {
-    API.listarComarcas(
-      function(resposta) {
-        if (resposta && resposta.sucesso === true && Array.isArray(resposta.dados)) {
-          usarLista(resposta.dados);
-        } else {
-          usarLista(comarcasDeTelefonesLocais());
-        }
-      },
-      function() { usarLista(comarcasDeTelefonesLocais()); }
-    );
-  } else {
-    usarLista(comarcasDeTelefonesLocais());
-  }
+function preencherFiltroForuns(){
+  var mun=document.getElementById("fa-municipio-filtro").value;var select=document.getElementById("fa-forum-filtro");select.innerHTML='<option value="">Todos os Fóruns</option>';select.disabled=!mun;if(!mun)return;var mapa={};unidadesFormulario.forEach(function(u){if(u.municipioId===mun)mapa[u.forumId]=u.forum;});Object.keys(mapa).sort(function(a,b){return mapa[a].localeCompare(mapa[b],"pt-BR");}).forEach(function(id){var op=document.createElement("option");op.value=id;op.textContent=mapa[id];select.appendChild(op);});
 }
 
-function comarcasDeTelefonesLocais() {
-  var comarcas = {};
-  if (typeof listaTelefones !== "undefined" && Array.isArray(listaTelefones)) {
-    listaTelefones.forEach(function(item) {
-      var comarca = String((item && (item.comarca || item.COMARCA)) || "").trim();
-      if (comarca && !comarcas[comarca]) comarcas[comarca] = true;
-    });
-  }
-  return Object.keys(comarcas).sort(function(a, b) { return a.localeCompare(b, "pt-BR"); });
+function unidadesVisiveisFormulario(){
+  var termo=normalizarBuscaUnidade(document.getElementById("fa-unidades-busca").value);var municipio=document.getElementById("fa-municipio-filtro").value;var forum=document.getElementById("fa-forum-filtro").value;if(!termo&&!municipio&&!forum)return [];return unidadesFormulario.filter(function(u){if(municipio&&u.municipioId!==municipio)return false;if(forum&&u.forumId!==forum)return false;if(!termo)return true;return normalizarBuscaUnidade([u.nome,u.forum,u.municipio,u.observacao].join(" ")).indexOf(termo)!==-1;});
 }
 
-// ---- Picker multi comarcas ----
-
-function construirPickerComarcas() {
-  var holder = document.getElementById("fa-comarcas-picker");
-  if (!holder) return;
-  holder.textContent = "";
-
-  var wrapper = document.createElement("div");
-  wrapper.className = "fa-comarcas-picker";
-  wrapper.style.position = "relative";
-
-  var btn = document.createElement("button");
-  btn.type = "button";
-  btn.id = "fa-comarcas-btn";
-  btn.className = "fa-comarcas-btn";
-  var btnText = document.createElement("span");
-  btnText.id = "fa-comarcas-btn-text";
-  btnText.className = "fa-comarcas-btn-text vazio";
-  btnText.textContent = "Selecione as comarcas...";
-  var btnSeta = document.createElement("span");
-  btnSeta.className = "fa-comarcas-btn-seta";
-  btnSeta.textContent = "▾";
-  btn.appendChild(btnText);
-  btn.appendChild(btnSeta);
-
-  var painel = document.createElement("div");
-  painel.id = "fa-comarcas-painel";
-  painel.className = "fa-comarcas-painel hidden";
-
-  var busca = document.createElement("input");
-  busca.type = "search";
-  busca.id = "fa-comarcas-busca";
-  busca.className = "fa-comarcas-busca";
-  busca.placeholder = "Buscar comarca...";
-  busca.autocomplete = "off";
-
-  var lista = document.createElement("div");
-  lista.id = "fa-comarcas-lista";
-  lista.className = "fa-comarcas-lista";
-
-  var rodape = document.createElement("div");
-  rodape.className = "fa-comarcas-rodape";
-  var btnLimpar = document.createElement("button");
-  btnLimpar.type = "button";
-  btnLimpar.className = "btn btn-secondary";
-  btnLimpar.textContent = "Limpar";
-  btnLimpar.style.cssText = "padding:6px 10px;font-size:12px;";
-  var btnTodas = document.createElement("button");
-  btnTodas.type = "button";
-  btnTodas.className = "btn btn-secondary";
-  btnTodas.textContent = "Selecionar todas";
-  btnTodas.style.cssText = "padding:6px 10px;font-size:12px;";
-  btnTodas.addEventListener("click", function(){
-    comarcasFormulario.forEach(function(nome){ faComarcasSelecionadas[normalizarComarca(nome)] = nome; });
-    renderListaComarcas(); atualizarBotaoComarcas();
-  });
-  var btnOk = document.createElement("button");
-  btnOk.type = "button";
-  btnOk.className = "btn btn-primary";
-  btnOk.textContent = "OK";
-  btnOk.style.cssText = "padding:6px 14px;font-size:12px;";
-  var grupoEsq = document.createElement("div");
-  grupoEsq.style.cssText = "display:flex;gap:6px;align-items:center;";
-  grupoEsq.appendChild(btnLimpar);
-  grupoEsq.appendChild(btnTodas);
-  rodape.appendChild(grupoEsq);
-  rodape.appendChild(btnOk);
-
-  painel.appendChild(busca);
-  painel.appendChild(lista);
-  painel.appendChild(rodape);
-  wrapper.appendChild(btn);
-  wrapper.appendChild(painel);
-  holder.appendChild(wrapper);
-
-  function atualizarBotaoComarcas() {
-    var nomes = Object.keys(faComarcasSelecionadas).map(function(k){ return faComarcasSelecionadas[k]; });
-    var t = document.getElementById("fa-comarcas-btn-text");
-    var hidden = document.getElementById("acesso-comarca-valor");
-    if (hidden) hidden.value = nomes.join(", ");
-    if (!t) return;
-    if (nomes.length === 0) {
-      t.textContent = "Selecione as comarcas...";
-      t.className = "fa-comarcas-btn-text vazio";
-      btn.title = "Selecione ao menos uma comarca";
-    } else if (nomes.length === 1) {
-      t.textContent = nomes[0];
-      t.className = "fa-comarcas-btn-text";
-      btn.title = nomes[0];
-    } else {
-      var txt = nomes.join(", ");
-      t.textContent = nomes.length + " comarcas: " + (txt.length > 50 ? txt.slice(0,47)+"…" : txt);
-      t.className = "fa-comarcas-btn-text";
-      btn.title = txt;
-    }
-  }
-
-  function renderListaComarcas() {
-    lista.textContent = "";
-    if (comarcasFormulario.length === 0) {
-      var v = document.createElement("div");
-      v.style.cssText = "padding:10px;text-align:center;color:#94a3b8;font-size:13px;";
-      v.textContent = "Nenhuma comarca cadastrada";
-      lista.appendChild(v);
-      return;
-    }
-    var termo = normalizarComarca(busca.value || "");
-    var filtradas = termo ? comarcasFormulario.filter(function(n){ return normalizarComarca(n).includes(termo); }) : comarcasFormulario.slice();
-    if (filtradas.length === 0) {
-      var vv = document.createElement("div");
-      vv.style.cssText = "padding:10px;text-align:center;color:#94a3b8;font-size:13px;";
-      vv.textContent = "Nenhuma comarca encontrada";
-      lista.appendChild(vv);
-      return;
-    }
-    filtradas.forEach(function(nome){
-      var label = document.createElement("label");
-      var cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.style.cssText = "width:16px;height:16px;flex:0 0 16px;margin:0;accent-color:#2563eb;";
-      cb.checked = !!faComarcasSelecionadas[normalizarComarca(nome)];
-      cb.addEventListener("change", function(){
-        var k = normalizarComarca(nome);
-        if (cb.checked) faComarcasSelecionadas[k] = nome;
-        else delete faComarcasSelecionadas[k];
-        atualizarBotaoComarcas();
-      });
-      var span = document.createElement("span");
-      span.textContent = nome;
-      span.style.cssText = "flex:1 1 auto;min-width:0;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-      label.appendChild(cb);
-      label.appendChild(span);
-      lista.appendChild(label);
-    });
-  }
-
-  btn.addEventListener("click", function(e){
-    e.stopPropagation();
-    var fechado = painel.classList.contains("hidden");
-    document.querySelectorAll(".fa-comarcas-painel").forEach(function(o){ if(o!==painel) o.classList.add("hidden"); });
-    if (fechado) { renderListaComarcas(); painel.classList.remove("hidden"); busca.focus(); }
-    else painel.classList.add("hidden");
-  });
-  busca.addEventListener("input", renderListaComarcas);
-  btnLimpar.addEventListener("click", function(){ faComarcasSelecionadas = {}; renderListaComarcas(); atualizarBotaoComarcas(); });
-  btnOk.addEventListener("click", function(){ painel.classList.add("hidden"); });
-  document.addEventListener("click", function(ev){
-    if (!wrapper.contains(ev.target)) painel.classList.add("hidden");
-  });
-  window._faAtualizarBotaoComarcas = atualizarBotaoComarcas;
-  window._faRenderListaComarcas = renderListaComarcas;
-  atualizarBotaoComarcas();
-}
-
-function obterComarcasSelecionadasFormulario() {
-  return Object.keys(faComarcasSelecionadas).map(function(k){ return faComarcasSelecionadas[k]; }).join(", ");
-}
-
-function validarComarcasFormulario() {
-  var raw = obterComarcasSelecionadasFormulario().trim();
-  if (!raw) return false;
-  // valida que todas existem
-  var nomes = raw.split(/[,;|]+/).map(function(s){ return String(s).trim(); }).filter(Boolean);
-  if (nomes.length === 0) return false;
-  return nomes.every(function(n){
-    return comarcasFormulario.some(function(c){ return normalizarComarca(c) === normalizarComarca(n); });
+function renderizarUnidadesFormulario(){
+  var lista=document.getElementById("fa-unidades-lista"),resumo=document.getElementById("fa-unidades-resultado");if(!lista)return;lista.textContent="";var busca=normalizarBuscaUnidade(document.getElementById("fa-unidades-busca").value),mun=document.getElementById("fa-municipio-filtro").value,visiveis=unidadesVisiveisFormulario();
+  if(!busca&&!mun){lista.innerHTML='<div class="fa-unidades-vazio"><strong>Comece pelo local.</strong><br>Escolha um Município ou pesquise pelo nome da Unidade, Fórum ou Município.</div>';if(resumo)resumo.textContent=unidadesFormulario.length+" unidades disponíveis";return;}
+  if(!visiveis.length){lista.innerHTML='<div class="fa-unidades-vazio">Nenhuma unidade encontrada com esses filtros.</div>';if(resumo)resumo.textContent="0 resultados";return;}if(resumo)resumo.textContent=visiveis.length+" resultado(s)";var grupo="";
+  visiveis.forEach(function(u){
+    var chave=u.municipioId+"|"+u.forumId;if(chave!==grupo){if(!grupo||grupo.split("|")[0]!==u.municipioId){var mh=document.createElement("div");mh.className="fa-grupo-municipio";mh.textContent=u.municipio;lista.appendChild(mh);}var fh=document.createElement("div");fh.className="fa-grupo-forum";fh.textContent="🏛️ "+u.forum;lista.appendChild(fh);grupo=chave;}
+    var label=document.createElement("label");label.className="fa-unidade-item";var cb=document.createElement("input");cb.type="checkbox";cb.checked=!!unidadesSelecionadasFormulario[u.id];cb.setAttribute("aria-label",u.nome+" — "+u.forum+", "+u.municipio);cb.addEventListener("change",function(){if(cb.checked)unidadesSelecionadasFormulario[u.id]=true;else delete unidadesSelecionadasFormulario[u.id];atualizarSelecionadasFormulario();});var texto=document.createElement("span"),nome=document.createElement("span");nome.className="fa-unidade-item-nome";nome.textContent=u.nome;texto.appendChild(nome);if(u.observacao){var obs=document.createElement("span");obs.className="fa-unidade-item-obs";obs.textContent=u.observacao;texto.appendChild(obs);}label.appendChild(cb);label.appendChild(texto);lista.appendChild(label);
   });
 }
 
-// ---- Prefill nome bloqueado + perfil hints ----
-
-function alternarVisibilidadeComarcasFormulario(){
-  var perfilEl=document.getElementById("acesso-perfil");
-  var grupo=document.getElementById("grupo-fa-comarcas");
-  var req=document.getElementById("fa-comarcas-req");
-  if(!perfilEl||!grupo) return;
-  var ehSistema=String(perfilEl.value||"").toUpperCase()==="GESTOR_SISTEMA";
-  if(ehSistema){
-    grupo.style.display="none";
-    if(req) req.style.display="none";
-    faComarcasSelecionadas={};
-    if(window._faAtualizarBotaoComarcas) try{ window._faAtualizarBotaoComarcas(); }catch(e){}
-  } else {
-    grupo.style.display="";
-    if(req) req.style.display="";
-  }
+function atualizarSelecionadasFormulario(){
+  var ids=Object.keys(unidadesSelecionadasFormulario).filter(function(id){return !!unidadesFormularioPorId[id];}),contador=document.getElementById("fa-unidades-contador"),resumo=document.getElementById("fa-selecionadas-resumo"),lista=document.getElementById("fa-selecionadas-lista");if(contador)contador.textContent=ids.length+(ids.length===1?" selecionada":" selecionadas");if(resumo)resumo.textContent=ids.length?ids.length+" escolhida(s)":"Nenhuma";if(!lista)return;lista.textContent="";
+  if(!ids.length){var vazio=document.createElement("span");vazio.className="fa-hint";vazio.textContent="As unidades escolhidas aparecerão aqui.";lista.appendChild(vazio);return;}
+  ids.map(function(id){return unidadesFormularioPorId[id];}).sort(function(a,b){return (a.municipio+a.forum+a.nome).localeCompare(b.municipio+b.forum+b.nome,"pt-BR");}).forEach(function(u){var chip=document.createElement("span");chip.className="fa-unidade-chip";chip.title=u.municipio+" — "+u.forum+" — "+u.nome;var tx=document.createElement("span");tx.textContent=u.municipio+" › "+u.forum+" › "+u.nome;var rm=document.createElement("button");rm.type="button";rm.textContent="×";rm.setAttribute("aria-label","Remover "+u.nome);rm.addEventListener("click",function(){delete unidadesSelecionadasFormulario[u.id];renderizarUnidadesFormulario();atualizarSelecionadasFormulario();});chip.appendChild(tx);chip.appendChild(rm);lista.appendChild(chip);});
 }
 
-function aplicarEstadoFormularioPorPerfil() {
-  var nomeEl = document.getElementById("acesso-nome");
-  var emailEl = document.getElementById("acesso-email");
-  var perfilEl = document.getElementById("acesso-perfil");
-  var hint = document.getElementById("perfil-hint");
-  if (!nomeEl || !emailEl || !perfilEl) return;
+function alternarVisibilidadeUnidadesFormulario(){var perfil=document.getElementById("acesso-perfil").value,grupo=document.getElementById("grupo-fa-unidades"),hint=document.getElementById("perfil-hint"),sistema=perfil==="GESTOR_SISTEMA";grupo.classList.toggle("hidden",sistema);if(hint)hint.textContent=sistema?"Gestor do Sistema terá acesso total a todas as unidades.":"O Gestor de Conteúdo deve selecionar ao menos uma unidade.";if(sistema){unidadesSelecionadasFormulario={};atualizarSelecionadasFormulario();}}
 
-  var ehGC = ehGestorConteudoLogado();
-  var perfil = String(perfilEl.value || "").toUpperCase();
-
-  // Nome bloqueado para GC logado
-  if (ehGC) {
-    var nomeGC = "";
-    try { nomeGC = String(usuarioAtual.nome || "").trim(); } catch(e){}
-    if (nomeGC && nomeGC !== "Visitante") {
-      nomeEl.value = nomeGC;
-      nomeEl.readOnly = true;
-      nomeEl.classList.add("fa-nome-bloqueado");
-      nomeEl.title = "Seu nome vem do seu cadastro — não é necessário criar nova conta.";
-    }
-    var emailGC = "";
-    try { emailGC = String(usuarioAtual.email || "").trim().toLowerCase(); } catch(e){}
-    if (emailGC) {
-      var _domFA = (typeof window.DOMINIO_INSTITUCIONAL!=="undefined"&&window.DOMINIO_INSTITUCIONAL)||"tjes.jus.br";
-      var prefixGC = emailGC.toLowerCase().endsWith("@" + _domFA.toLowerCase()) ? emailGC.slice(0, -( _domFA.length+1)) : emailGC;
-      emailEl.value = prefixGC;
-      emailEl.readOnly = true;
-      emailEl.style.background = "#f1f5f9";
-      emailEl.style.color = "#475569";
-    }
-    if (hint) {
-      if (perfil === "GESTOR_SISTEMA") hint.textContent = "Você receberá uma senha de 20 caracteres por e-mail (só funcionará após aprovação).";
-      else hint.textContent = "Você receberá uma senha de 20 caracteres por e-mail (só funcionará após aprovação).";
-      hint.style.color = "#64748b";
-    }
-  } else {
-    nomeEl.readOnly = false;
-    nomeEl.classList.remove("fa-nome-bloqueado");
-    nomeEl.title = "";
-    emailEl.readOnly = false;
-    emailEl.style.background = "";
-    emailEl.style.color = "";
-    if (hint) hint.textContent = "";
-  }
-  try{ alternarVisibilidadeComarcasFormulario(); }catch(e2){}
+function aplicarEstadoFormularioPorPerfil(){
+  var nomeEl=document.getElementById("acesso-nome"),emailEl=document.getElementById("acesso-email");if(ehGestorConteudoLogado()){var nome=String(usuarioAtual.nome||"").trim(),email=String(usuarioAtual.email||"").trim().toLowerCase();if(nome&&nome!=="Visitante"){nomeEl.value=nome;nomeEl.readOnly=true;nomeEl.classList.add("fa-nome-bloqueado");}if(email){var dom=(window.DOMINIO_INSTITUCIONAL||"tjes.jus.br");emailEl.value=email.endsWith("@"+dom.toLowerCase())?email.slice(0,-(dom.length+1)):email;emailEl.readOnly=true;emailEl.classList.add("fa-nome-bloqueado");}}alternarVisibilidadeUnidadesFormulario();
 }
 
-function exibirMensagemFormularioAcesso(mensagem, tipo) {
-  var elemento = document.getElementById("formulario-acesso-mensagem");
-  if (!elemento) return;
-  var sucesso = tipo === "success";
-  elemento.textContent = (sucesso ? "✅ " : "⚠️ ") + String(mensagem || "");
-  elemento.style.backgroundColor = sucesso ? "#dcfce7" : "#fee2e2";
-  elemento.style.border = "1px solid " + (sucesso ? "#bbf7d0" : "#fecaca");
-  elemento.style.color = sucesso ? "#166534" : "#991b1b";
-  elemento.classList.remove("hidden");
+function exibirMensagemFormularioAcesso(mensagem,tipo){var el=document.getElementById("formulario-acesso-mensagem");if(!el)return;var ok=tipo==="success";el.textContent=(ok?"✅ ":"⚠️ ")+String(mensagem||"");el.style.backgroundColor=ok?"#dcfce7":"#fee2e2";el.style.border="1px solid "+(ok?"#bbf7d0":"#fecaca");el.style.color=ok?"#166534":"#991b1b";el.classList.remove("hidden");}
+function limparMensagemFormularioAcesso(){var el=document.getElementById("formulario-acesso-mensagem");if(el){el.textContent="";el.classList.add("hidden");}}
+
+function enviarFormularioAcesso(){
+  limparMensagemFormularioAcesso();var nomeEl=document.getElementById("acesso-nome"),emailEl=document.getElementById("acesso-email"),perfilEl=document.getElementById("acesso-perfil"),justEl=document.getElementById("acesso-justificativa"),nome=String(nomeEl.value||"").trim(),perfil=String(perfilEl.value||"").trim().toUpperCase(),justificativa=String(justEl.value||"").trim(),dom=(window.DOMINIO_INSTITUCIONAL||"tjes.jus.br"),emailRaw=String(emailEl.value||"").trim().toLowerCase(),email=emailRaw.indexOf("@")!==-1?emailRaw:(emailRaw?emailRaw+"@"+dom:""),unidadeIds=Object.keys(unidadesSelecionadasFormulario).filter(function(id){return !!unidadesFormularioPorId[id];});
+  if(nome.length<3){exibirMensagemFormularioAcesso("Informe o seu nome completo.","error");return;}if(perfil!=="GESTOR_CONTEUDO"&&perfil!=="GESTOR_SISTEMA"){exibirMensagemFormularioAcesso("Selecione o perfil solicitado.","error");return;}if(perfil==="GESTOR_CONTEUDO"&&!unidadeIds.length){exibirMensagemFormularioAcesso("Selecione ao menos uma unidade.","error");document.getElementById("grupo-fa-unidades").scrollIntoView({behavior:"smooth",block:"center"});return;}if(justificativa.length<10){exibirMensagemFormularioAcesso("Descreva a justificativa (mínimo de 10 caracteres).","error");return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){exibirMensagemFormularioAcesso("Informe um e-mail válido.","error");return;}if(!email.endsWith("@"+dom.toLowerCase())){exibirMensagemFormularioAcesso("Utilize o e-mail institucional (@"+dom+").","error");return;}
+  var botao=document.getElementById("btn-enviar-formulario-acesso");botao.disabled=true;botao.textContent="Enviando…";
+  API.enviarFormularioAcesso({nome:nome,email:email,perfil:perfil,unidadeIds:perfil==="GESTOR_CONTEUDO"?unidadeIds:[],justificativa:justificativa},function(resposta){botao.disabled=false;botao.textContent="Enviar solicitação →";if(resposta&&resposta.sucesso===true){if(resposta.dados&&resposta.dados.senha){try{exibirSenhaGerada(String(resposta.dados.senha||""),String(resposta.dados.email||email));}catch(e){}try{mostrarView("senha-gerada-view");}catch(e2){}if(typeof mostrarToast==="function")mostrarToast("Acesso em andamento. Senha gerada!","success");}unidadesSelecionadasFormulario={};atualizarSelecionadasFormulario();renderizarUnidadesFormulario();justEl.value="";}else exibirMensagemFormularioAcesso((resposta&&resposta.erro)||"Erro ao enviar a solicitação.","error");},function(erro){botao.disabled=false;botao.textContent="Enviar solicitação →";exibirMensagemFormularioAcesso((erro&&erro.message)||"Falha de comunicação com o servidor.","error");});
 }
 
-function limparMensagemFormularioAcesso() {
-  var elemento = document.getElementById("formulario-acesso-mensagem");
-  if (!elemento) return;
-  elemento.textContent = "";
-  elemento.className = "fa-msg hidden";
-}
-
-function enviarFormularioAcesso() {
-  limparMensagemFormularioAcesso();
-
-  var nomeEl = document.getElementById("acesso-nome");
-  var emailEl = document.getElementById("acesso-email");
-  var perfilEl = document.getElementById("acesso-perfil");
-  var justEl = document.getElementById("acesso-justificativa");
-
-  var ehGC = ehGestorConteudoLogado();
-  var nome = nomeEl ? String(nomeEl.value || "").trim() : "";
-  // Se GC, garante nome do cadastro
-  if (ehGC) {
-    try { var nGC = String(usuarioAtual.nome || "").trim(); if (nGC && nGC !== "Visitante") nome = nGC; } catch(e){}
-  }
-  var comarca = obterComarcasSelecionadasFormulario().trim();
-  var emailRaw = emailEl ? String(emailEl.value || "").trim().toLowerCase() : "";
-  var email = emailRaw.includes("@") ? emailRaw : (emailRaw ? emailRaw + "@" + ((typeof window.DOMINIO_INSTITUCIONAL!=="undefined"&&window.DOMINIO_INSTITUCIONAL)||"tjes.jus.br") : "");
-  if (ehGC) { try { var eGC = String(usuarioAtual.email || "").trim().toLowerCase(); if (eGC) email = eGC; } catch(e2){} }
-  var perfil = perfilEl ? String(perfilEl.value || "").trim().toUpperCase() : "";
-  var justificativa = justEl ? String(justEl.value || "").trim() : "";
-
-  if (nome.length < 3) {
-    exibirMensagemFormularioAcesso("Informe o seu nome completo.", "error");
-    return;
-  }
-
-  var perfilParaComarca = String(perfil||"").toUpperCase();
-  if (perfilParaComarca !== "GESTOR_SISTEMA") {
-    if (!validarComarcasFormulario()) {
-      exibirMensagemFormularioAcesso("Selecione ao menos uma comarca na lista.", "error");
-      return;
-    }
-  }
-  comarca = obterComarcasSelecionadasFormulario().trim();
-  if (justificativa.length < 10) {
-    exibirMensagemFormularioAcesso("Descreva a justificativa (mínimo de 10 caracteres).", "error");
-    return;
-  }
-
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    exibirMensagemFormularioAcesso("Informe um e-mail válido.", "error");
-    return;
-  }
-
-  if (!email.toLowerCase().endsWith("@" + ((typeof window.DOMINIO_INSTITUCIONAL!=="undefined"&&window.DOMINIO_INSTITUCIONAL)||"tjes.jus.br").toLowerCase())) {
-    exibirMensagemFormularioAcesso("Utilize o e-mail institucional (@" + ((typeof window.DOMINIO_INSTITUCIONAL!=="undefined"&&window.DOMINIO_INSTITUCIONAL)||"tjes.jus.br") + ").", "error");
-    return;
-  }
-
-  if (perfil !== "GESTOR_CONTEUDO" && perfil !== "GESTOR_SISTEMA") {
-    exibirMensagemFormularioAcesso("Selecione o perfil solicitado.", "error");
-    return;
-  }
-
-  if (typeof API === "undefined" || typeof API.enviarFormularioAcesso !== "function") {
-    exibirMensagemFormularioAcesso("O serviço de solicitações não está disponível.", "error");
-    return;
-  }
-
-  var botao = document.getElementById("btn-enviar-formulario-acesso");
-  if (botao) { botao.disabled = true; botao.textContent = "Enviando..."; }
-
-  API.enviarFormularioAcesso(
-    { nome: nome, comarca: comarca, email: email, perfil: perfil, justificativa: justificativa },
-    function(resposta) {
-      if (botao) { botao.disabled = false; botao.textContent = "Enviar solicitação →"; }
-      if (resposta && resposta.sucesso === true) {
-        // Gestor: resposta contém senha (pendente) -> nova página de senha com aviso
-        if (resposta.dados && resposta.dados.senha) {
-          var senhaResp = String(resposta.dados.senha||"");
-          var emailResp = String(resposta.dados.email||email);
-          try{ if(typeof exibirSenhaGerada==="function") exibirSenhaGerada(senhaResp, emailResp); }catch(e){}
-          try{ mostrarView('senha-gerada-view'); }catch(e2){}
-          if (typeof mostrarToast === "function") mostrarToast("Acesso em andamento. Senha gerada!", "success");
-          faComarcasSelecionadas = {};
-          if (window._faAtualizarBotaoComarcas) window._faAtualizarBotaoComarcas();
-          if (justEl) justEl.value = "";
-          return;
-        }
-        // Gestor: fluxo normal
-        if (!ehGC) {
-          if (nomeEl) nomeEl.value = "";
-          if (emailEl) emailEl.value = "";
-        }
-        faComarcasSelecionadas = {};
-        if (window._faAtualizarBotaoComarcas) window._faAtualizarBotaoComarcas();
-        if (justEl) justEl.value = "";
-        exibirMensagemFormularioAcesso("Solicitação enviada com sucesso! Você receberá o retorno pelo seu e-mail.", "success");
-        if (typeof mostrarToast === "function") mostrarToast("Solicitação enviada com sucesso!", "success");
-      } else {
-        exibirMensagemFormularioAcesso((resposta && resposta.erro) || "Erro ao enviar a solicitação.", "error");
-      }
-    },
-    function(erro) {
-      if (botao) { botao.disabled = false; botao.textContent = "Enviar solicitação →"; }
-      exibirMensagemFormularioAcesso((erro && erro.message) || "Falha de comunicação com o servidor.", "error");
-    }
-  );
-}
-
-document.addEventListener("DOMContentLoaded", function() {
-  try{ var d=(typeof window.DOMINIO_INSTITUCIONAL!=="undefined"&&window.DOMINIO_INSTITUCIONAL)||"tjes.jus.br"; document.querySelectorAll(".dominio-sufixo").forEach(function(el){ el.textContent="@" + d; }); var hint=document.querySelector(".fa-hint"); if(hint && hint.textContent.indexOf("@tjes")!==-1) hint.textContent=hint.textContent.replace(/@tjes\.jus\.br/g,"@"+d); }catch(e){}
-  // Prefill email/nome se já logado — mas nome pode ser sobrescrito por aplicarEstado
-  var email = "";
-  var nome = "";
-  try {
-    if (typeof usuarioAtual !== "undefined" && usuarioAtual) {
-      email = String(usuarioAtual.email || "").trim();
-      nome = String(usuarioAtual.nome || "").trim();
-    }
-  } catch(e){}
-  var campoEmail = document.getElementById("acesso-email");
-  var campoNome = document.getElementById("acesso-nome");
-  if (campoEmail && email && !campoEmail.value) {
-    var _domFA3=((typeof window.DOMINIO_INSTITUCIONAL!=="undefined"&&window.DOMINIO_INSTITUCIONAL)||"tjes.jus.br"); var emPrefix = String(email).trim().toLowerCase().endsWith("@" + _domFA3.toLowerCase()) ? String(email).trim().slice(0, -(_domFA3.length+1)) : String(email).trim();
-    campoEmail.value = emPrefix;
-  }
-  if (campoNome && nome && nome !== "Visitante" && !campoNome.value) campoNome.value = nome;
-
-  iniciarComboboxComarcaCompat();
-  carregarComarcasCombobox();
-
-  var perfilSel = document.getElementById("acesso-perfil");
-  if (perfilSel) perfilSel.addEventListener("change", function(){ try{ aplicarEstadoFormularioPorPerfil(); }catch(e){} try{ alternarVisibilidadeComarcasFormulario(); }catch(e2){} });
-
-  // Aplica estado após usuarioAtual assíncrono carregar — tenta algumas vezes
-  var tentativas = 0;
-  var iv = setInterval(function(){
-    tentativas++;
-    try { aplicarEstadoFormularioPorPerfil(); } catch(e){}
-    if (tentativas >= 10) clearInterval(iv);
-    // Se virou GC, para cedo
-    try { if (ehGestorConteudoLogado()) clearInterval(iv); } catch(e2){}
-  }, 500);
-  setTimeout(aplicarEstadoFormularioPorPerfil, 1200);
+document.addEventListener("DOMContentLoaded",function(){
+  var dom=(window.DOMINIO_INSTITUCIONAL||"tjes.jus.br");document.querySelectorAll(".dominio-sufixo").forEach(function(el){el.textContent="@"+dom;});try{if(usuarioAtual){var email=String(usuarioAtual.email||"").trim(),nome=String(usuarioAtual.nome||"").trim();if(email)document.getElementById("acesso-email").value=email.endsWith("@"+dom.toLowerCase())?email.slice(0,-(dom.length+1)):email;if(nome&&nome!=="Visitante")document.getElementById("acesso-nome").value=nome;}}catch(e){}
+  document.getElementById("fa-unidades-busca").addEventListener("input",renderizarUnidadesFormulario);document.getElementById("fa-municipio-filtro").addEventListener("change",function(){preencherFiltroForuns();renderizarUnidadesFormulario();});document.getElementById("fa-forum-filtro").addEventListener("change",renderizarUnidadesFormulario);document.getElementById("fa-selecionar-visiveis").addEventListener("click",function(){unidadesVisiveisFormulario().forEach(function(u){unidadesSelecionadasFormulario[u.id]=true;});renderizarUnidadesFormulario();atualizarSelecionadasFormulario();});document.getElementById("fa-limpar-unidades").addEventListener("click",function(){unidadesSelecionadasFormulario={};renderizarUnidadesFormulario();atualizarSelecionadasFormulario();});document.getElementById("acesso-perfil").addEventListener("change",alternarVisibilidadeUnidadesFormulario);aplicarEstadoFormularioPorPerfil();carregarUnidadesFormulario();
 });
-
-// Compat: mantém função antiga chamada no DOMContentLoaded
-function iniciarComboboxComarcaCompat(){ try{ if(typeof iniciarComboboxComarca==="function") return; }catch(e){} }
-function iniciarComboboxComarca(){}
-function abrirComboboxComarca(){}
-function fecharComboboxComarca(){}
-function comboboxComarcaValida(){ return validarComarcasFormulario(); }
-function selecionarComboboxComarca(n){ var k=normalizarComarca(n); faComarcasSelecionadas[k]=n; if(window._faAtualizarBotaoComarcas) window._faAtualizarBotaoComarcas(); }
 </script>
-
