@@ -604,7 +604,7 @@ function listarUnidadesParaAcesso() {
     DB.read(shForum).forEach(function(linha) {
       foruns[textoSeguro(linha[mapaF.ID - 1])] = {
         nome: textoSeguro(linha[mapaF.NOME - 1]),
-        municipioId: mapaF.MUNICIPIO_ID ? textoSeguro(linha[mapaF.MUNICIPIO_ID - 1]) : ""
+        municipioId: mapaF.MUNICIPIOID ? textoSeguro(linha[mapaF.MUNICIPIOID - 1]) : ""
       };
     });
     const municipios = {};
@@ -615,11 +615,11 @@ function listarUnidadesParaAcesso() {
     const unidades = DB.read(shUnidades)
       .filter(function(linha) {
         return (!mapaU.ATIVO || paraBoolean(linha[mapaU.ATIVO - 1])) &&
-          (!mapaU.SELECIONAVEL_ACESSO || paraBoolean(linha[mapaU.SELECIONAVEL_ACESSO - 1]));
+          (!mapaU.SELECIONAVELACESSO || paraBoolean(linha[mapaU.SELECIONAVELACESSO - 1]));
       })
       .map(function(linha) {
         const id = textoSeguro(linha[mapaU.ID - 1]);
-        const forumId = mapaU.FORUM_ID ? textoSeguro(linha[mapaU.FORUM_ID - 1]) : "";
+        const forumId = mapaU.FORUMID ? textoSeguro(linha[mapaU.FORUMID - 1]) : "";
         const forum = foruns[forumId] || {};
         const caminho = id && nos[id] ? _fcResolverAncestros(nos, id) : [];
         if (caminho.some(function(no) { return !no.ativo; })) return null;
@@ -827,14 +827,14 @@ function substituirAcessosUnidades(usuarioId, unidadeIds) {
   const mapa = DB.map(sheet);
   const dados = DB.read(sheet);
   dados.forEach(function(linha, indice) {
-    if (textoSeguro(linha[mapa.USUARIO_ID - 1]) === usuarioId) {
+    if (textoSeguro(linha[mapa.USUARIOID - 1]) === usuarioId) {
       sheet.getRange(indice + 2, mapa.ATIVO).setValue("NÃO");
     }
   });
   unidadeIds.forEach(function(unidadeId) {
     const existente = dados.findIndex(function(linha) {
-      return textoSeguro(linha[mapa.USUARIO_ID - 1]) === usuarioId &&
-        textoSeguro(linha[mapa.UNIDADE_ID - 1]) === unidadeId;
+      return textoSeguro(linha[mapa.USUARIOID - 1]) === usuarioId &&
+        textoSeguro(linha[mapa.UNIDADEID - 1]) === unidadeId;
     });
     if (existente >= 0) {
       sheet.getRange(existente + 2, mapa.ATIVO).setValue("SIM");
@@ -842,8 +842,8 @@ function substituirAcessosUnidades(usuarioId, unidadeIds) {
       const headers = DB.headers(sheet);
       const nova = new Array(headers.length).fill("");
       nova[mapa.ID - 1] = Utilities.getUuid();
-      nova[mapa.USUARIO_ID - 1] = usuarioId;
-      nova[mapa.UNIDADE_ID - 1] = unidadeId;
+      nova[mapa.USUARIOID - 1] = usuarioId;
+      nova[mapa.UNIDADEID - 1] = unidadeId;
       nova[mapa.ATIVO - 1] = "SIM";
       sheet.appendRow(nova);
     }
@@ -856,16 +856,16 @@ function adicionarAcessosUnidades(usuarioId, unidadeIds) {
   const dados = DB.read(sheet);
   unidadeIds.forEach(function(unidadeId) {
     const existente = dados.findIndex(function(linha) {
-      return textoSeguro(linha[mapa.USUARIO_ID - 1]) === usuarioId &&
-        textoSeguro(linha[mapa.UNIDADE_ID - 1]) === unidadeId;
+      return textoSeguro(linha[mapa.USUARIOID - 1]) === usuarioId &&
+        textoSeguro(linha[mapa.UNIDADEID - 1]) === unidadeId;
     });
     if (existente >= 0) {
       sheet.getRange(existente + 2, mapa.ATIVO).setValue("SIM");
     } else {
       const nova = new Array(sheet.getLastColumn()).fill("");
       nova[mapa.ID - 1] = Utilities.getUuid();
-      nova[mapa.USUARIO_ID - 1] = usuarioId;
-      nova[mapa.UNIDADE_ID - 1] = unidadeId;
+      nova[mapa.USUARIOID - 1] = usuarioId;
+      nova[mapa.UNIDADEID - 1] = unidadeId;
       nova[mapa.ATIVO - 1] = "SIM";
       sheet.appendRow(nova);
     }
@@ -2131,7 +2131,7 @@ function validarIdsUnidadesAdministrativas(unidadeIds) {
   const validas = new Set(DB.read(sheet)
     .filter(function(linha) {
       return (!mapa.ATIVO || paraBoolean(linha[mapa.ATIVO - 1])) &&
-        (!mapa.SELECIONAVEL_ACESSO || paraBoolean(linha[mapa.SELECIONAVEL_ACESSO - 1]));
+        (!mapa.SELECIONAVELACESSO || paraBoolean(linha[mapa.SELECIONAVELACESSO - 1]));
     })
     .map(function(linha) { return textoSeguro(linha[mapa.ID - 1]); }));
   if (ids.some(function(id) { return !validas.has(id); })) {

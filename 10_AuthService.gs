@@ -172,16 +172,16 @@ class AuthService {
     const sheetAcessos = DB.acessosUnidadesOuNulo();
     if (!sheetAcessos) return { ids: [], unidades: [] };
     const mapaA = DB.map(sheetAcessos);
-    if (mapaA.USUARIO_ID === undefined || mapaA.UNIDADE_ID === undefined || mapaA.ATIVO === undefined) {
+    if (mapaA.USUARIOID === undefined || mapaA.UNIDADEID === undefined || mapaA.ATIVO === undefined) {
       throw new Error("Aba ACESSOS_UNIDADES inválida.");
     }
 
     const ids = DB.read(sheetAcessos)
       .filter(linha =>
-        textoSeguro(linha[mapaA.USUARIO_ID - 1]) === textoSeguro(usuarioId) &&
+        textoSeguro(linha[mapaA.USUARIOID - 1]) === textoSeguro(usuarioId) &&
         paraBoolean(linha[mapaA.ATIVO - 1])
       )
-      .map(linha => textoSeguro(linha[mapaA.UNIDADE_ID - 1]))
+      .map(linha => textoSeguro(linha[mapaA.UNIDADEID - 1]))
       .filter(Boolean);
     const unicos = Array.from(new Set(ids));
 
@@ -195,7 +195,7 @@ class AuthService {
       const id = textoSeguro(linha[mapaF.ID - 1]);
       foruns[id] = {
         nome: mapaF.NOME ? textoSeguro(linha[mapaF.NOME - 1]) : "",
-        municipioId: mapaF.MUNICIPIO_ID ? textoSeguro(linha[mapaF.MUNICIPIO_ID - 1]) : ""
+        municipioId: mapaF.MUNICIPIOID ? textoSeguro(linha[mapaF.MUNICIPIOID - 1]) : ""
       };
     });
     const sheetMunicipios = DB.municipiosOuNulo();
@@ -210,7 +210,7 @@ class AuthService {
       .filter(linha => unicos.includes(textoSeguro(linha[mapaU.ID - 1])))
       .map(function(linha) {
         const id = textoSeguro(linha[mapaU.ID - 1]);
-        const forumId = mapaU.FORUM_ID ? textoSeguro(linha[mapaU.FORUM_ID - 1]) : "";
+        const forumId = mapaU.FORUMID ? textoSeguro(linha[mapaU.FORUMID - 1]) : "";
         const forum = foruns[forumId] || {};
         const caminho = id && nos[id] ? _fcResolverAncestros(nos, id) : [];
         return {

@@ -32,7 +32,7 @@ Arquivo: index.html
       var SESSAO_EMAIL = <?!= JSON.stringify(sessaoEmail || "") ?>;
       var DOMINIO_INSTITUCIONAL = <?!= JSON.stringify(dominioInstitucional || "") ?>;
       var URL_ADMIN = <?!= JSON.stringify(urlAdmin || "") ?>;
-      var EH_CONTEXTO_ADMIN = <?= ehContextoAdmin ? true : false ?>;
+      var EH_CONTEXTO_ADMIN = <?!= JSON.stringify(ehContextoAdmin === true) ?>;
       var MODO_APLICACAO = <?!= JSON.stringify(modoAplicacao || "PUBLIC") ?>;
 
       window.URL_SISTEMA = URL_SISTEMA;
