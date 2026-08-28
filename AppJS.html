@@ -825,7 +825,8 @@ function aoEntrarConsultaTelefonesView(){
 }
 
 /**
- * "SAIR" registra a decisão no sessionStorage e recarrega em modo Consulta.
+ * "SAIR" registra a decisão no sessionStorage e troca para o modo Consulta
+ * sem recarregar o iframe sandbox do Apps Script.
  * A conta Google do navegador permanece conectada; o servidor continua
  * revalidando identidade e permissões em cada mutação administrativa.
  */
@@ -833,13 +834,21 @@ function tratarCliqueAcesso() {
   if (!confirm("Deseja sair e permanecer no modo Consulta neste navegador?")) return;
   try {
     sessionStorage.setItem(CHAVE_LOGOUT_ADMIN, "true");
+  } catch (erro) {}
+
+  usuarioAtual = usuarioVisitante("LOGOUT_SOLICITADO");
+  window.PERFIL_ADMIN = "";
+  try { pararPollingNotificacoes(); } catch (erro) {}
+  try { pararPollingSolicitacoes(); } catch (erro) {}
+  atualizarInterfaceUsuario();
+  mostrarView("consulta-telefones-view");
+  try {
+    if (typeof carregarTelefones === "function") carregarTelefones();
+    else if (typeof iniciarConsultaTelefones === "function") iniciarConsultaTelefones();
   } catch (erro) {
-    usuarioAtual = usuarioVisitante("LOGOUT_SOLICITADO");
-    atualizarInterfaceUsuario();
-    mostrarView("consulta-telefones-view");
-    return;
+    console.error("Falha ao recarregar a consulta após sair:", erro);
   }
-  window.location.reload();
+  try { mostrarToast("Modo Consulta ativado.", "info"); } catch (erro) {}
 }
 
 /**
