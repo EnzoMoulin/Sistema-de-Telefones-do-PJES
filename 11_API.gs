@@ -697,9 +697,11 @@ function enviarFormularioAcesso(dados) {
     if (!usuario.identificado || !AuthService.emailPermitidoNoPrivado(usuario.email)) {
       throw new Error("Não foi possível identificar uma conta institucional ou de teste autorizada.");
     }
-    if (usuario.cadastrado) {
+    const ehAmpliacaoGestorConteudo = usuario.logado === true &&
+      usuario.ativo === true && usuario.perfil === CONFIG.PERFIS.GESTOR_CONTEUDO;
+    if (usuario.cadastrado && !ehAmpliacaoGestorConteudo) {
       throw new Error(usuario.ativo
-        ? "Esta conta já possui acesso administrativo."
+        ? "Este perfil já possui acesso global ou não pode solicitar ampliação."
         : "Esta conta está desativada. Procure o Gestor do Sistema.");
     }
 
@@ -718,6 +720,14 @@ function enviarFormularioAcesso(dados) {
     }
     if (nivel !== CONFIG.NIVEIS.GESTOR_CONTEUDO && nivel !== CONFIG.NIVEIS.GESTOR_SISTEMA) {
       throw new Error("Perfil desejado inválido. Use nível 1 ou 2.");
+    }
+    if (ehAmpliacaoGestorConteudo && nivel !== CONFIG.NIVEIS.GESTOR_CONTEUDO) {
+      throw new Error("Gestor de Conteúdo pode solicitar somente novas Unidades do perfil 1.");
+    }
+    if (ehAmpliacaoGestorConteudo && unidadeIds.every(function(id) {
+      return (usuario.unidadeIds || []).includes(id);
+    })) {
+      throw new Error("Selecione ao menos uma Unidade que ainda não esteja vinculada ao seu perfil.");
     }
     if (nivel === CONFIG.NIVEIS.GESTOR_CONTEUDO && unidadeIds.length === 0) {
       throw new Error("Selecione ao menos uma Unidade para o perfil 1.");
@@ -837,6 +847,28 @@ function substituirAcessosUnidades(usuarioId, unidadeIds) {
   });
 }
 
+function adicionarAcessosUnidades(usuarioId, unidadeIds) {
+  const sheet = DB.acessosUnidades();
+  const mapa = DB.map(sheet);
+  const dados = DB.read(sheet);
+  unidadeIds.forEach(function(unidadeId) {
+    const existente = dados.findIndex(function(linha) {
+      return textoSeguro(linha[mapa.USUARIO_ID - 1]) === usuarioId &&
+        textoSeguro(linha[mapa.UNIDADE_ID - 1]) === unidadeId;
+    });
+    if (existente >= 0) {
+      sheet.getRange(existente + 2, mapa.ATIVO).setValue("SIM");
+    } else {
+      const nova = new Array(sheet.getLastColumn()).fill("");
+      nova[mapa.ID - 1] = Utilities.getUuid();
+      nova[mapa.USUARIO_ID - 1] = usuarioId;
+      nova[mapa.UNIDADE_ID - 1] = unidadeId;
+      nova[mapa.ATIVO - 1] = "SIM";
+      sheet.appendRow(nova);
+    }
+  });
+}
+
 function processarSolicitacaoAPI(id, novoStatus) {
   const lock = LockService.getScriptLock();
   let bloqueado = false;
@@ -875,6 +907,7 @@ function processarSolicitacaoAPI(id, novoStatus) {
       const indice = dadosU.findIndex(function(linha) {
         return normalizarEmail(linha[mapaU.EMAIL - 1]) === solicitacao.email;
       });
+      const nivelAnterior = indice >= 0 ? Number(dadosU[indice][mapaU.NIVEL - 1]) : 0;
       let usuarioId = indice >= 0
         ? textoSeguro(dadosU[indice][mapaU.ID - 1])
         : Utilities.getUuid();
@@ -889,10 +922,15 @@ function processarSolicitacaoAPI(id, novoStatus) {
       if (indice >= 0) sheetUsuarios.getRange(indice + 2, 1, 1, nova.length).setValues([nova]);
       else sheetUsuarios.appendRow(nova);
 
-      substituirAcessosUnidades(
-        usuarioId,
-        solicitacao.nivel === CONFIG.NIVEIS.GESTOR_CONTEUDO ? solicitacao.unidadeIds : []
-      );
+      if (indice >= 0 && nivelAnterior === CONFIG.NIVEIS.GESTOR_CONTEUDO &&
+          solicitacao.nivel === CONFIG.NIVEIS.GESTOR_CONTEUDO) {
+        adicionarAcessosUnidades(usuarioId, solicitacao.unidadeIds);
+      } else {
+        substituirAcessosUnidades(
+          usuarioId,
+          solicitacao.nivel === CONFIG.NIVEIS.GESTOR_CONTEUDO ? solicitacao.unidadeIds : []
+        );
+      }
     }
 
     const indices = indicesSolicitacao(

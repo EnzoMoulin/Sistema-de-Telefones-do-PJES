@@ -112,10 +112,19 @@ class AuthService {
       throw new Error("Aba USUARIOS inválida. Cabeçalhos ausentes: " + ausentes.join(", ") + ".");
     }
 
-    const linha = DB.read(sheet).find(item =>
+    const linhas = DB.read(sheet).filter(item =>
       normalizarEmail(item[mapa.EMAIL - 1]) === emailNormalizado
     );
-    if (!linha) return base;
+    if (!linhas.length) return base;
+
+    // Em bases migradas pode existir uma linha antiga/inativa duplicada. A linha
+    // ativa com nível válido deve prevalecer, sem tornar a ordem física da aba
+    // um fator de autenticação.
+    const linha = linhas.find(item => {
+      const nivelItem = Number(item[mapa.NIVEL - 1]);
+      return paraBoolean(item[mapa.ATIVO - 1]) &&
+        (nivelItem === CONFIG.NIVEIS.GESTOR_CONTEUDO || nivelItem === CONFIG.NIVEIS.GESTOR_SISTEMA);
+    }) || linhas[0];
 
     const id = textoSeguro(linha[mapa.ID - 1]);
     const nome = textoSeguro(linha[mapa.NOME - 1]) || emailNormalizado.split("@")[0];
@@ -152,7 +161,7 @@ class AuthService {
       identificado: true,
       contexto: CONFIG.AUTH.MODO_PRIVADO,
       estadoAcesso: "AUTORIZADO",
-      podeSolicitarAcesso: false,
+      podeSolicitarAcesso: nivel === CONFIG.NIVEIS.GESTOR_CONTEUDO,
       unidadeIds: escopo.ids,
       unidades: escopo.unidades,
       comarcas: Array.from(new Set(escopo.unidades.map(item => item.municipio).filter(Boolean)))
