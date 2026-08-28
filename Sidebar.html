@@ -23,9 +23,9 @@ Arquivo: Sidebar.html
         <span>Contatos</span>
       </button>
 
-      <button type="button" id="menu-login" class="menu-item hidden" onclick="mostrarView('login-view')">
+      <button type="button" id="menu-login" class="menu-item <?= ehContextoAdmin ? '' : 'hidden' ?>" onclick="entrarAreaAdministrativa()">
         <span class="icon">🔐</span>
-        <span>Login</span>
+        <span>Entrar na Área Administrativa</span>
       </button>
 
       <button type="button" id="menu-formulario" class="menu-item hidden" onclick="mostrarView('formulario-acesso-view')">
@@ -64,14 +64,14 @@ Arquivo: Sidebar.html
   </div>
 
   <div class="sidebar-footer">
-    <button type="button" id="btn-status-acesso" class="hidden" onclick="entrarAreaAdministrativa()"
+    <button type="button" id="btn-status-acesso" class="<?= ehContextoAdmin ? '' : 'hidden' ?>" onclick="entrarAreaAdministrativa()"
       style="
         width: 100%;
         padding: 10px 12px;
         border-radius: 8px;
         font-weight: 700;
         font-size: 13px;
-        display: flex;
+        display: <?= ehContextoAdmin ? 'flex' : 'none' ?>;
         align-items: center;
         justify-content: center;
         gap: 8px;
@@ -84,7 +84,7 @@ Arquivo: Sidebar.html
       "
     >
       <span id="icone-status-acesso">🔑</span>
-      <span id="texto-status-acesso">Acesso Administrativo</span>
+      <span id="texto-status-acesso"><?= ehContextoAdmin ? 'Entrar na Área Administrativa' : 'Acesso Administrativo' ?></span>
     </button>
 
     <div id="sidebar-user" style=" margin-top: 10px; font-size: 11px; color: #94a3b8; text-align: center;">

@@ -50,6 +50,11 @@ function atualizarIdentidadeFormularioAcesso(){
   var usuario = typeof usuarioAtual !== "undefined" ? usuarioAtual : {};
   if(email) email.value = String(usuario.email || window.SESSAO_EMAIL || "");
   if(nome && !nome.value && usuario.nome && usuario.nome !== "Visitante") nome.value = usuario.nome;
+  var nivel = document.getElementById("acesso-nivel");
+  if(nivel && usuario.logado === true && usuario.perfil === "GESTOR_CONTEUDO"){
+    nivel.value = "1";
+    nivel.disabled = true;
+  } else if(nivel) nivel.disabled = false;
 }
 
 function carregarUnidadesFormularioAcesso(){
@@ -62,8 +67,11 @@ function carregarUnidadesFormularioAcesso(){
     unidadesDisponiveisAcesso.forEach(function(unidade){
       var label = document.createElement("label"); label.className = "fa-unidade";
       var check = document.createElement("input"); check.type = "checkbox"; check.value = unidade.id; check.name = "acesso-unidade";
+      var atuais = (typeof usuarioAtual !== "undefined" && Array.isArray(usuarioAtual.unidadeIds)) ? usuarioAtual.unidadeIds : [];
+      if(atuais.indexOf(unidade.id) !== -1){ check.disabled = true; label.style.opacity = ".58"; }
       var texto = document.createElement("span"); texto.textContent = unidade.nome;
       var detalhe = document.createElement("small"); detalhe.textContent = [unidade.municipio, unidade.forum].filter(Boolean).join(" — ");
+      if(check.disabled) detalhe.textContent += (detalhe.textContent ? " — " : "") + "já vinculada";
       texto.appendChild(detalhe); label.appendChild(check); label.appendChild(texto); holder.appendChild(label);
     });
   }, function(erro){ holder.textContent = (erro && erro.message) || "Falha ao carregar Unidades."; });
@@ -94,7 +102,7 @@ function enviarFormularioAcesso(){
   API.enviarFormularioAcesso({nome:nome,nivel:nivel,unidadeIds:unidadeIds,justificativa:justificativa}, function(resp){
     if(botao) botao.disabled = false;
     if(resp && resp.sucesso === true){
-      mensagemFormularioAcesso("Solicitação enviada e registrada como PENDENTE.", true);
+      mensagemFormularioAcesso("Solicitação enviada e registrada como PENDENTE. As Unidades já vinculadas serão preservadas.", true);
       if(typeof mostrarToast === "function") mostrarToast("Solicitação enviada.", "success");
     } else mensagemFormularioAcesso((resp && resp.erro) || "Não foi possível enviar.", false);
   }, function(erro){ if(botao) botao.disabled = false; mensagemFormularioAcesso((erro && erro.message) || "Falha de comunicação.", false); });

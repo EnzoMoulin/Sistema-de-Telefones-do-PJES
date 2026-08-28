@@ -46,6 +46,7 @@ function aplicarUsuarioServidor(dados, mostrarAlertas) {
 
   atualizarInterfaceUsuario();
   try { atualizarIdentidadeFormularioAcesso(); } catch (erro) {}
+  try { carregarUnidadesFormularioAcesso(); } catch (erro) {}
 
   if (mostrarAlertas && dados.estadoAcesso === "CONTA_DESATIVADA") {
     mostrarToast("Sua conta administrativa está desativada. Procure o Gestor do Sistema.", "warning");
@@ -106,6 +107,8 @@ function iniciarSistema() {
 
   if (window.EH_CONTEXTO_ADMIN === true && !logoutFoiSolicitado()) {
     tentarLoginAutomatico(true);
+  } else if (window.EH_CONTEXTO_ADMIN === true && logoutFoiSolicitado()) {
+    try { mostrarToast("Modo Consulta mantido após o último logout. Use Entrar na Área Administrativa para validar novamente.", "info"); } catch (erro) {}
   }
 
   setTimeout(function() {
@@ -310,9 +313,8 @@ function atualizarInterfaceUsuario() {
   }
 
   // --- Visibilidade por perfil ---
-  // Usuário de Consulta: Dashboard oculto; Registro visível (adicionado).
-  // Gestor de Conteúdo: como está.
-  // Gestor de Sistema: todas menos Formulário de Acesso.
+  // Dashboard e ferramentas de gestão existem apenas na URL privada e para
+  // perfis administrativos ativos.
 
   const ehGestorSistema = logado && perfil === "GESTOR_SISTEMA";
   const ehGestorConteudo = logado && perfil === "GESTOR_CONTEUDO";
@@ -320,8 +322,7 @@ function atualizarInterfaceUsuario() {
 
   const menuDashboard = document.getElementById("menu-dashboard");
   if (menuDashboard) {
-    // Dashboard visível para todos (inclui Usuário de Consulta)
-    menuDashboard.classList.remove("hidden");
+    menuDashboard.classList.toggle("hidden", !(ehGestorSistema || ehGestorConteudo));
   }
 
   const menuFormulario = document.getElementById("menu-formulario");
@@ -403,8 +404,9 @@ function atualizarInterfaceUsuario() {
 
   const menuLogin = document.getElementById("menu-login");
   if (menuLogin) {
-    // Removido da sidebar para Usuário de Consulta (duplicado com botão azul inferior) — sempre oculto para visitante
-    menuLogin.classList.add("hidden");
+    menuLogin.classList.toggle("hidden", !(
+      window.EH_CONTEXTO_ADMIN === true && !logado
+    ));
   }
 
   const menuFormularioLogin = document.getElementById("menu-formulario");
@@ -861,10 +863,14 @@ function mostrarView(viewId) {
       viewId = "consulta-telefones-view";
     }
 
+    if (viewId === "dashboard-view" && !(ehGestorSistema || (!ehVisitante && p === "GESTOR_CONTEUDO"))) {
+      viewId = "consulta-telefones-view";
+    }
+
     // v3.32: Registro de Alterações bloqueado para visitante; liberado para Gestor Conteúdo/Sistema
     if (viewId === "registro-alteracoes-view" && ehVisitante) {
       mostrarToast("Acesso restrito. Faça login como Gestor para ver o Registro de Alterações.", "warning");
-      viewId = "dashboard-view";
+      viewId = "consulta-telefones-view";
     }
 
     if (viewId === "login-view" && window.EH_CONTEXTO_ADMIN !== true) {

@@ -45,6 +45,15 @@ function registrarPlanilhaVinculadaEditor_() {
 }
 
 /**
+ * Wrapper visível no seletor do editor e restrito ao operador institucional.
+ * Registra como base do projeto a planilha à qual o script está vinculado.
+ */
+function registrarPlanilhaVinculadaEditor() {
+  exigirOperadorInstalacaoReal_();
+  return registrarPlanilhaVinculadaEditor_();
+}
+
+/**
  * Testa a planilha vinculada e lista suas abas.
  */
 function testarPlanilhaVinculada() {

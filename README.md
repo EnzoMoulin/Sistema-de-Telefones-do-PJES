@@ -64,7 +64,7 @@ Na aba `USUARIOS`, o schema é exatamente `ID | NOME | EMAIL | NIVEL | ATIVO`:
 
 Na URL privada, a validação é automática ao abrir a página. O botão **Sair** grava `pjes_usuario_clicou_sair=true` no `sessionStorage` e recarrega a página. Enquanto essa marca existir, a interface respeita o modo Consulta; o botão **Entrar na Área Administrativa** remove a marca e repete a validação Google. Esse logout é um estado da interface e não encerra a conta Google do navegador; todas as mutações continuam sendo autorizadas novamente no servidor.
 
-Conta institucional ainda não cadastrada pode solicitar acesso. O e-mail é sempre obtido pelo servidor; o formulário recebe nome, nível desejado e, para nível 1, as Unidades. A aprovação cria ou atualiza `USUARIOS` e substitui os vínculos ativos em `ACESSOS_UNIDADES`.
+Conta institucional ainda não cadastrada pode solicitar acesso. O e-mail é sempre obtido pelo servidor; o formulário recebe nome, nível desejado e, para nível 1, as Unidades. Gestores de Conteúdo também podem usar o formulário para solicitar Unidades adicionais; a aprovação preserva os vínculos existentes e acrescenta os novos. O Dashboard é administrativo e fica oculto no ambiente público e para usuários sem perfil ativo.
 
 Para testes privados com Gmail, configure uma lista explícita na propriedade `EMAILS_TESTE_PRIVADO`. A exceção só funciona com `APP_MODE=PRIVATE` e somente quando o Google efetivamente disponibiliza o e-mail para `Session.getActiveUser()`.
 
@@ -88,7 +88,7 @@ Para testes privados com Gmail, configure uma lista explícita na propriedade `E
 ## Instalação e validação
 
 1. Crie dois projetos **independentes** do Apps Script: `PJES Contatos - Interno`, na conta institucional, e `PJES Contatos - Externo`, na conta pessoal. Em **Configurações do projeto → Propriedades do script**, crie `SETUP_SECRET` com um valor aleatório de pelo menos 20 caracteres, diferente em cada projeto.
-2. Mantenha a planilha completa na conta institucional. No projeto Interno, configure `PLANILHA_VINCULADA_ID` com o ID dessa base canônica.
+2. Mantenha a planilha completa na conta institucional. No projeto Interno, configure `PLANILHA_VINCULADA_ID` com o ID dessa base canônica. Em projeto vinculado à planilha, o wrapper visível `registrarPlanilhaVinculadaEditor()` registra novamente a base ativa sem exigir que o operador informe o segredo manualmente.
 3. Crie uma planilha vazia na conta pessoal para o catálogo público e compartilhe-a como **Editor** somente com a conta institucional que executará a publicação. Não crie nem copie abas administrativas nela. No projeto Externo, configure `PLANILHA_VINCULADA_ID` com o ID desse espelho.
 4. Configure no projeto Externo: `APP_MODE=PUBLIC`, `URL_PUBLICA` e `URL_PRIVADA`. A função protegida `configurarAmbientePublico(segredo, urlPublica, urlPrivada)` permanece disponível para automação via Apps Script API. Não execute o instalador neste projeto.
 5. Configure no projeto Interno: `APP_MODE=PRIVATE`, `URL_PUBLICA`, `URL_PRIVADA`, `PLANILHA_PUBLICA_ID` com o ID do espelho e, se necessário, `EMAILS_TESTE_PRIVADO`. A função protegida `configurarAmbientePrivado(segredo, urlPublica, urlPrivada, emailsTeste)` é a alternativa programática.

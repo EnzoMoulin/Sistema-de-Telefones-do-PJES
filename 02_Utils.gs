@@ -48,7 +48,10 @@ function textoSeguro(valor) {
  * Normaliza e-mail.
  */
 function normalizarEmail(email) {
-  return textoSeguro(email).toLowerCase();
+  return textoSeguro(email)
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
+    .replace(/\s+/g, "")
+    .toLowerCase();
 }
 
 /**
