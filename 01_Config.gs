@@ -8,7 +8,7 @@
 const CONFIG = {
   SISTEMA: {
     NOME: "Sistema Inteligente de Gestão de Telefones do Poder Judiciário do Estado do Espírito Santo",
-    VERSAO: "4.2"
+    VERSAO: "5.0"
   },
 
   WEB_APP: {
@@ -33,6 +33,7 @@ const CONFIG = {
     ABAS_PUBLICAS: [
       "MUNICIPIOS",
       "FORUM",
+      "UNIDADES_ORGANIZACIONAIS",
       "UNIDADES",
       "SETORES",
       "CONTATOS",
@@ -50,9 +51,11 @@ const CONFIG = {
   },
 
   SHEETS: {
-    // Modelo definitivo: MUNICIPIOS -> FORUM -> UNIDADES -> SETORES -> CONTATOS
+    // Modelo V5: MUNICIPIOS -> FORUM -> UNIDADES_ORGANIZACIONAIS (árvore) -> CONTATOS
     MUNICIPIOS: "MUNICIPIOS",
     FORUM: "FORUM",
+    UNIDADES_ORGANIZACIONAIS: "UNIDADES_ORGANIZACIONAIS",
+    // Abas V4 mantidas somente para migração e rollback.
     UNIDADES: "UNIDADES",
     SETORES: "SETORES",
     CONTATOS: "CONTATOS",
@@ -67,7 +70,7 @@ const CONFIG = {
     NOTIFICACOES: "NOTIFICACOES",
 
     // Identificador legado mantido somente para compatibilidade de código antigo.
-    // A arquitetura V4 não cria, lê nem usa a aba TELEFONES como fonte operacional.
+    // A arquitetura V5 não cria, lê nem usa a aba TELEFONES como fonte operacional.
     TELEFONES: "TELEFONES",
     TELEFONES_LEGADO: "TELEFONES"
   },
@@ -102,6 +105,7 @@ const CONFIG = {
   CONTATOS: {
     ID: "ID",
     FORUM_ID: "FORUM_ID",
+    UNIDADE_ORGANIZACIONAL_ID: "UNIDADE_ORGANIZACIONAL_ID",
     UNIDADE_ID: "UNIDADE_ID",
     SETOR_ID: "SETOR_ID",
     TIPO: "TIPO",
@@ -116,7 +120,7 @@ const CONFIG = {
 
   CACHE: {
     TEMPO_PADRAO: 300,
-    CHAVE_TELEFONES: "CONTATOS_HIERARQUIA_V4"
+    CHAVE_TELEFONES: "CONTATOS_HIERARQUIA_V5"
   },
 
   LIMITES: {

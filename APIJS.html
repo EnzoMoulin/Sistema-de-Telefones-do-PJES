@@ -6,7 +6,7 @@
  * ==========================================================
  * API de compatibilidade: os nomes antigos permanecem para não
  * quebrar o frontend, mas os caminhos de dados agora apontam para
- * MUNICIPIOS -> FORUM -> UNIDADES -> SETORES -> CONTATOS.
+ * MUNICIPIOS -> FORUM -> UNIDADES_ORGANIZACIONAIS -> CONTATOS.
  */
 
 function criarRunnerAPI(sucesso, erro) {
@@ -56,6 +56,7 @@ const API = {
   pesquisarHierarquiaForum(termo, sucesso, erro) { criarRunnerAPI(sucesso, erro).pesquisarHierarquiaPublicaForum(termo || ""); },
   validarArquiteturaForum(sucesso, erro) { criarRunnerAPI(sucesso, erro).validarArquiteturaForum(); },
   validarDadosReaisForumV4(sucesso, erro) { criarRunnerAPI(sucesso, erro).validarDadosReaisForumV4(); },
+  validarDadosReaisForumV5(sucesso, erro) { criarRunnerAPI(sucesso, erro).validarDadosReaisForumV5API(); },
 
   listarNotificacoes(email, sucesso, erro) { criarRunnerAPI(sucesso, erro).listarNotificacoes(email); },
   marcarNotificacaoLida(id, sucesso, erro) { criarRunnerAPI(sucesso, erro).marcarNotificacaoLida(id); },

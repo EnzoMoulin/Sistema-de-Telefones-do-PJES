@@ -9,12 +9,13 @@ MUNICIPIOS
     ↓
   FORUM
     ↓
- UNIDADES
-    ↓
- SETORES
+ UNIDADES_ORGANIZACIONAIS
+    ↳ PAI_ID (árvore)
     ↓
  CONTATOS
 ```
+
+`UNIDADES` e `SETORES` permanecem somente como fontes de migração e rollback. A análise técnica, os trade-offs e o exemplo de CTE estão em [`MODELAGEM_V5.md`](MODELAGEM_V5.md).
 
 A aba `TELEFONES` não faz parte da arquitetura operacional e não deve ser recriada.
 
@@ -23,8 +24,9 @@ A aba `TELEFONES` não faz parte da arquitetura operacional e não deve ser recr
 - Município pode possuir um ou vários Fóruns.
 - Município com um único Fórum pode abrir diretamente o Fórum na consulta.
 - Fórum possui endereço, e-mail (não necessariamente) e contatos gerais próprios.
-- Unidade pertence a um Fórum e pode possuir endereço/e-mail próprios.
-- Telefones, ramais e WhatsApps pertencem aos setores quando a fonte indicar isso.
+- Cada nó organizacional pertence a um Fórum e pode possuir qualquer quantidade de filhos.
+- `TIPO` descreve a semântica do nó (`UNIDADE`, `SECRETARIA`, `SETOR` etc.) sem fixar a profundidade.
+- Telefones, ramais, WhatsApps e e-mails ficam normalizados em `CONTATOS` e podem apontar para qualquer nó.
 - E-mail e endereço são herdados para visualização quando não houver dado próprio.
 - Contatos podem estar diretamente vinculados ao Fórum ou, quando previsto pelo schema, diretamente à Unidade.
 - A ordem funcional deve respeitar `ORDEM`; quando ausente, preserva-se a ordem física da planilha.
@@ -32,13 +34,13 @@ A aba `TELEFONES` não faz parte da arquitetura operacional e não deve ser recr
 
 ## Consulta pública
 
-O mapa responsivo do Espírito Santo permanece na consulta. No desktop ele integra o layout; no mobile é apresentado no topo. A navegação é Município → Fórum → Unidade → Setor → Contato, com busca por unidade, setor, telefone, ramal, WhatsApp e e-mail.
+O mapa responsivo do Espírito Santo permanece na consulta. No desktop ele integra o layout; no mobile é apresentado no topo. A navegação é Município → Fórum → árvore organizacional → Contato, com busca por nó, caminho de ancestrais, telefone, ramal, WhatsApp e e-mail.
 
 ## Backend e compatibilidade
 
-O frontend mantém os nomes históricos de API para evitar regressões, mas `APIJS.html` agora direciona os caminhos de listagem, pesquisa, CRUD, histórico, usuário e dashboard para a integração V4 em `16_ForumV4Integration.gs`.
+O frontend mantém os nomes históricos de API para evitar regressões, mas `APIJS.html` direciona listagem, pesquisa, CRUD, histórico, usuário e dashboard para a integração compatível em `16_ForumV4Integration.gs`.
 
-Essa camada opera diretamente sobre `CONTATOS` e usa `FORUM_ID`, `UNIDADE_ID` e `SETOR_ID`, preservando contatos diretos do Fórum e a herança de endereço/e-mail.
+Essa camada opera diretamente sobre `CONTATOS` e usa `FORUM_ID` e `UNIDADE_ORGANIZACIONAL_ID`. Os campos legados `UNIDADE_ID` e `SETOR_ID` são mantidos temporariamente para rollback.
 
 ## Autenticação e controle de acesso
 
@@ -52,7 +54,7 @@ Existem dois ambientes independentes, em dois projetos do Apps Script e com base
 Dois projetos são necessários para uma separação confiável porque propriedades de script são compartilhadas por todas as implantações do mesmo projeto. Não use parâmetro de URL, dado do cliente ou comparação de URL como decisão de segurança.
 
 - **Base institucional canônica**: fica na conta institucional e contém catálogo, usuários, acessos, solicitações, histórico, configuração e logs. Somente o projeto Interno usa essa base.
-- **Espelho público sanitizado**: pode ficar na conta pessoal que hospeda o projeto Externo e contém apenas `MUNICIPIOS`, `FORUM`, `UNIDADES`, `SETORES`, `CONTATOS` e `TELEFONES_UTEIS`.
+- **Espelho público sanitizado**: pode ficar na conta pessoal que hospeda o projeto Externo e contém apenas as abas listadas em `CONFIG.PUBLICACAO.ABAS_PUBLICAS`, incluindo `UNIDADES_ORGANIZACIONAIS`.
 
 Embora um projeto independente consiga abrir uma planilha compartilhada por ID, não se deve compartilhar a base institucional completa com o projeto externo: ela contém dados e rotinas administrativas que não pertencem à superfície pública. O projeto Interno publica somente as abas permitidas no espelho por `18_PublicacaoService.gs`.
 
@@ -72,6 +74,7 @@ Para testes privados com Gmail, configure uma lista explícita na propriedade `E
 
 - `MUNICIPIOS`
 - `FORUM`
+- `UNIDADES_ORGANIZACIONAIS`
 - `UNIDADES`
 - `SETORES`
 - `CONTATOS`
@@ -92,20 +95,23 @@ Para testes privados com Gmail, configure uma lista explícita na propriedade `E
 3. Crie uma planilha vazia na conta pessoal para o catálogo público e compartilhe-a como **Editor** somente com a conta institucional que executará a publicação. Não crie nem copie abas administrativas nela. No projeto Externo, configure `PLANILHA_VINCULADA_ID` com o ID desse espelho.
 4. Configure no projeto Externo: `APP_MODE=PUBLIC`, `URL_PUBLICA` e `URL_PRIVADA`. A função protegida `configurarAmbientePublico(segredo, urlPublica, urlPrivada)` permanece disponível para automação via Apps Script API. Não execute o instalador neste projeto.
 5. Configure no projeto Interno: `APP_MODE=PRIVATE`, `URL_PUBLICA`, `URL_PRIVADA`, `PLANILHA_PUBLICA_ID` com o ID do espelho e, se necessário, `EMAILS_TESTE_PRIVADO`. A função protegida `configurarAmbientePrivado(segredo, urlPublica, urlPrivada, emailsTeste)` é a alternativa programática.
-6. Para a migração inicial em que a planilha pessoal esteja mais atual, configure também `PLANILHA_FONTE_MIGRACAO_ID`. Compartilhe essa fonte como Leitora com a conta institucional e execute `importarCatalogoParaBaseInstitucionalEditor()` no editor Interno. Antes de alterar a base, a função cria automaticamente um backup integral na conta institucional; depois substitui somente o conteúdo das seis abas públicas e preserva todas as abas administrativas. Após validar a migração, remova o compartilhamento da fonte pessoal e apague a propriedade de migração.
+6. Para a migração inicial em que a planilha pessoal esteja mais atual, configure também `PLANILHA_FONTE_MIGRACAO_ID`. Compartilhe essa fonte como Leitora com a conta institucional e execute `importarCatalogoParaBaseInstitucionalEditor()` no editor Interno. Antes de alterar a base, a função cria automaticamente um backup integral na conta institucional; depois substitui somente as abas públicas configuradas e preserva todas as abas administrativas. Após validar a migração, remova o compartilhamento da fonte pessoal e apague a propriedade de migração.
 7. Pelo botão **Executar** do editor Interno, execute `instalarSistemaForumEditor()`. Esse wrapper visível no editor é restrito ao operador institucional autorizado. A versão programática `instalarSistemaForum(segredo)` exige o segredo, impedindo que a rotina seja disparada sem autorização. A rotina:
    - preserva as abas operacionais e não cria `TELEFONES`;
+   - cria `UNIDADES_ORGANIZACIONAIS` e executa a migração idempotente de `UNIDADES`/`SETORES`;
+   - mantém os IDs existentes e preenche `CONTATOS.UNIDADE_ORGANIZACIONAL_ID`;
    - normaliza `USUARIOS` para as cinco colunas vigentes e converte `ATIVO` para `SIM`/`NÃO`;
    - garante `SOLICITACOES_ACESSO` e `ACESSOS_UNIDADES`;
    - remove o trigger legado de e-mails;
    - remove `EMAILS_PENDENTES` somente se estiver vazia. Se houver registros, a migração é interrompida e exige revisão manual para evitar perda silenciosa.
-8. Ainda no projeto Interno, execute `publicarCatalogoExterno()` uma vez e confira o espelho. Depois execute `instalarTriggerPublicacaoDiaria()` para atualizar somente as seis abas públicas diariamente. A publicação recusa um destino que contenha qualquer aba administrativa.
-9. Execute `validarSegurancaAutenticacao()` nos dois projetos. No Externo, confirme `modo: PUBLIC`, ausência de abas restritas e presença das seis abas públicas; no Interno, confirme `modo: PRIVATE` e o e-mail identificado.
-10. Execute `validarIntegridadeForumV4()` e `validarDadosReaisForumV4()` no projeto Interno para validar a estrutura operacional:
+8. Ainda no projeto Interno, execute `publicarCatalogoExterno()` uma vez e confira o espelho. Depois execute `instalarTriggerPublicacaoDiaria()` para atualizar somente as abas públicas configuradas. A publicação recusa um destino que contenha qualquer aba administrativa.
+9. Execute `validarSegurancaAutenticacao()` nos dois projetos. No Externo, confirme `modo: PUBLIC`, ausência de abas restritas e presença das abas públicas; no Interno, confirme `modo: PRIVATE` e o e-mail identificado.
+10. Execute `validarIntegridadeForumV5()` e `validarDadosReaisForumV5API()` no projeto Interno para validar a estrutura operacional:
    - abas obrigatórias;
    - ausência de `TELEFONES`;
    - IDs duplicados;
-   - referências `FORUM_ID`, `UNIDADE_ID` e `SETOR_ID` válidas;
+   - referências `FORUM_ID` e `PAI_ID` válidas, sem ciclos e dentro do mesmo Fórum;
+   - referências `CONTATOS.UNIDADE_ORGANIZACIONAL_ID` válidas;
    - contatos órfãos.
 
 A verificação de conteúdo contra o PDF do catálogo e a planilha deve continuar sendo feita contra os arquivos oficiais antes de qualquer correção de dados. Nesta etapa, o PDF foi mantido fora da pasta local e nenhum dado da planilha foi alterado.

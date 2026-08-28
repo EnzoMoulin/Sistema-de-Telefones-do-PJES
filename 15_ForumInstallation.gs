@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * INSTALAÇÃO V4 — MUNICIPIOS -> FORUM -> UNIDADES -> SETORES -> CONTATOS
+ * INSTALAÇÃO V5 — MUNICIPIOS -> FORUM -> UNIDADES_ORGANIZACIONAIS -> CONTATOS
  * ==========================================================
  */
 
@@ -17,9 +17,11 @@ function instalarSistemaForum(segredo) {
 
     garantirAbaForumV4(ss, CONFIG.SHEETS.MUNICIPIOS, ["ID","NOME","CODIGO_IBGE","MICRORREGIAO","ATIVO"]);
     garantirAbaForumV4(ss, CONFIG.SHEETS.FORUM, ["ID","MUNICIPIO_ID","NOME","ENDERECO","CEP","EMAIL","ORDEM","ATIVO","OBSERVACAO"]);
+    garantirAbaForumV4(ss, CONFIG.SHEETS.UNIDADES_ORGANIZACIONAIS, ["ID","FORUM_ID","PAI_ID","TIPO","NOME","ENDERECO","CEP","OBSERVACAO","SELECIONAVEL_ACESSO","ATIVO","ORDEM"]);
+    // Fontes de migração/rollback; a consulta operacional V5 não depende destas abas.
     garantirAbaForumV4(ss, CONFIG.SHEETS.UNIDADES, ["ID","FORUM_ID","MUNICIPIO_ID","NOME","ENDERECO","CEP","EMAIL","ORDEM","ATIVO","OBSERVACAO"]);
     garantirAbaForumV4(ss, CONFIG.SHEETS.SETORES, ["ID","UNIDADE_ID","NOME","ENDERECO","CEP","OBSERVACAO","ORDEM","ATIVO"]);
-    garantirAbaForumV4(ss, CONFIG.SHEETS.CONTATOS, ["ID","FORUM_ID","UNIDADE_ID","SETOR_ID","TIPO","DESCRICAO","VALOR","ORDEM","DATA_CRIACAO","DATA_ATUALIZACAO","ATIVO","OBSERVACAO"]);
+    garantirAbaForumV4(ss, CONFIG.SHEETS.CONTATOS, ["ID","FORUM_ID","UNIDADE_ORGANIZACIONAL_ID","UNIDADE_ID","SETOR_ID","TIPO","DESCRICAO","VALOR","ORDEM","DATA_CRIACAO","DATA_ATUALIZACAO","ATIVO","OBSERVACAO"]);
 
     // Demais abas operacionais permanecem, mas TELEFONES não é criada.
     garantirAbaForumV4(ss, CONFIG.SHEETS.TELEFONES_UTEIS, ["ID","NOME","TIPO","VALOR","ATIVO"]);
@@ -33,6 +35,7 @@ function instalarSistemaForum(segredo) {
 
     migrarAutenticacaoGoogleV5(ss);
     garantirGestorInicial(ss);
+    migrarHierarquiaOrganizacionalV5();
 
     SpreadsheetApp.flush();
     try { CACHE.limparTudo(); } catch (e) {}
@@ -284,35 +287,10 @@ function removerAbaTelefonesLegada() {
 
 function validarIntegridadeForumV4() {
   new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
-  const diag = validarModeloForumContatos();
-  const ss = DB.getSpreadsheet();
-  const problemas = [];
+  return validarIntegridadeHierarquiaOrganizacionalV5();
+}
 
-  if (diag.abasAusentes.length) problemas.push("Aba obrigatória ausente: " + diag.abasAusentes.join(", "));
-
-  const contato = DB.contatosOuNulo();
-  const setor = DB.setoresOuNulo();
-  const unidade = DB.unidadesOuNulo();
-  const forum = DB.forumOuNulo();
-  const municipio = DB.municipiosOuNulo();
-
-  const ids = function(sheet) {
-    if (!sheet) return [];
-    const map = DB.map(sheet); const idx = map.ID;
-    return DB.read(sheet).map(r => idx ? textoSeguro(r[idx-1]) : "").filter(Boolean);
-  };
-
-  const checarUnicos = function(nome, lista) {
-    const vistos = {}; const dup = [];
-    lista.forEach(function(id){ if(vistos[id]) dup.push(id); vistos[id]=true; });
-    if (dup.length) problemas.push(nome + " duplicados: " + dup.join(", "));
-  };
-
-  checarUnicos("MUNICIPIO", ids(municipio));
-  checarUnicos("FORUM", ids(forum));
-  checarUnicos("UNIDADE", ids(unidade));
-  checarUnicos("SETOR", ids(setor));
-  checarUnicos("CONTATO", ids(contato));
-
-  return { ok: problemas.length === 0, problemas: problemas, diagnostico: diag };
+function validarIntegridadeForumV5() {
+  new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
+  return validarIntegridadeHierarquiaOrganizacionalV5();
 }

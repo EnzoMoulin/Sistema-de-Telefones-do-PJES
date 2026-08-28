@@ -69,7 +69,7 @@ function carregarUnidadesFormularioAcesso(){
       var check = document.createElement("input"); check.type = "checkbox"; check.value = unidade.id; check.name = "acesso-unidade";
       var atuais = (typeof usuarioAtual !== "undefined" && Array.isArray(usuarioAtual.unidadeIds)) ? usuarioAtual.unidadeIds : [];
       if(atuais.indexOf(unidade.id) !== -1){ check.disabled = true; label.style.opacity = ".58"; }
-      var texto = document.createElement("span"); texto.textContent = unidade.nome;
+      var texto = document.createElement("span"); texto.textContent = unidade.caminhoTexto || unidade.nome;
       var detalhe = document.createElement("small"); detalhe.textContent = [unidade.municipio, unidade.forum].filter(Boolean).join(" — ");
       if(check.disabled) detalhe.textContent += (detalhe.textContent ? " — " : "") + "já vinculada";
       texto.appendChild(detalhe); label.appendChild(check); label.appendChild(texto); holder.appendChild(label);
