@@ -19,6 +19,16 @@ function _fcCampo(mapa, linha, nomes, padrao) {
 
 function _fcTexto(valor) { return textoSeguro(valor); }
 
+/** Retorna o primeiro campo existente que também possua valor. */
+function _fcPrimeiroValor(mapa, linha, nomes) {
+  const lista = Array.isArray(nomes) ? nomes : [nomes];
+  for (const nome of lista) {
+    const valor = _fcTexto(_fcCampo(mapa, linha, [nome], ""));
+    if (valor) return valor;
+  }
+  return "";
+}
+
 function _fcOrdem(valor, fallback) {
   const s = _fcTexto(valor);
   if (!s) return { tipo: 2, valor: fallback };
@@ -255,7 +265,10 @@ function construirHierarquiaForumContatos(opcoes) {
   DB.read(shContatos).forEach(function(linha, indice) {
     const id = _fcTexto(_fcCampo(mapaContatos, linha, ["ID"]));
     if (!id || !paraBoolean(_fcCampo(mapaContatos, linha, ["ATIVO"], true))) return;
-    const noId = _fcTexto(_fcCampo(mapaContatos, linha, ["UNIDADE_ORGANIZACIONAL_ID", "SETOR_ID", "UNIDADE_ID"]));
+    const candidatosNo = ["UNIDADE_ORGANIZACIONAL_ID", "SETOR_ID", "UNIDADE_ID"]
+      .map(function(campo) { return _fcTexto(_fcCampo(mapaContatos, linha, [campo], "")); })
+      .filter(Boolean);
+    const noId = candidatosNo.find(function(candidato) { return !!nos[candidato]; }) || candidatosNo[0] || "";
     const forumIdInformado = _fcTexto(_fcCampo(mapaContatos, linha, ["FORUM_ID"]));
     const forumId = noId && nos[noId] ? nos[noId].forumId : forumIdInformado;
     const contato = {

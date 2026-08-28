@@ -106,8 +106,11 @@ function migrarHierarquiaOrganizacionalV5() {
     const valores = dadosContatos.map(function(linha) {
       const atual = textoSeguro(linha[idxNo - 1]);
       const legado = textoSeguro(idxSetor ? linha[idxSetor - 1] : "") || textoSeguro(idxUnidade ? linha[idxUnidade - 1] : "");
-      if (!atual && legado) contatosAtualizados++;
-      return [atual || legado];
+      const atualValido = atual && nosExistentes.has(atual);
+      const legadoValido = legado && nosExistentes.has(legado);
+      const escolhido = atualValido ? atual : (legadoValido ? legado : (atual || legado));
+      if (escolhido !== atual) contatosAtualizados++;
+      return [escolhido];
     });
     contatos.getRange(2, idxNo, valores.length, 1).setValues(valores);
   }
@@ -185,7 +188,7 @@ function validarIntegridadeHierarquiaOrganizacionalV5() {
   DB.read(shContatos).forEach(function(linha, indice) {
     const id = textoSeguro(_fcCampo(mapaContatos, linha, ["ID"]));
     const forumId = textoSeguro(_fcCampo(mapaContatos, linha, ["FORUM_ID"]));
-    const noId = textoSeguro(_fcCampo(mapaContatos, linha, ["UNIDADE_ORGANIZACIONAL_ID", "SETOR_ID", "UNIDADE_ID"]));
+    const noId = _fcPrimeiroValor(mapaContatos, linha, ["UNIDADE_ORGANIZACIONAL_ID", "SETOR_ID", "UNIDADE_ID"]);
     if (!id) problemas.push("CONTATOS linha " + (indice + 2) + " sem ID.");
     else if (idsContatos.has(id)) problemas.push("Contato duplicado: " + id);
     else idsContatos.add(id);

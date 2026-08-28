@@ -54,6 +54,14 @@ function _v4ValorNormalizado(valor) {
   return limparTexto(valor);
 }
 
+function _v4PrimeiroValorObjeto(objeto, nomes) {
+  for (const nome of nomes) {
+    const valor = textoSeguro(valorObjeto(objeto, nome));
+    if (valor) return valor;
+  }
+  return "";
+}
+
 function _v4Usuario() {
   return new AuthService().usuarioAtual();
 }
@@ -79,7 +87,7 @@ function _v4EscopoPermitido(usuario, forumId, noId) {
 function _v4ResolverContexto(dados) {
   const entrada = ehObjeto(dados) ? dados : {};
   let forumId = textoSeguro(valorObjeto(entrada, "forumId", "FORUM_ID"));
-  let noId = textoSeguro(valorObjeto(entrada, "unidadeOrganizacionalId", "noId", "UNIDADE_ORGANIZACIONAL_ID", "setorId", "SETOR_ID", "unidadeId", "UNIDADE_ID"));
+  let noId = _v4PrimeiroValorObjeto(entrada, ["unidadeOrganizacionalId", "noId", "UNIDADE_ORGANIZACIONAL_ID", "setorId", "SETOR_ID", "unidadeId", "UNIDADE_ID"]);
   const nos = _fcIndiceOrganizacional();
   if (noId) {
     if (!nos[noId]) throw new Error("Unidade organizacional não encontrada.");
