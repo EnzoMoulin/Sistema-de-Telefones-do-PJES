@@ -13,7 +13,6 @@ function tipoNotificacaoIcone(tipo){
   const t = String(tipo||"").toUpperCase();
   switch(t){
     case "LOGIN": return "\uD83D\uDD10";
-    case "SENHA_GERADA": return "\uD83D\uDD11";
     case "SOLICITACAO_PERFIL": return "\uD83D\uDC64";
     case "SOLICITACAO_COMARCA": return "\uD83C\uDFDB\uFE0F";
     case "SOLICITACAO_APROVADA": return "\u2705";
@@ -27,7 +26,6 @@ function tipoNotificacaoRotulo(tipo){
   const t = String(tipo||"").toUpperCase();
   switch(t){
     case "LOGIN": return "Login";
-    case "SENHA_GERADA": return "Senha gerada";
     case "SOLICITACAO_PERFIL": return "Solicita\u00e7\u00e3o de perfil";
     case "SOLICITACAO_COMARCA": return "Solicita\u00e7\u00e3o de comarca";
     case "SOLICITACAO_APROVADA": return "Aprovada";

@@ -5,8 +5,9 @@
  * ==========================================================
  *
  * A planilha é obtida desta forma:
- * 1. Editor do Apps Script: planilha ativa.
- * 2. Web App: ID salvo nas propriedades do projeto.
+ * 1. Projeto vinculado: a planilha ativa pode registrar o ID uma vez.
+ * 2. Projeto independente/Web App: cada alvo usa o ID de sua respectiva
+ *    planilha, salvo na propriedade de script PLANILHA_VINCULADA_ID.
  */
 
 const CHAVE_PLANILHA_VINCULADA = "PLANILHA_VINCULADA_ID";
@@ -41,7 +42,7 @@ class Database {
 
     if (!id) {
       throw new Error(
-        "A planilha ainda não foi vinculada. Execute registrarPlanilhaVinculada() manualmente no editor do Apps Script."
+        "A planilha ainda não foi vinculada. Configure PLANILHA_VINCULADA_ID nas propriedades do projeto ou execute registrarPlanilhaVinculadaEditor_() em um projeto vinculado."
       );
     }
 

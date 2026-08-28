@@ -41,10 +41,6 @@ Arquivo: Layout.html
       <?!= include("Login"); ?>
     </section>
 
-    <section id="senha-gerada-view" class="view hidden">
-      <?!= include("SenhaGerada"); ?>
-    </section>
-
     <section id="formulario-acesso-view" class="view hidden">
       <?!= include("FormularioAcesso"); ?>
     </section>
@@ -194,7 +190,7 @@ Arquivo: Layout.html
             <div id="config-conta-comarcas-wrap" class="config-comarcas-wrap hidden">
               <label>Unidades permitidas</label>
               <div id="config-conta-comarcas" class="config-comarcas-list"></div>
-              <span class="config-comarcas-hint">Gestor de Conteúdo — acesso limitado às unidades acima.</span>
+              <span class="config-comarcas-hint">Gestor de Conteúdo — edição limitada às Unidades acima.</span>
             </div>
             <div class="config-meta-row">
               <span class="config-meta-label">Domínio institucional</span>
@@ -312,4 +308,3 @@ Arquivo: Layout.html
 </div>
 
 <?!= include("ModalTelefone"); ?>
-<?!= include("ModalAcesso"); ?>

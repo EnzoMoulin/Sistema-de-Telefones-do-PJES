@@ -8,18 +8,45 @@
 const CONFIG = {
   SISTEMA: {
     NOME: "Sistema Inteligente de Gestão de Telefones do Poder Judiciário do Estado do Espírito Santo",
-    VERSAO: "4.4"
+    VERSAO: "4.2"
   },
 
   WEB_APP: {
-    URL_PUBLICA: "https://script.google.com/macros/s/AKfycbxvv83bMKSzHkZN_aDvzHdiI1z7KMB4DM-lynPVJOLDAtFaqYQhPJ3_BNuWo9ed2uoO/exec",
-    URL_ADMIN: "https://script.google.com/macros/s/AKfycbxvv83bMKSzHkZN_aDvzHdiI1z7KMB4DM-lynPVJOLDAtFaqYQhPJ3_BNuWo9ed2uoO/exec",
+    URL_PUBLICA: "",
+    URL_ADMIN: "",
     PERMITIR_IFRAME: false
   },
 
   AUTH: {
     DOMINIO_INSTITUCIONAL: "tjes.jus.br",
-    DURACAO_SESSAO_SEGUNDOS: 3600
+    PROPRIEDADE_MODO: "APP_MODE",
+    MODO_PUBLICO: "PUBLIC",
+    MODO_PRIVADO: "PRIVATE",
+    PROPRIEDADE_EMAILS_TESTE: "EMAILS_TESTE_PRIVADO",
+    PROPRIEDADE_SEGREDO_CONFIGURACAO: "SETUP_SECRET",
+    PROPRIEDADE_OPERADORES_INSTALACAO: "OPERADORES_INSTALACAO"
+  },
+
+  PUBLICACAO: {
+    PROPRIEDADE_PLANILHA_PUBLICA: "PLANILHA_PUBLICA_ID",
+    PROPRIEDADE_FONTE_MIGRACAO: "PLANILHA_FONTE_MIGRACAO_ID",
+    ABAS_PUBLICAS: [
+      "MUNICIPIOS",
+      "FORUM",
+      "UNIDADES",
+      "SETORES",
+      "CONTATOS",
+      "TELEFONES_UTEIS"
+    ],
+    ABAS_RESTRITAS: [
+      "USUARIOS",
+      "ACESSOS_UNIDADES",
+      "SOLICITACOES_ACESSO",
+      "NOTIFICACOES",
+      "HISTORICO",
+      "CONFIGURACAO",
+      "LOG"
+    ]
   },
 
   SHEETS: {
@@ -35,9 +62,8 @@ const CONFIG = {
     CONFIGURACAO: "CONFIGURACAO",
     HISTORICO: "HISTORICO",
     LOG: "LOG",
-    SOLICITACOES_ACESSO: "Solicitações de Acesso do sistema",
-    SOLICITACOES_ACESSO_LEGADO: "SOLICITACOES_ACESSO",
-    EMAILS_PENDENTES: "EMAILS_PENDENTES",
+    SOLICITACOES_ACESSO: "SOLICITACOES_ACESSO",
+    SOLICITACOES_ACESSO_LEGADO: "Solicitações de Acesso do sistema",
     NOTIFICACOES: "NOTIFICACOES",
 
     // Identificador legado mantido somente para compatibilidade de código antigo.
@@ -53,18 +79,15 @@ const CONFIG = {
   },
 
   NIVEIS: {
-    NIVEL_1: 1,
-    NIVEL_2: 2,
-    NIVEL_3: 3,
+    GESTOR_CONTEUDO: 1,
+    GESTOR_SISTEMA: 2,
     POR_PERFIL: {
-      "USUARIO_CONSULTA": 1,
-      "GESTOR_CONTEUDO": 2,
-      "GESTOR_SISTEMA": 3
+      "GESTOR_CONTEUDO": 1,
+      "GESTOR_SISTEMA": 2
     },
     POR_NIVEL: {
-      "1": "USUARIO_CONSULTA",
-      "2": "GESTOR_CONTEUDO",
-      "3": "GESTOR_SISTEMA"
+      "1": "GESTOR_CONTEUDO",
+      "2": "GESTOR_SISTEMA"
     }
   },
 

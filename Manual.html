@@ -141,25 +141,25 @@ Arquivo: Manual.html
     <div class="manual-role-card">
       <span class="role-ic">👁️</span>
       <h4>Visitante</h4>
-      <p><strong>USUARIO_CONSULTA</strong><br>Sem login. Consulta tudo, solicita acesso, vê Registro e Configurações.</p>
+      <p><strong>USUARIO_CONSULTA</strong><br>Consulta os dados públicos. A solicitação de acesso só aparece para uma conta identificada na URL privada.</p>
       <div style="margin-top:10px"><span class="manual-badge badge-visitante">👁️ Consulta pública</span></div>
     </div>
     <div class="manual-role-card" style="border-color:#bfdbfe">
       <span class="role-ic">✏️</span>
       <h4>Gestor de Conteúdo</h4>
-      <p><strong>GESTOR_CONTEUDO</strong><br>Edita telefones (dentro das comarcas permitidas). Vê Dashboard completo.</p>
+      <p><strong>NIVEL 1 — GESTOR_CONTEUDO</strong><br>Edita contatos somente nas Unidades vinculadas ativamente em <code>ACESSOS_UNIDADES</code>.</p>
       <div style="margin-top:10px"><span class="manual-badge badge-conteudo">✏️ Edita com escopo</span></div>
     </div>
     <div class="manual-role-card" style="border-color:#1e293b">
       <span class="role-ic">🛡️</span>
       <h4>Gestor do Sistema</h4>
-      <p><strong>GESTOR_SISTEMA</strong><br>Acesso total: telefones, solicitações, usuários, logs e todas as comarcas.</p>
+      <p><strong>NIVEL 2 — GESTOR_SISTEMA</strong><br>Acesso administrativo global: contatos, solicitações, usuários e logs, sem depender de vínculos por Unidade.</p>
       <div style="margin-top:10px"><span class="manual-badge badge-sistema">🛡️ Acesso total</span></div>
     </div>
   </div>
 
   <div class="panel" style="padding:16px 18px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
-    <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:#475569"><span style="font-size:18px">🔑</span> <strong style="color:#0f172a">Como o acesso funciona:</strong> login é automático pela conta Google. Quem está na aba <code>USUARIOS</code> com <code>GESTOR_SISTEMA</code> ou <code>GESTOR_CONTEUDO</code> ativo entra no cargo; demais continuam Visitantes.</div>
+    <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:#475569"><span style="font-size:18px">🔑</span> <strong style="color:#0f172a">Como o acesso funciona:</strong> na URL privada, o login é automático pela conta Google. A aba <code>USUARIOS</code> usa <code>NIVEL=1</code> ou <code>NIVEL=2</code> e <code>ATIVO=SIM</code>. Na URL pública, todos permanecem em Consulta.</div>
     <span class="manual-badge badge-todos">Domínio: @tjes.jus.br</span>
   </div>
 
@@ -172,7 +172,7 @@ Arquivo: Manual.html
       <tr><td>Dashboard (totais e gráficos)</td><td style="text-align:center">—</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
       <tr><td>Adicionar / editar / excluir telefones</td><td style="text-align:center">—</td><td style="text-align:center">✅ dentro do escopo</td><td style="text-align:center">✅ todas</td></tr>
       <tr><td>Aprovar / rejeitar solicitações</td><td style="text-align:center">—</td><td style="text-align:center">—</td><td style="text-align:center">✅</td></tr>
-      <tr><td>Gerenciar usuários e comarcas</td><td style="text-align:center">—</td><td style="text-align:center">—</td><td style="text-align:center">✅</td></tr>
+      <tr><td>Gerenciar usuários e vínculos de Unidades</td><td style="text-align:center">—</td><td style="text-align:center">—</td><td style="text-align:center">✅</td></tr>
       <tr><td>Registro de Alterações</td><td style="text-align:center">✅ leitura</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
       <tr><td>Configurações / Modo escuro / Sair</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
     </tbody>
@@ -203,18 +203,18 @@ Arquivo: Manual.html
     <div class="manual-section-head">
       <div>
         <h3>📝 03 — Solicitar acesso (Formulário)</h3>
-        <p>Qualquer visitante com e-mail <strong>@tjes.jus.br</strong> pode pedir cargo. Gestores não veem este menu.</p>
+        <p>Disponível somente na URL privada para uma conta institucional ou de teste identificada pelo Google e ainda não cadastrada. Gestores e a URL pública não veem este menu.</p>
       </div>
       <div class="badge-group"><span class="manual-badge badge-visitante">👁️ Visitante</span></div>
     </div>
     <ol class="manual-steps">
       <li><span class="manual-step-num">1</span><div><strong>Abra “Formulário de Acesso”</strong><p>Na barra lateral clique em <code>📝 Formulário de Acesso</code> ou no botão amarelo <code>Solicitar Acesso</code> no rodapé.</p></div></li>
-      <li><span class="manual-step-num">2</span><div><strong>Preencha Nome, Comarca, E-mail e Perfil</strong><p><code>Nome completo</code> (obrigatório), <code>Comarca onde trabalha</code> — digite para buscar e selecione na lista —, <code>E-mail institucional</code> deve terminar em <code>@tjes.jus.br</code>, e <code>Perfil solicitado</code> (Gestor de Conteúdo ou Gestor do Sistema).</p></div></li>
+      <li><span class="manual-step-num">2</span><div><strong>Preencha Nome, Nível e Unidades</strong><p><code>Nome completo</code> é obrigatório. O e-mail é preenchido pelo servidor e não pode ser alterado. Escolha <code>Nível 1</code> ou <code>Nível 2</code>; para Nível 1, selecione as Unidades desejadas.</p></div></li>
       <li><span class="manual-step-num">3</span><div><strong>Escreva a justificativa</strong><p>Mínimo de <strong>10 caracteres</strong>. Explique função/cargo e necessidade. Ex.: <em>“Servidor da comarca de Vitória, responsável pela atualização dos ramais da vara cível.”</em></p></div></li>
       <li><span class="manual-step-num">4</span><div><strong>Envie e aguarde aprovação</strong><p>Clique em <span class="manual-kbd">Enviar solicitação</span>. Status inicial <code>PENDENTE</code>. O Gestor do Sistema aprova/rejeita em <em>Solicitações de Acesso</em>.</p></div></li>
     </ol>
-    <div class="manual-warn"><span class="mi">⚠️</span><div><strong>Conta errada?</strong> Se você tem várias contas Google logadas, o navegador pode usar a conta pessoal. Clique em <span class="manual-kbd">Trocar de conta Google</span> e escolha a conta <code>@tjes.jus.br</code> no seletor.</div></div>
-    <div class="manual-info"><span class="mi">ℹ️</span><div><strong>Onde cai o pedido:</strong> a solicitação é gravada na aba <code>Solicitações de Acesso do sistema</code> da planilha (colunas: E-mail, Nome, Comarca, Perfil solicitado, Justificativa, Status, Datas, Aprovador).</div></div>
+    <div class="manual-warn"><span class="mi">⚠️</span><div><strong>Conta não identificada?</strong> Confirme que abriu a implantação privada com a conta Google correta. O sistema nunca aceita um e-mail digitado como prova de identidade.</div></div>
+    <div class="manual-info"><span class="mi">ℹ️</span><div><strong>Onde cai o pedido:</strong> a solicitação é gravada em <code>SOLICITACOES_ACESSO</code> com nível numérico, IDs das Unidades, status <code>PENDENTE</code>, data e aprovador.</div></div>
   </section>
 
   <!-- 04 TELEFONES CRUD -->
@@ -227,7 +227,7 @@ Arquivo: Manual.html
       <div class="badge-group"><span class="manual-badge badge-conteudo">✏️ Conteúdo</span><span class="manual-badge badge-sistema">🛡️ Sistema</span></div>
     </div>
     <ol class="manual-steps">
-      <li><span class="manual-step-num">1</span><div><strong>Acesse Telefones como gestor</strong><p>Faça login (conta com cargo ativo) e clique em <code>☎ Telefones</code>. No topo você verá o subtítulo com suas comarcas permitidas (se for Gestor de Conteúdo).</p></div></li>
+      <li><span class="manual-step-num">1</span><div><strong>Acesse Contatos como gestor</strong><p>Abra a URL privada com sua conta Google autorizada e clique em <code>☎ Contatos</code>. A entrada administrativa é automática.</p></div></li>
       <li><span class="manual-step-num">2</span><div><strong>Filtre e pesquise</strong><p>Use <span class="manual-kbd">🔍 Pesquisar</span> (setor, comarca, telefone…), e os seletores <code>Microrregião</code>, <code>Comarca</code> e <code>Tipo</code>. A tabela pagina automaticamente.</p></div></li>
       <li><span class="manual-step-num">3</span><div><strong>Adicionar: “+ Novo telefone”</strong><p>Clique no botão azul, preencha <code>Microrregião *</code>, <code>Comarca *</code>, <code>Setor *</code>, <code>Status *</code> e ao menos um contato (Telefone/Ramal/WhatsApp/E-mail/Endereço). Clique <span class="manual-kbd">Salvar</span>. Validação impede comarca fora do seu escopo.</p></div></li>
       <li><span class="manual-step-num">4</span><div><strong>Editar: ícone ✏️ na linha</strong><p>Na coluna <strong>Ações</strong> clique em <code>Editar</code>. Linhas fora do seu escopo mostram <code>🔒 Solicitar acesso</code> em vez do lápis. Altere os campos e salve.</p></div></li>
@@ -235,8 +235,8 @@ Arquivo: Manual.html
       <li><span class="manual-step-num">6</span><div><strong>Campos do modal</strong><p><code>Microrregião</code>, <code>Comarca</code>, <code>Setor</code>, <code>Tipo</code> (Telefone/Ramal/WhatsApp), <code>Telefone</code> com máscara <code>(27) 0000-0000</code>, <code>Ramal</code>, <code>WhatsApp</code>, <code>E-mail</code>, <code>Endereço</code>, <code>Status</code> (Ativo/Inativo), <code>Observação</code>.</p></div></li>
     </ol>
     <div class="manual-cols">
-      <div class="panel" style="background:#f0fdf4;border-color:#bbf7d0"><strong style="color:#166534">✅ Permitido</strong><p style="margin:6px 0 0;color:#14532d;font-size:12.5px;line-height:1.6">Gestor do Sistema em qualquer comarca.<br>Gestor de Conteúdo dentro das comarcas listadas na sua linha em <code>USUARIOS</code> (vazio = todas).</p></div>
-      <div class="panel" style="background:#fef3c7;border-color:#fcd34d"><strong style="color:#92400e">🔒 Bloqueado</strong><p style="margin:6px 0 0;color:#7c2d12;font-size:12.5px;line-height:1.6">Gestor de Conteúdo fora do escopo vê <code>🔒 Solicitar acesso</code>. Use o botão para pedir a comarca ao Gestor do Sistema.</p></div>
+      <div class="panel" style="background:#f0fdf4;border-color:#bbf7d0"><strong style="color:#166534">✅ Permitido</strong><p style="margin:6px 0 0;color:#14532d;font-size:12.5px;line-height:1.6">Nível 2 em qualquer Unidade.<br>Nível 1 somente nas Unidades vinculadas ativamente em <code>ACESSOS_UNIDADES</code>.</p></div>
+      <div class="panel" style="background:#fef3c7;border-color:#fcd34d"><strong style="color:#92400e">🔒 Bloqueado</strong><p style="margin:6px 0 0;color:#7c2d12;font-size:12.5px;line-height:1.6">Nível 1 sem vínculo ativo não edita a Unidade. Lista vazia significa nenhum acesso.</p></div>
     </div>
   </section>
 
@@ -244,19 +244,17 @@ Arquivo: Manual.html
   <section id="manual-comarca" class="panel manual-section" style="border-left:4px solid #2563eb">
     <div class="manual-section-head">
       <div>
-        <h3>🏛️ 05 — Fragmentação por comarca (escopo)</h3>
-        <p>O pilar de permissão do sistema: quem vê e edita o quê. Configure na aba <code>USUARIOS</code>.</p>
+        <h3>🏛️ 05 — Escopo por Unidade</h3>
+        <p>O pilar de permissão do sistema: níveis em <code>USUARIOS</code> e vínculos em <code>ACESSOS_UNIDADES</code>.</p>
       </div>
       <div class="badge-group"><span class="manual-badge badge-conteudo">✏️ Conteúdo</span><span class="manual-badge badge-sistema">🛡️ Sistema</span></div>
     </div>
     <ol class="manual-steps">
-      <li><span class="manual-step-num">1</span><div><strong>Onde fica:</strong><p>Aba <code>USUARIOS</code>da planilha, coluna <code>COMARCAS</code> (lista separada por vírgula). Também editável no painel <em>Usuários</em> (seletor com busca + checkboxes).</p></div></li>
-      <li><span class="manual-step-num">2</span><div><strong>Regra de ouro:</strong><p><code>COMARCAS = vazio (em branco)</code> → <strong>acesso a todas as comarcas</strong>. <code>COMARCAS = “Vitória, Vila Velha”</code> → só essas duas. Nomes são normalizados (acentos e caixa ignorados).</p></div></li>
-      <li><span class="manual-step-num">3</span><div><strong>Como funciona na interface:</strong><p>Em <em>Telefones</em> o subtítulo mostra <code>“suas comarcas: Vitória, Vila Velha”</code> e um aviso amarelo explica o limite. Linhas fora do escopo não são editáveis.</p></div></li>
-      <li><span class="manual-step-num">4</span><div><strong>Validação no servidor:</strong><p>Mesmo burlando o frontend, a <code>API</code> rejeita criação/edição/exclusão fora do escopo. A busca e a consulta também só devolvem registros permitidos.</p></div></li>
-      <li><span class="manual-step-num">5</span><div><strong>Pedido de nova comarca:</strong><p>Se aparecer <code>🔒 Solicitar acesso</code>, clique no botão da linha — ele abre <code>solicitarPermissaoComarca(comarca)</code> e cria uma solicitação para o Gestor do Sistema aprovar.</p></div></li>
+      <li><span class="manual-step-num">1</span><div><strong>Perfil:</strong><p><code>NIVEL=1</code> é Gestor de Conteúdo; <code>NIVEL=2</code> é Gestor do Sistema.</p></div></li>
+      <li><span class="manual-step-num">2</span><div><strong>Regra de ouro:</strong><p>Nível 1 depende de linhas ativas com o mesmo <code>USUARIO_ID</code> e o <code>UNIDADE_ID</code> autorizado. Sem vínculo, não há edição.</p></div></li>
+      <li><span class="manual-step-num">3</span><div><strong>Validação no servidor:</strong><p>A API resolve Setor → Unidade e rejeita criação, edição ou exclusão fora do vínculo ativo.</p></div></li>
     </ol>
-    <div class="manual-info"><span class="mi">ℹ️</span><div><strong>Exemplos:</strong> <code>Vitória</code> | <code>Cachoeiro de Itapemirim, Vitória, Serra</code> | <code>(vazio)</code> = todas. Separe por vírgula, ponto-e-vírgula ou quebra de linha.</div></div>
+    <div class="manual-info"><span class="mi">ℹ️</span><div>O Gestor do Sistema possui escopo global e não precisa de linhas em <code>ACESSOS_UNIDADES</code>.</div></div>
   </section>
 
   <!-- 06 SOLICITAÇÕES -->
@@ -270,11 +268,11 @@ Arquivo: Manual.html
     </div>
     <ol class="manual-steps">
       <li><span class="manual-step-num">1</span><div><strong>Abra “Solicitações de Acesso”</strong><p>Visível apenas para Gestor do Sistema. Clique em <code>👥 Solicitações de Acesso</code> na barra lateral.</p></div></li>
-      <li><span class="manual-step-num">2</span><div><strong>Analise a linha</strong><p>Colunas: <code>E-mail</code>, <code>Nome</code>, <code>Comarca</code>, <code>Justificativa</code>, <code>Status</code> (badge amarelo = pendente, verde = aprovado, vermelho = rejeitado).</p></div></li>
-      <li><span class="manual-step-num">3</span><div><strong>Aprove ou rejeite</strong><p>Em pendentes aparecem <span class="manual-kbd">✅ Aprovar</span> e <span class="manual-kbd">❌ Rejeitar</span>. Ao aprovar, o usuário é criado/atualizado em <code>USUARIOS</code> com o perfil solicitado e fica ativo; e-mail de notificação entra na fila <code>EMAILS_PENDENTES</code>.</p></div></li>
+      <li><span class="manual-step-num">2</span><div><strong>Analise a linha</strong><p>Confira e-mail, nome, nível e Unidades solicitadas. Nível 1 exige ao menos uma Unidade; nível 2 é global.</p></div></li>
+      <li><span class="manual-step-num">3</span><div><strong>Aprove ou rejeite</strong><p>Ao aprovar, o sistema cria ou atualiza <code>USUARIOS</code> e grava os vínculos necessários em <code>ACESSOS_UNIDADES</code>.</p></div></li>
       <li><span class="manual-step-num">4</span><div><strong>Atualize a lista</strong><p>O painel recarrega sozinho após a ação. Use <span class="manual-kbd">🔄 Atualizar</span> para recarregar manualmente.</p></div></li>
     </ol>
-    <div class="manual-tip"><span class="mi">💡</span><div><strong>Fila de e-mails:</strong> o trigger <code>instalarTriggerEmails()</code> processa a aba <code>EMAILS_PENDENTES</code> a cada minuto. Verifique <code>CONFIGURACAO → EMAIL_GESTOR</code> se o gestor não recebeu aviso.</div></div>
+    <div class="manual-tip"><span class="mi">💡</span><div>O sistema não gera senha e não usa fila de e-mails para autenticação.</div></div>
   </section>
 
   <!-- 07 USUÁRIOS -->
@@ -282,15 +280,15 @@ Arquivo: Manual.html
     <div class="manual-section-head">
       <div>
         <h3>🧑‍💼 07 — Gerenciar usuários</h3>
-        <p>Painel exclusivo do Gestor do Sistema. Altera perfil, ativa/desativa e define escopo de comarcas.</p>
+        <p>Painel exclusivo do Gestor do Sistema. Altera nível, ativa/desativa e define escopo por Unidade.</p>
       </div>
       <div class="badge-group"><span class="manual-badge badge-sistema">🛡️ Sistema</span></div>
     </div>
     <ol class="manual-steps">
-      <li><span class="manual-step-num">1</span><div><strong>Abra “Usuários”</strong><p>Clique em <code>🧑‍💼 Usuários</code>. A tabela carrega E-mail, Nome, Perfil, Comarcas (vazio = todas), Ativo e Ações.</p></div></li>
-      <li><span class="manual-step-num">2</span><div><strong>Edite inline</strong><p>Mude o <code>Perfil</code> no select (<code>GESTOR_SISTEMA</code> / <code>GESTOR_CONTEUDO</code> / <code>Visitante</code>), o checkbox <code>Ativo</code> e as <code>Comarcas</code> pelo seletor (busca + checkboxes, <span class="manual-kbd">Limpar</span> = todas, <span class="manual-kbd">OK</span> fecha).</p></div></li>
+      <li><span class="manual-step-num">1</span><div><strong>Abra “Usuários”</strong><p>A tabela carrega E-mail, Nome, Nível, Unidades, Ativo e Ações.</p></div></li>
+      <li><span class="manual-step-num">2</span><div><strong>Edite inline</strong><p>Mude o <code>Nível</code> entre <code>1 — Gestor de Conteúdo</code> e <code>2 — Gestor do Sistema</code>, ajuste <code>Ativo</code> e selecione as Unidades quando o nível for 1. O nível 2 é sempre global.</p></div></li>
       <li><span class="manual-step-num">3</span><div><strong>Salve</strong><p>Clique em <span class="manual-kbd">Salvar</span> na linha. O backend valida: não é possível rebaixar o <strong>último Gestor do Sistema ativo</strong> nem editar a própria conta por este painel.</p></div></li>
-      <li><span class="manual-step-num">4</span><div><strong>Entenda “Visitante”</strong><p>Ao salvar como <code>Visitante</code> o usuário perde o cargo administrativo e <strong>some desta lista</strong> (a lista mostra só quem tem cargo). Para reativar, aprove nova solicitação ou edite direto na planilha.</p></div></li>
+      <li><span class="manual-step-num">4</span><div><strong>Desative sem apagar</strong><p>Use <code>ATIVO=NÃO</code> para bloquear o acesso administrativo. A conta continua cadastrada e recebe o aviso de conta desativada ao tentar entrar.</p></div></li>
     </ol>
     <div class="manual-warn"><span class="mi">⚠️</span><div><strong>Trava de segurança:</strong> o sistema impede remover o último <code>GESTOR_SISTEMA</code> ativo. Mantenha ao menos dois gestores para evitar lockout.</div></div>
     <div class="manual-info"><span class="mi">ℹ️</span><div><strong>Atalho planilha:</strong> edições diretas na aba <code>USUARIOS</code> também valem — mas prefira o painel para validar e registrar.</div></div>
@@ -379,7 +377,7 @@ Arquivo: Manual.html
         <p style="margin:8px 0 0;color:#475569;font-size:13px;line-height:1.6">Tanto a consulta quanto o Registro têm CSS de impressão dedicado — só o conteúdo útil sai no papel/PDF. Use o botão de impressão da própria view, não o do navegador.</p>
       </div>
     </div>
-    <div class="manual-info"><span class="mi">ℹ️</span><div><strong>Abas da planilha (referência técnica):</strong> <code>TELEFONES</code> · <code>USUARIOS</code> (com <code>COMARCAS</code>) · <code>Solicitações de Acesso do sistema</code> · <code>CONFIGURACAO</code> · <code>HISTORICO</code> · <code>LOG</code> · <code>EMAILS_PENDENTES</code>. Nunca edite <code>ID</code> ou <code>HISTORICO</code> manualmente.</div></div>
+    <div class="manual-info"><span class="mi">ℹ️</span><div><strong>Abas de segurança:</strong> <code>USUARIOS</code> · <code>ACESSOS_UNIDADES</code> · <code>SOLICITACOES_ACESSO</code> · <code>NOTIFICACOES</code> · <code>HISTORICO</code> · <code>LOG</code>.</div></div>
   </section>
 
   <!-- 12 FAQ -->
@@ -391,9 +389,9 @@ Arquivo: Manual.html
       </div>
     </div>
     <div class="manual-faq">
-      <details><summary>🔑 Por que continuo como Visitante mesmo logado com Google?</summary><p>Sua conta não está na aba <code>USUARIOS</code> com <code>GESTOR_SISTEMA</code> ou <code>GESTOR_CONTEUDO</code> <strong>ativo</strong>. Peça acesso pelo Formulário ou peça ao Gestor do Sistema para te cadastrar. Se tem várias contas logadas, use <em>Trocar de conta Google</em> e selecione a <code>@tjes.jus.br</code>.</p></details>
-      <details><summary>🔒 Vejo “Solicitar acesso” no lugar de Editar. Por quê?</summary><p>Você é Gestor de Conteúdo com escopo limitado. A linha pertence a uma comarca fora das suas comarcas permitidas (coluna <code>COMARCAS</code> em <code>USUARIOS</code>). Clique no botão para pedir a comarca ou peça ao Gestor do Sistema para ampliar seu escopo.</p></details>
-      <details><summary>📝 Enviei o formulário, e agora?</summary><p>Seu pedido fica <code>PENDENTE</code> na aba <code>Solicitações de Acesso do sistema</code>. O Gestor do Sistema aprova em <em>Solicitações de Acesso</em> → seu e-mail entra em <code>USUARIOS</code> e você recebe notificação por e-mail (fila processada a cada minuto).</p></details>
+      <details><summary>🔑 Por que continuo como Visitante mesmo logado com Google?</summary><p>O acesso administrativo só existe na URL privada. Nela, sua conta precisa estar em <code>USUARIOS</code> com <code>NIVEL=1</code> ou <code>NIVEL=2</code> e <code>ATIVO=SIM</code>. Se ainda não estiver cadastrada, use o Formulário de Acesso exibido pelo sistema.</p></details>
+      <details><summary>🔒 Não consigo editar uma Unidade. Por quê?</summary><p>O nível 1 só edita Unidades com vínculo ativo em <code>ACESSOS_UNIDADES</code>. Peça ao Gestor do Sistema para revisar o vínculo.</p></details>
+      <details><summary>📝 Enviei o formulário, e agora?</summary><p>Seu pedido fica <code>PENDENTE</code> em <code>SOLICITACOES_ACESSO</code>. Após aprovação, o sistema atualiza <code>USUARIOS</code> e os vínculos de Unidade.</p></details>
       <details><summary>🗺️ O mapa sumiu depois de voltar do navegador?</summary><p>O sistema recupera o estado no evento <code>pageshow</code> (bfcache). Clique em <em>Telefones</em> novamente ou use <em>Ver mapa</em> nos detalhes. Se persistir, recarregue a página.</p></details>
       <details><summary>🌙 O modo escuro não pegou / voltou ao claro?</summary><p>A preferência é salva em <code>localStorage</code> por navegador. Cada navegador/dispositivo guarda separado. Alterne novamente em <em>Configurações → Aparência</em>.</p></details>
       <details><summary>👥 Cadastrei um usuário como Visitante e ele sumiu da lista. Erro?</summary><p>Não — Visitantes não têm cargo e somem da lista de <em>Usuários</em> (que só lista quem tem cargo). Para reativar, aprove nova solicitação ou edite direto na aba <code>USUARIOS</code> da planilha.</p></details>

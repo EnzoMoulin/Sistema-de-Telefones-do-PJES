@@ -517,1139 +517,413 @@ function listarHistorico(id) {
 
 function obterUsuarioAtual() {
   try {
-    return respostaSucesso(
-      new AuthService().usuarioAtual()
-    );
+    return respostaSucesso(new AuthService().usuarioAtual());
   } catch (erro) {
-    registrarErroAPI(
-      "OBTER_USUARIO",
-      erro
-    );
-
+    registrarErroAPI("OBTER_USUARIO", erro);
     return respostaErro(erro);
   }
 }
 
-function encerrarSessao(authDados) {
-  try {
-    AuthService.limparSessao(authDados);
-    return respostaSucesso(true);
-  } catch (erro) {
-    registrarErroAPI(
-      "LOGOUT",
-      erro
-    );
-
-    return respostaErro(erro);
-  }
+function encerrarSessao() {
+  return respostaSucesso(true);
 }
 
 /**
  * ==========================================================
- * SOLICITAÇÕES DE ACESSO
+ * SOLICITAÇÕES DE ACESSO POR IDENTIDADE GOOGLE
  * ==========================================================
  */
 
-/**
- * Mapa de colunas da aba SOLICITACOES_ACESSO.
- *
- * Usa os cabeçalhos da planilha em vez de posições fixas,
- * tornando o código resiliente a reordenações e à coluna
- * COMARCA (presente em instalações novas e adicionada por
- * migração em instalações antigas).
- */
 function indicesSolicitacao(linhaCabecalho) {
   const alvos = {
     ID: ["ID"],
     EMAIL: ["EMAIL"],
     NOME: ["NOME"],
     COMARCA: ["COMARCA"],
-    UNIDADES: ["UNIDADE_ID", "UNIDADES_IDS", "UNIDADE_IDS"],
-    PERFIL: ["PERFIL_SOLICITADO", "PERFIL", "NIVEL_SOLICITADO"],
+    NIVEL: ["NIVEL_SOLICITADO", "NIVEL", "PERFIL_SOLICITADO", "PERFIL"],
+    UNIDADE_ID: ["UNIDADE_ID", "UNIDADES", "UNIDADES_IDS"],
     JUSTIFICATIVA: ["JUSTIFICATIVA"],
     STATUS: ["STATUS"],
     DATA: ["DATA_SOLICITACAO", "DATA"],
     APROVADOR: ["APROVADOR"],
     DATA_APROVACAO: ["DATA_APROVACAO"]
   };
-
   const indices = {};
-
-  (Array.isArray(linhaCabecalho) ? linhaCabecalho : []).forEach((cabecalho, i) => {
+  (Array.isArray(linhaCabecalho) ? linhaCabecalho : []).forEach(function(cabecalho, i) {
     const chave = normalizarChave(cabecalho);
-
-    Object.keys(alvos).forEach(grupo => {
-      if (
-        indices[grupo] === undefined &&
-        alvos[grupo].some(nome => normalizarChave(nome) === chave)
-      ) {
-        indices[grupo] = i;
-      }
+    Object.keys(alvos).forEach(function(grupo) {
+      if (indices[grupo] === undefined && alvos[grupo].some(function(nome) {
+        return normalizarChave(nome) === chave;
+      })) indices[grupo] = i;
     });
   });
-
   return indices;
 }
 
-/**
- * Monta uma linha (array) para a aba SOLICITACOES_ACESSO
- * respeitando as colunas existentes na planilha.
- */
-function montarLinhaSolicitacao(indices, campos) {
-  const largura =
-    Object.keys(indices).reduce(
-      (maximo, grupo) => Math.max(maximo, indices[grupo] + 1),
-      0
-    );
-
+function montarLinhaSolicitacao(indices, campos, larguraInformada) {
+  const largura = Number(larguraInformada) || Object.keys(indices).reduce(function(maximo, grupo) {
+    return Math.max(maximo, indices[grupo] + 1);
+  }, 0);
   const linha = new Array(largura).fill("");
-
-  Object.keys(campos).forEach(grupo => {
-    if (indices[grupo] !== undefined) {
-      linha[indices[grupo]] = campos[grupo];
-    }
+  Object.keys(campos).forEach(function(grupo) {
+    if (indices[grupo] !== undefined) linha[indices[grupo]] = campos[grupo];
   });
-
   return linha;
 }
 
-function listarSolicitacoes(authDados) {
-  try {
-    new AuthService(authDados).exigirPerfil(
-      CONFIG.PERFIS.GESTOR_SISTEMA
-    );
-
-    const sheet =
-      DB.solicitacoesAcesso();
-
-    if (!sheet) {
-      throw new Error(
-        "Aba de solicitações de acesso não encontrada."
-      );
-    }
-
-    const dados =
-      sheet.getDataRange().getValues();
-
-    if (dados.length <= 1) {
-      return respostaSucesso([]);
-    }
-
-    const indices = indicesSolicitacao(dados[0]);
-    const catalogoUnidades = catalogoUnidadesAcessoPorId();
-
-    const result =
-      dados
-        .slice(1)
-        .filter(row =>
-          String(row[indices.STATUS] || "")
-            .trim()
-            .toUpperCase() === "PENDENTE"
-        )
-        .map(row => {
-          const idsUnidades = indices.UNIDADES !== undefined
-            ? parseIdsUnidadesSolicitacao(row[indices.UNIDADES])
-            : [];
-          return {
-            id: row[indices.ID],
-            email: row[indices.EMAIL],
-            nome: row[indices.NOME],
-            unidades: idsUnidades.map(function(id) { return catalogoUnidades[id]; }).filter(Boolean),
-            unidadeIds: idsUnidades,
-            perfilSolicitado: perfilSolicitadoPorValor(row[indices.PERFIL]),
-            justificativa: row[indices.JUSTIFICATIVA],
-            status: row[indices.STATUS],
-            data: row[indices.DATA]
-          };
-        });
-
-    return respostaSucesso(result);
-  } catch (erro) {
-    registrarErroAPI(
-      "LISTAR_SOLICITACOES",
-      erro
-    );
-
-    return respostaErro(erro);
+function nivelSolicitadoNumero(valor) {
+  const numero = Number(valor);
+  if (numero === CONFIG.NIVEIS.GESTOR_CONTEUDO || numero === CONFIG.NIVEIS.GESTOR_SISTEMA) {
+    return numero;
   }
+  const perfil = String(valor || "").trim().toUpperCase();
+  return CONFIG.NIVEIS.POR_PERFIL[perfil] || 0;
 }
 
-function contarSolicitacoesPendentes(authDados) {
+function idsUnidadesSolicitadas(valor) {
+  const lista = Array.isArray(valor) ? valor : String(valor || "").split(/[,;|]+/);
+  return Array.from(new Set(lista.map(textoSeguro).filter(Boolean)));
+}
+
+function listarUnidadesParaAcesso() {
   try {
-    new AuthService(authDados).exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
-    const sheet = DB.solicitacoesAcesso();
-    if (!sheet) return respostaSucesso({ total: 0 });
-    const dados = sheet.getDataRange().getValues();
-    if (dados.length <= 1) return respostaSucesso({ total: 0 });
-    const indices = indicesSolicitacao(dados[0]);
-    const pendentes = dados.slice(1).filter(function(row){
-      return String(row[indices.STATUS] || "").trim().toUpperCase() === "PENDENTE";
+    AuthService.exigirContextoPrivado();
+    const usuario = new AuthService().usuarioAtual();
+    if (!usuario.identificado || !AuthService.emailPermitidoNoPrivado(usuario.email)) {
+      throw new Error("Não foi possível identificar uma conta autorizada nesta URL privada.");
+    }
+
+    const shUnidades = DB.unidades();
+    const mapaU = DB.map(shUnidades);
+    const shForum = DB.forum();
+    const mapaF = DB.map(shForum);
+    const shMunicipios = DB.municipios();
+    const mapaM = DB.map(shMunicipios);
+    const foruns = {};
+    DB.read(shForum).forEach(function(linha) {
+      foruns[textoSeguro(linha[mapaF.ID - 1])] = {
+        nome: textoSeguro(linha[mapaF.NOME - 1]),
+        municipioId: mapaF.MUNICIPIO_ID ? textoSeguro(linha[mapaF.MUNICIPIO_ID - 1]) : ""
+      };
     });
-    return respostaSucesso({ total: pendentes.length });
-  } catch (erro) {
-    registrarErroAPI("CONTAR_SOLICITACOES_PENDENTES", erro);
-    return respostaErro(erro);
-  }
-}
-
-/**
- * Solicitação de acesso (área administrativa).
- *
- * O solicitante precisa estar autenticado com conta
- * institucional. Justificativa e comarca são opcionais
- * para manter compatibilidade com chamadas antigas.
- */
-function autenticarConsulta(dados) {
-  let email = "";
-  try {
-    const entrada = ehObjeto(dados) ? dados : {};
-    email = normalizarEmail(valorObjeto(entrada, "email", "EMAIL"));
-    const senha = textoSeguro(valorObjeto(entrada, "senha", "SENHA", "password"));
-
-    if (!emailValidoAPI(email) || !emailInstitucional(email)) {
-      throw new Error("Informe um e-mail institucional válido.");
-    }
-    if (senha.length !== 20) {
-      throw new Error("A senha deve ter exatamente 20 caracteres.");
-    }
-    AuthService.verificarLimiteLogin(email);
-
-    const sheet = DB.usuarios();
-    let mapa = DB.map(sheet);
-    if (mapa.SENHA === undefined) {
-      garantirColunaSenhaUsuarios(DB.getSpreadsheet(), sheet);
-      mapa = DB.map(sheet);
-    }
-
-    if (mapa.EMAIL === undefined || mapa.SENHA === undefined || mapa.ATIVO === undefined) {
-      throw new Error("A aba USUARIOS não possui os cabeçalhos EMAIL, SENHA e ATIVO.");
-    }
-
-    const linha = DB.read(sheet).find(function(item) {
-      return normalizarEmail(item[mapa.EMAIL - 1]) === email;
+    const municipios = {};
+    DB.read(shMunicipios).forEach(function(linha) {
+      municipios[textoSeguro(linha[mapaM.ID - 1])] = textoSeguro(linha[mapaM.NOME - 1]);
     });
 
-    if (!linha) {
-      throw new Error("E-mail ou senha incorretos.");
-    }
-
-    const senhaArmazenada = textoSeguro(linha[mapa.SENHA - 1]);
-    if (!senhaArmazenada || !senhasIguaisConstante(senhaArmazenada, senha)) {
-      throw new Error("E-mail ou senha incorretos.");
-    }
-
-    const perfil = perfilUsuarioPorLinha(mapa, linha);
-    const ehGestor = perfil === CONFIG.PERFIS.GESTOR_CONTEUDO || perfil === CONFIG.PERFIS.GESTOR_SISTEMA;
-    if (!ehGestor) {
-      throw new Error("Este e-mail não possui acesso administrativo.");
-    }
-
-    if (!paraBoolean(linha[mapa.ATIVO - 1])) {
-      try {
-        const sheetPendente = DB.solicitacoesAcesso();
-        const dadosPendentes = sheetPendente.getDataRange().getValues();
-        const indicesPendentes = indicesSolicitacao(dadosPendentes[0] || []);
-        const temPendente = dadosPendentes.slice(1).some(function(item) {
-          return indicesPendentes.EMAIL !== undefined &&
-            indicesPendentes.STATUS !== undefined &&
-            normalizarEmail(item[indicesPendentes.EMAIL]) === email &&
-            String(item[indicesPendentes.STATUS] || "").trim().toUpperCase() === "PENDENTE";
-        });
-        if (temPendente) {
-          throw new Error("Acesso em andamento. Quando sua conta for aprovada você conseguirá entrar.");
-        }
-      } catch (erroPendente) {
-        if (String(erroPendente && erroPendente.message || "").indexOf("Acesso em andamento") !== -1) {
-          throw erroPendente;
-        }
-      }
-      throw new Error("Usuário inativo. Procure o Gestor do Sistema.");
-    }
-
-    const usuario = new AuthService().buscarUsuario(email);
-    const sessao = AuthService.criarSessaoSenha(usuario);
-    AuthService.limparFalhasLogin(email);
-    const resposta = {
-      id: usuario.id || "",
-      email: usuario.email,
-      nome: usuario.nome || email.split("@")[0],
-      perfil: usuario.perfil,
-      nivel: usuario.nivel || nivelPorPerfil(usuario.perfil),
-      ativo: true,
-      comarcas: usuario.comarcas || [],
-      unidades: usuario.unidades || [],
-      token: sessao.token,
-      expiraEm: sessao.expiraEm
-    };
-
-    try {
-      const gestoresLogin = obterEmailsGestoresSistema();
-      const msgLogin = resposta.nome + " (" + email + ") fez login no sistema como " + resposta.perfil + ".";
-      gestoresLogin.forEach(function(emailGestor) {
-        try {
-          if (normalizarEmail(emailGestor) !== email) criarNotificacao(emailGestor, "LOGIN", msgLogin, email);
-        } catch (erroNotificacao) {}
-      });
-    } catch (erroLoginNotif) {
-      try { registrarErroAPI("NOTIFICAR_LOGIN", erroLoginNotif); } catch (erroLog) {}
-    }
-
-    return respostaSucesso(resposta);
-  } catch (erro) {
-    if (String(erro && erro.message || "").indexOf("E-mail ou senha incorretos") !== -1) {
-      try { AuthService.registrarFalhaLogin(email); } catch (erroLimite) {}
-    }
-    registrarErroAPI("AUTENTICAR_CONSULTA", erro);
-    return respostaErro(erro);
-  }
-}
-
-function perfilSolicitadoPorValor(valor) {
-  const texto = String(valor === null || valor === undefined ? "" : valor).trim().toUpperCase();
-  if (texto === "3" || texto === "3.0") return CONFIG.PERFIS.GESTOR_SISTEMA;
-  if (texto === "2" || texto === "2.0") return CONFIG.PERFIS.GESTOR_CONTEUDO;
-  return texto;
-}
-
-function parseIdsUnidadesSolicitacao(valor) {
-  if (Array.isArray(valor)) {
-    return Array.from(new Set(valor.map(textoSeguro).filter(Boolean)));
-  }
-
-  const texto = textoSeguro(valor);
-  if (!texto) return [];
-
-  if (texto.charAt(0) === "[") {
-    try {
-      const lista = JSON.parse(texto);
-      if (Array.isArray(lista)) return parseIdsUnidadesSolicitacao(lista);
-    } catch (erroJson) {}
-  }
-
-  return Array.from(new Set(texto.split(/[,;|\n]+/).map(textoSeguro).filter(Boolean)));
-}
-
-function serializarIdsUnidadesSolicitacao(ids) {
-  return JSON.stringify(parseIdsUnidadesSolicitacao(ids));
-}
-
-function catalogoUnidadesAcessoPorId() {
-  const resposta = listarUnidadesParaAcesso();
-  if (!resposta || resposta.sucesso !== true || !Array.isArray(resposta.dados)) {
-    throw new Error((resposta && resposta.erro) || "Não foi possível carregar as unidades disponíveis.");
-  }
-  const mapa = {};
-  resposta.dados.forEach(function(unidade) { mapa[unidade.id] = unidade; });
-  return mapa;
-}
-
-function validarUnidadesSolicitadas(ids, obrigatorio) {
-  const unidades = parseIdsUnidadesSolicitacao(ids);
-  if (obrigatorio && unidades.length === 0) {
-    throw new Error("Selecione ao menos uma unidade.");
-  }
-  if (unidades.length > 203) {
-    throw new Error("A quantidade de unidades selecionadas é inválida.");
-  }
-
-  const catalogo = catalogoUnidadesAcessoPorId();
-  const invalidas = unidades.filter(function(id) { return !catalogo[id]; });
-  if (invalidas.length) {
-    throw new Error("Uma ou mais unidades selecionadas não existem ou estão inativas.");
-  }
-  return unidades;
-}
-
-function detalhesUnidadesSolicitadas(ids) {
-  const catalogo = catalogoUnidadesAcessoPorId();
-  return parseIdsUnidadesSolicitacao(ids).map(function(id) { return catalogo[id]; }).filter(Boolean);
-}
-
-/** Mantém exatamente os vínculos aprovados para o usuário. */
-function sincronizarAcessosUnidadesUsuario(usuarioId, idsUnidades) {
-  const idUsuario = textoSeguro(usuarioId);
-  if (!idUsuario) throw new Error("O usuário aprovado não possui ID.");
-
-  const ids = validarUnidadesSolicitadas(idsUnidades, false);
-  const solicitadas = new Set(ids);
-  const sheet = DB.acessosUnidades();
-  const mapa = DB.map(sheet);
-  const idxId = mapa.ID;
-  const idxUsuario = mapa.USUARIOID;
-  const idxUnidade = mapa.UNIDADEID;
-  const idxAtivo = mapa.ATIVO;
-
-  if ([idxId, idxUsuario, idxUnidade, idxAtivo].some(function(idx) { return idx === undefined; })) {
-    throw new Error("A aba ACESSOS_UNIDADES não possui os cabeçalhos ID, USUARIO_ID, UNIDADE_ID e ATIVO.");
-  }
-
-  const dados = sheet.getDataRange().getValues();
-  const existentes = new Set();
-  for (let i = 1; i < dados.length; i++) {
-    if (textoSeguro(dados[i][idxUsuario - 1]) !== idUsuario) continue;
-    const unidadeId = textoSeguro(dados[i][idxUnidade - 1]);
-    const deveAtivar = solicitadas.has(unidadeId) && !existentes.has(unidadeId);
-    sheet.getRange(i + 1, idxAtivo).setValue(deveAtivar);
-    if (deveAtivar) existentes.add(unidadeId);
-  }
-
-  const largura = DB.headers(sheet).length;
-  ids.forEach(function(unidadeId) {
-    if (existentes.has(unidadeId)) return;
-    const linha = new Array(largura).fill("");
-    linha[idxId - 1] = Utilities.getUuid();
-    linha[idxUsuario - 1] = idUsuario;
-    linha[idxUnidade - 1] = unidadeId;
-    linha[idxAtivo - 1] = true;
-    sheet.appendRow(linha);
-  });
-
-  return ids;
-}
-
-function solicitarAcesso(nome, perfil, justificativa, comarca, authDados) {
-  const lock =
-    LockService.getScriptLock();
-
-  let bloqueado = false;
-
-  try {
-    lock.waitLock(30000);
-    bloqueado = true;
-
-    const usuario =
-      new AuthService(authDados).usuarioAtual();
-
-    if (
-      !usuario.logado ||
-      !usuario.email
-    ) {
-      throw new Error(
-        "É necessário estar autenticado."
-      );
-    }
-
-    if (!emailInstitucional(usuario.email)) {
-      throw new Error(
-        "Somente contas institucionais podem solicitar acesso."
-      );
-    }
-
-    if (
-      usuario.perfil !==
-      CONFIG.PERFIS.USUARIO_CONSULTA
-    ) {
-      throw new Error(
-        "Esta conta já possui um perfil administrativo."
-      );
-    }
-
-    const nomeNormalizado =
-      textoSeguro(nome);
-
-    if (nomeNormalizado.length < 3) {
-      throw new Error(
-        "Informe um nome válido."
-      );
-    }
-
-    if (
-      nomeNormalizado.length >
-      CONFIG.LIMITES.TAMANHO_MAXIMO_NOME
-    ) {
-      throw new Error(
-        "O nome informado é muito grande."
-      );
-    }
-
-    const perfilSolicitado =
-      String(perfil || "")
-        .trim()
-        .toUpperCase();
-
-    if (
-      perfilSolicitado !== CONFIG.PERFIS.GESTOR_CONTEUDO &&
-      perfilSolicitado !== CONFIG.PERFIS.GESTOR_SISTEMA
-    ) {
-      throw new Error(
-        "Perfil solicitado inválido."
-      );
-    }
-
-    const justificativaNormalizada =
-      textoSeguro(justificativa);
-
-    if (
-      justificativaNormalizada.length > 0 &&
-      justificativaNormalizada.length < 10
-    ) {
-      throw new Error(
-        "Descreva a justificativa (mínimo de 10 caracteres)."
-      );
-    }
-
-    if (
-      justificativaNormalizada.length >
-      CONFIG.LIMITES.TAMANHO_MAXIMO_OBSERVACAO
-    ) {
-      throw new Error(
-        "A justificativa é muito longa."
-      );
-    }
-
-    const comarcaNormalizada =
-      textoSeguro(comarca);
-
-    const sheet =
-      DB.solicitacoesAcesso();
-
-    if (!sheet) {
-      throw new Error(
-        "Aba de solicitações de acesso não encontrada."
-      );
-    }
-
-    const dados =
-      sheet.getDataRange().getValues();
-
-    const indices = indicesSolicitacao(dados[0] || []);
-
-    const emailSolicitante =
-      normalizarEmail(usuario.email);
-
-    const existePendente =
-      dados.slice(1).some(row => {
-        const emailLinha =
-          indices.EMAIL !== undefined
-            ? normalizarEmail(row[indices.EMAIL])
-            : normalizarEmail(row[1]);
-
-        const statusLinha =
-          indices.STATUS !== undefined
-            ? String(row[indices.STATUS] || "").trim().toUpperCase()
-            : String(row[5] || "").trim().toUpperCase();
-
-        return (
-          emailLinha === emailSolicitante &&
-          statusLinha === "PENDENTE"
+    const unidades = DB.read(shUnidades)
+      .filter(function(linha) { return !mapaU.ATIVO || paraBoolean(linha[mapaU.ATIVO - 1]); })
+      .map(function(linha) {
+        const forumId = mapaU.FORUM_ID ? textoSeguro(linha[mapaU.FORUM_ID - 1]) : "";
+        const forum = foruns[forumId] || {};
+        return {
+          id: textoSeguro(linha[mapaU.ID - 1]),
+          nome: textoSeguro(linha[mapaU.NOME - 1]),
+          forumId: forumId,
+          forum: forum.nome || "",
+          municipio: municipios[forum.municipioId] || ""
+        };
+      })
+      .filter(function(item) { return item.id && item.nome; })
+      .sort(function(a, b) {
+        return [a.municipio, a.forum, a.nome].join("|").localeCompare(
+          [b.municipio, b.forum, b.nome].join("|"), "pt-BR"
         );
       });
-
-    if (existePendente) {
-      throw new Error(
-        "Já existe uma solicitação pendente para este e-mail."
-      );
-    }
-
-    const id = Utilities.getUuid();
-
-    const linha = montarLinhaSolicitacao(indices, {
-      ID: id,
-      EMAIL: emailSolicitante,
-      NOME: nomeNormalizado,
-      COMARCA: comarcaNormalizada,
-      PERFIL: perfilSolicitado,
-      JUSTIFICATIVA: justificativaNormalizada,
-      STATUS: "PENDENTE",
-      DATA: new Date()
-    });
-
-    sheet.appendRow(linha);
-
-    try {
-      notificarNovaSolicitacao(
-        emailSolicitante,
-        nomeNormalizado,
-        perfilSolicitado,
-        comarcaNormalizada,
-        justificativaNormalizada
-      );
-    } catch (erroEmail) {
-      registrarErroAPI(
-        "NOTIFICAR_NOVA_SOLICITACAO",
-        erroEmail
-      );
-    }
-
-    try {
-      const msgNotif = nomeNormalizado + " (" + emailSolicitante + ") solicitou acesso como " + perfilSolicitado + (comarcaNormalizada ? " \u2014 comarca: " + comarcaNormalizada : "") + ".";
-      notificarGestoresSistemaSobreSolicitacao("SOLICITACAO_PERFIL", msgNotif, id);
-    } catch (erroNotif) {
-      registrarErroAPI("NOTIFICAR_SOLICITACAO_PERFIL", erroNotif);
-    }
-
-    return respostaSucesso({ id: id });
+    return respostaSucesso(unidades);
   } catch (erro) {
-    registrarErroAPI(
-      "SOLICITAR_ACESSO",
-      erro
-    );
-
+    registrarErroAPI("LISTAR_UNIDADES_ACESSO", erro);
     return respostaErro(erro);
-  } finally {
-    if (bloqueado) {
-      lock.releaseLock();
-    }
   }
 }
 
-/**
- * Formulário público de acesso (aba "Formulário de Acesso").
- *
- * Qualquer visitante pode preencher: nome, unidades, e-mail,
- * perfil solicitado e justificativa. Os dados são gravados na
- * aba SOLICITACOES_ACESSO com status PENDENTE.
- */
+function listarSolicitacoes() {
+  try {
+    new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
+    const sheet = DB.solicitacoesAcesso();
+    const dados = sheet.getDataRange().getValues();
+    if (dados.length <= 1) return respostaSucesso([]);
+    const indices = indicesSolicitacao(dados[0]);
+    const sheetUnidades = DB.unidades();
+    const mapaUnidades = DB.map(sheetUnidades);
+    const nomesUnidades = {};
+    DB.read(sheetUnidades).forEach(function(linha) {
+      nomesUnidades[textoSeguro(linha[mapaUnidades.ID - 1])] =
+        textoSeguro(linha[mapaUnidades.NOME - 1]);
+    });
+    const resultado = dados.slice(1)
+      .filter(function(row) {
+        return String(row[indices.STATUS] || "").trim().toUpperCase() === "PENDENTE";
+      })
+      .map(function(row) {
+        const nivel = nivelSolicitadoNumero(row[indices.NIVEL]);
+        const unidadeIds = indices.UNIDADE_ID !== undefined
+          ? idsUnidadesSolicitadas(row[indices.UNIDADE_ID])
+          : [];
+        return {
+          id: row[indices.ID],
+          email: row[indices.EMAIL],
+          nome: row[indices.NOME],
+          nivelSolicitado: nivel,
+          perfilSolicitado: CONFIG.NIVEIS.POR_NIVEL[String(nivel)] || "",
+          unidadeIds: unidadeIds,
+          unidadesSolicitadas: unidadeIds.map(function(id) { return nomesUnidades[id] || id; }),
+          justificativa: indices.JUSTIFICATIVA !== undefined ? row[indices.JUSTIFICATIVA] : "",
+          status: row[indices.STATUS],
+          data: indices.DATA !== undefined ? row[indices.DATA] : ""
+        };
+      });
+    return respostaSucesso(resultado);
+  } catch (erro) {
+    registrarErroAPI("LISTAR_SOLICITACOES", erro);
+    return respostaErro(erro);
+  }
+}
+
+function contarSolicitacoesPendentes() {
+  const resposta = listarSolicitacoes();
+  if (!resposta || resposta.sucesso !== true) return resposta;
+  return respostaSucesso({ total: resposta.dados.length });
+}
+
 function enviarFormularioAcesso(dados) {
-  const lock =
-    LockService.getScriptLock();
-
+  const lock = LockService.getScriptLock();
   let bloqueado = false;
-
   try {
     lock.waitLock(30000);
     bloqueado = true;
+    AuthService.exigirContextoPrivado();
+    const usuario = new AuthService().usuarioAtual();
+    if (!usuario.identificado || !AuthService.emailPermitidoNoPrivado(usuario.email)) {
+      throw new Error("Não foi possível identificar uma conta institucional ou de teste autorizada.");
+    }
+    if (usuario.cadastrado) {
+      throw new Error(usuario.ativo
+        ? "Esta conta já possui acesso administrativo."
+        : "Esta conta está desativada. Procure o Gestor do Sistema.");
+    }
 
     const entrada = ehObjeto(dados) ? dados : {};
+    const nome = textoSeguro(valorObjeto(entrada, "nome", "NOME"));
+    const nivel = nivelSolicitadoNumero(valorObjeto(
+      entrada, "nivel", "NIVEL", "perfil", "PERFIL", "perfilSolicitado"
+    ));
+    const unidadeIds = idsUnidadesSolicitadas(valorObjeto(
+      entrada, "unidadeIds", "UNIDADE_IDS", "unidades", "UNIDADES", "UNIDADE_ID"
+    ));
+    const justificativa = textoSeguro(valorObjeto(entrada, "justificativa", "JUSTIFICATIVA"));
 
-    const nome =
-      textoSeguro(
-        valorObjeto(entrada, "nome", "NOME")
-      );
-
-    const unidadesInformadas = valorObjeto(
-      entrada,
-      "unidadeIds",
-      "unidades",
-      "UNIDADE_IDS",
-      "UNIDADES"
-    );
-
-    const email =
-      normalizarEmail(
-        valorObjeto(entrada, "email", "EMAIL")
-      );
-
-    const perfilSolicitado =
-      String(
-        valorObjeto(entrada, "perfil", "perfilSolicitado", "PERFIL_SOLICITADO")
-          || ""
-      )
-        .trim()
-        .toUpperCase();
-
-    const justificativa =
-      textoSeguro(
-        valorObjeto(entrada, "justificativa", "JUSTIFICATIVA")
-      );
-
-    if (nome.length < 3) {
-      throw new Error(
-        "Informe o seu nome completo."
-      );
+    if (nome.length < 3 || nome.length > CONFIG.LIMITES.TAMANHO_MAXIMO_NOME) {
+      throw new Error("Informe um nome válido.");
+    }
+    if (nivel !== CONFIG.NIVEIS.GESTOR_CONTEUDO && nivel !== CONFIG.NIVEIS.GESTOR_SISTEMA) {
+      throw new Error("Perfil desejado inválido. Use nível 1 ou 2.");
+    }
+    if (nivel === CONFIG.NIVEIS.GESTOR_CONTEUDO && unidadeIds.length === 0) {
+      throw new Error("Selecione ao menos uma Unidade para o perfil 1.");
+    }
+    if (nivel === CONFIG.NIVEIS.GESTOR_SISTEMA && unidadeIds.length) {
+      throw new Error("O perfil 2 possui escopo global e não recebe vínculos de Unidade.");
+    }
+    if (justificativa.length > CONFIG.LIMITES.TAMANHO_MAXIMO_OBSERVACAO) {
+      throw new Error("A justificativa é muito longa.");
     }
 
-    if (
-      nome.length >
-      CONFIG.LIMITES.TAMANHO_MAXIMO_NOME
-    ) {
-      throw new Error(
-        "O nome informado é muito grande."
-      );
-    }
-
-    if (
-      perfilSolicitado !== CONFIG.PERFIS.GESTOR_CONTEUDO &&
-      perfilSolicitado !== CONFIG.PERFIS.GESTOR_SISTEMA
-    ) {
-      throw new Error(
-        "Perfil solicitado inválido."
-      );
-    }
-
-    const unidadeIds = validarUnidadesSolicitadas(
-      unidadesInformadas,
-      perfilSolicitado === CONFIG.PERFIS.GESTOR_CONTEUDO
-    );
-
-    // Gestor do Sistema possui escopo global.
-    if (perfilSolicitado === CONFIG.PERFIS.GESTOR_SISTEMA) unidadeIds.length = 0;
-
-    if (justificativa.length < 10) {
-      throw new Error(
-        "Descreva a justificativa (mínimo de 10 caracteres)."
-      );
-    }
-
-    if (!emailValidoAPI(email)) {
-      throw new Error(
-        "Informe um e-mail válido."
-      );
-    }
-
-    if (!emailInstitucional(email)) {
-      throw new Error(
-        "Somente e-mails institucionais (" +
-        CONFIG.AUTH.DOMINIO_INSTITUCIONAL +
-        ") podem solicitar acesso."
-      );
-    }
-
-    if (
-      justificativa.length >
-      CONFIG.LIMITES.TAMANHO_MAXIMO_OBSERVACAO
-    ) {
-      throw new Error(
-        "A justificativa é muito longa."
-      );
-    }
-
-    // --- GESTOR: gera senha 20 já, mas fica PENDENTE (ATIVO=NAO) até aprovação ---
-    var ehGestorSolicitacao = (perfilSolicitado === CONFIG.PERFIS.GESTOR_CONTEUDO || perfilSolicitado === CONFIG.PERFIS.GESTOR_SISTEMA);
-    if (ehGestorSolicitacao) {
-      // Verifica pendência ANTES de tocar USUARIOS (evita escrita parcial em duplicata)
-      var sheetSolicPre = DB.solicitacoesAcesso();
-      if (sheetSolicPre) {
-        try{
-          var dadosPre = sheetSolicPre.getDataRange().getValues();
-          var indicesPre = indicesSolicitacao(dadosPre[0] || []);
-          if (indicesPre.STATUS !== undefined && indicesPre.EMAIL !== undefined) {
-            var jaPendentePre = dadosPre.slice(1).some(function(row){ var eL = normalizarEmail(row[indicesPre.EMAIL]); var sL = String(row[indicesPre.STATUS]||"").trim().toUpperCase(); return eL===email && sL==="PENDENTE"; });
-            if (jaPendentePre) throw new Error("Já existe uma solicitação pendente para este e-mail.");
-          }
-        }catch(ePreCheck){ if(String((ePreCheck&&ePreCheck.message)||"").indexOf("pendente")!==-1) throw ePreCheck; }
+    const unidadesValidas = new Set();
+    const shUnidades = DB.unidades();
+    const mapaU = DB.map(shUnidades);
+    DB.read(shUnidades).forEach(function(linha) {
+      if (!mapaU.ATIVO || paraBoolean(linha[mapaU.ATIVO - 1])) {
+        unidadesValidas.add(textoSeguro(linha[mapaU.ID - 1]));
       }
-      var senhaGestor = gerarSenha20();
-      var sheetUsuariosGestor = DB.usuarios();
-      var mapaUG = DB.map(sheetUsuariosGestor);
-      var idxIdUG = mapaUG.ID;
-      var idxEmailUG = mapaUG.EMAIL;
-      var idxNomeUG = mapaUG.NOME;
-      var idxPerfilUG = mapaUG.PERFIL;
-      var idxNivelUG = mapaUG.NIVEL;
-      var idxAtivoUG = mapaUG.ATIVO;
-      var idxSenhaUG = mapaUG.SENHA;
-      if (idxSenhaUG === undefined) {
-        try{ var ssTmpG = DB.getSpreadsheet(); garantirColunaSenhaUsuarios(ssTmpG, sheetUsuariosGestor); mapaUG = DB.map(sheetUsuariosGestor); idxSenhaUG = mapaUG.SENHA; }catch(eMigG){}
-      }
-      if (
-        idxEmailUG === undefined ||
-        idxNomeUG === undefined ||
-        idxAtivoUG === undefined ||
-        idxSenhaUG === undefined ||
-        idxIdUG === undefined ||
-        (idxNivelUG === undefined && idxPerfilUG === undefined)
-      ) {
-        throw new Error("A aba USUARIOS não possui os cabeçalhos esperados para autenticação.");
-      }
-      var dadosUG = sheetUsuariosGestor.getDataRange().getValues();
-      var headersUG = DB.headers(sheetUsuariosGestor);
-      var widthUG = headersUG.length;
-      var linhaExistG = -1;
-      var usuarioIdGestor = "";
-      for (var ig=1; ig<dadosUG.length; ig++){
-        var emailLinG = idxEmailUG!==undefined ? normalizarEmail(dadosUG[ig][idxEmailUG-1]) : normalizarEmail(dadosUG[ig][0]);
-        if (emailLinG === email){ linhaExistG = ig+1; break; }
-      }
-      if (linhaExistG !== -1) {
-        var perfilExistG = perfilUsuarioPorLinha(mapaUG, dadosUG[linhaExistG-1]);
-        var ativoExistG = idxAtivoUG!==undefined ? paraBoolean(dadosUG[linhaExistG-1][idxAtivoUG-1]) : false;
-        // Se já é GESTOR ativo, bloqueia
-        if (ativoExistG && (perfilExistG === CONFIG.PERFIS.GESTOR_SISTEMA || perfilExistG === CONFIG.PERFIS.GESTOR_CONTEUDO)) {
-          throw new Error("Este e-mail já possui acesso administrativo ("+perfilExistG+").");
-        }
-        usuarioIdGestor = textoSeguro(dadosUG[linhaExistG-1][idxIdUG-1]);
-        if (!usuarioIdGestor) {
-          usuarioIdGestor = gerarNovoIdUsuario(sheetUsuariosGestor);
-          sheetUsuariosGestor.getRange(linhaExistG, idxIdUG).setValue(usuarioIdGestor);
-        }
-        // Atualiza para pendente (ATIVO=NAO) com nova senha e perfil solicitado
-        if (idxNomeUG!==undefined) sheetUsuariosGestor.getRange(linhaExistG, idxNomeUG).setValue(nome);
-        if (idxPerfilUG!==undefined) sheetUsuariosGestor.getRange(linhaExistG, idxPerfilUG).setValue(perfilSolicitado);
-        if (idxNivelUG!==undefined) sheetUsuariosGestor.getRange(linhaExistG, idxNivelUG).setValue(nivelPorPerfil(perfilSolicitado));
-        if (idxAtivoUG!==undefined) sheetUsuariosGestor.getRange(linhaExistG, idxAtivoUG).setValue(false);
-        if (idxSenhaUG!==undefined) sheetUsuariosGestor.getRange(linhaExistG, idxSenhaUG).setValue(senhaGestor);
-      } else {
-        var novaLinhaG = new Array(widthUG).fill("");
-        usuarioIdGestor=gerarNovoIdUsuario(sheetUsuariosGestor);
-        novaLinhaG[idxIdUG-1]=usuarioIdGestor;
-        if (idxEmailUG!==undefined) novaLinhaG[idxEmailUG-1]=email;
-        if (idxNomeUG!==undefined) novaLinhaG[idxNomeUG-1]=nome;
-        if (idxPerfilUG!==undefined) novaLinhaG[idxPerfilUG-1]=perfilSolicitado;
-        if (idxNivelUG!==undefined) novaLinhaG[idxNivelUG-1]=nivelPorPerfil(perfilSolicitado);
-        if (idxAtivoUG!==undefined) novaLinhaG[idxAtivoUG-1]=false;
-        if (idxSenhaUG!==undefined) novaLinhaG[idxSenhaUG-1]=senhaGestor;
-        if (novaLinhaG.every(function(v){ return !v; })) {
-          throw new Error("A aba USUARIOS não possui os cabeçalhos esperados.");
-        } else {
-          sheetUsuariosGestor.appendRow(novaLinhaG);
-        }
-      }
-      // Cria solicitação PENDENTE na aba de solicitações
-      var sheetSolicGestor = DB.solicitacoesAcesso();
-      if (!sheetSolicGestor) throw new Error("Aba de solicitações de acesso não encontrada.");
-      var dadosPlanilhaG = sheetSolicGestor.getDataRange().getValues();
-      var indicesG = indicesSolicitacao(dadosPlanilhaG[0] || []);
-      if (indicesG.STATUS === undefined || indicesG.EMAIL === undefined || indicesG.UNIDADES === undefined) throw new Error("A aba SOLICITACOES_ACESSO deve possuir a coluna UNIDADE_ID. Execute atualizarAbaSolicitacoesAcesso().");
-      var pendenteExistG = dadosPlanilhaG.slice(1).some(function(row){ var eL = normalizarEmail(row[indicesG.EMAIL]); var sL = String(row[indicesG.STATUS]||"").trim().toUpperCase(); return eL===email && sL==="PENDENTE"; });
-      if (pendenteExistG) {
-        throw new Error("Já existe uma solicitação pendente para este e-mail.");
-      }
-      var idG = Utilities.getUuid();
-      var linhaSolicG = montarLinhaSolicitacao(indicesG, {
-        ID: idG,
-        EMAIL: email,
-        NOME: nome,
-        UNIDADES: serializarIdsUnidadesSolicitacao(unidadeIds),
-        PERFIL: nivelPorPerfil(perfilSolicitado),
-        JUSTIFICATIVA: justificativa,
-        STATUS: "PENDENTE",
-        DATA: new Date()
-      });
-      sheetSolicGestor.appendRow(linhaSolicG);
-      SpreadsheetApp.flush();
-      var resumoUnidades = perfilSolicitado === CONFIG.PERFIS.GESTOR_SISTEMA
-        ? "Todas as unidades"
-        : unidadeIds.length + " unidade(s) selecionada(s)";
-      try{ notificarNovaSolicitacao(email, nome, perfilSolicitado, resumoUnidades, justificativa); }catch(eN){ registrarErroAPI("NOTIFICAR_NOVA_SOLICITACAO", eN); }
-      try{
-        const msgPerfil = nome + " (" + email + ") solicitou acesso como " + perfilSolicitado + " — " + resumoUnidades + ".";
-        notificarGestoresSistemaSobreSolicitacao("SOLICITACAO_PERFIL", msgPerfil, idG);
-        try{ criarNotificacao(email, "SENHA_GERADA", "Sua senha de acesso foi gerada e enviada por e-mail. Aguarde a aprova\u00e7\u00e3o do Gestor do Sistema para ativar seu login.", idG); }catch(eSen){}
-      }catch(eNotifG){ registrarErroAPI("NOTIFICAR_FORMULARIO_GESTOR", eNotifG); }
-      // E-mail ao solicitante com senha + aviso de pendência
-      try{
-        var assuntoSenhaG = "Sua senha de acesso — Sistema de Telefones PJES (acesso pendente)";
-        var corpoSenhaG = "Olá "+nome+",\n\nSua senha de acesso ao Sistema Inteligente de Gestão de Telefones do PJES foi gerada:\n\nSenha: "+senhaGestor+"\n\nAnote sua senha de acesso. Também foi enviada ao e-mail institucional.\n\nAcesso em andamento. Quando sua conta for aprovada você conseguirá entrar.\nUse seu e-mail ("+email+") e esta senha na tela de Login somente após o Gestor do Sistema aprovar sua solicitação.\n\nAtenciosamente,\nTJES — Sistema de Telefones";
-        adicionarEmailPendente(email, assuntoSenhaG, corpoSenhaG);
-      }catch(eMailG){ registrarErroAPI("EMAIL_SENHA_GESTOR", eMailG); }
-      registrarInfoAPI("FORMULARIO_GESTOR_SENHA_PENDENTE", "Senha pendente gerada para gestor: "+email+" perfil "+perfilSolicitado);
-      return respostaSucesso({ senha: senhaGestor, email: email });
+    });
+    if (unidadeIds.some(function(id) { return !unidadesValidas.has(id); })) {
+      throw new Error("Uma ou mais Unidades selecionadas são inválidas ou inativas.");
     }
+
+    const sheet = DB.solicitacoesAcesso();
+    const dadosSheet = sheet.getDataRange().getValues();
+    const indices = indicesSolicitacao(dadosSheet[0] || []);
+    ["ID", "EMAIL", "NOME", "NIVEL", "UNIDADE_ID", "STATUS", "DATA"].forEach(function(campo) {
+      if (indices[campo] === undefined) {
+        throw new Error("Aba SOLICITACOES_ACESSO sem a coluna " + campo + ".");
+      }
+    });
+    const pendente = dadosSheet.slice(1).some(function(row) {
+      return normalizarEmail(row[indices.EMAIL]) === usuario.email &&
+        String(row[indices.STATUS] || "").trim().toUpperCase() === "PENDENTE";
+    });
+    if (pendente) throw new Error("Já existe uma solicitação pendente para esta conta.");
+
+    const id = Utilities.getUuid();
+    const linha = montarLinhaSolicitacao(indices, {
+      ID: id,
+      EMAIL: usuario.email,
+      NOME: nome,
+      NIVEL: nivel,
+      UNIDADE_ID: nivel === CONFIG.NIVEIS.GESTOR_CONTEUDO ? unidadeIds.join(",") : "",
+      JUSTIFICATIVA: justificativa,
+      STATUS: "PENDENTE",
+      DATA: new Date()
+    }, sheet.getLastColumn());
+    sheet.appendRow(linha);
+    SpreadsheetApp.flush();
+    registrarInfoAPI("SOLICITAR_ACESSO", usuario.email + " -> nível " + nivel);
+    return respostaSucesso({ id: id, status: "PENDENTE" });
   } catch (erro) {
-    registrarErroAPI(
-      "FORMULARIO_ACESSO",
-      erro
-    );
-
+    registrarErroAPI("FORMULARIO_ACESSO", erro);
     return respostaErro(erro);
   } finally {
-    if (bloqueado) {
-      lock.releaseLock();
-    }
+    if (bloqueado) lock.releaseLock();
   }
+}
+
+function solicitarAcesso(nome, nivel, justificativa, unidadeIds) {
+  return enviarFormularioAcesso({
+    nome: nome,
+    nivel: nivel,
+    justificativa: justificativa,
+    unidadeIds: unidadeIds
+  });
 }
 
 function localizarSolicitacaoAPI(sheet, id) {
-  const idBusca = textoSeguro(id);
-
-  const dados =
-    sheet.getDataRange().getValues();
-
+  const dados = sheet.getDataRange().getValues();
   const indices = indicesSolicitacao(dados[0] || []);
-
-  for (
-    let i = 1;
-    i < dados.length;
-    i++
-  ) {
-    if (
-      textoSeguro(dados[i][indices.ID]) ===
-      idBusca
-    ) {
+  for (let i = 1; i < dados.length; i++) {
+    if (textoSeguro(dados[i][indices.ID]) === textoSeguro(id)) {
+      const nivel = nivelSolicitadoNumero(dados[i][indices.NIVEL]);
       return {
         linha: i + 1,
         id: dados[i][indices.ID],
         email: normalizarEmail(dados[i][indices.EMAIL]),
         nome: textoSeguro(dados[i][indices.NOME]),
-        unidadeIds: indices.UNIDADES !== undefined
-          ? parseIdsUnidadesSolicitacao(dados[i][indices.UNIDADES])
+        nivel: nivel,
+        unidadeIds: indices.UNIDADE_ID !== undefined
+          ? idsUnidadesSolicitadas(dados[i][indices.UNIDADE_ID])
           : [],
-        perfil: perfilSolicitadoPorValor(dados[i][indices.PERFIL]),
-        status: String(dados[i][indices.STATUS] || "")
-          .trim()
-          .toUpperCase()
+        status: String(dados[i][indices.STATUS] || "").trim().toUpperCase()
       };
     }
   }
-
   return null;
 }
 
-function processarSolicitacaoAPI(id, novoStatus, authDados) {
-  const lock =
-    LockService.getScriptLock();
+function substituirAcessosUnidades(usuarioId, unidadeIds) {
+  const sheet = DB.acessosUnidades();
+  const mapa = DB.map(sheet);
+  const dados = DB.read(sheet);
+  dados.forEach(function(linha, indice) {
+    if (textoSeguro(linha[mapa.USUARIO_ID - 1]) === usuarioId) {
+      sheet.getRange(indice + 2, mapa.ATIVO).setValue("NÃO");
+    }
+  });
+  unidadeIds.forEach(function(unidadeId) {
+    const existente = dados.findIndex(function(linha) {
+      return textoSeguro(linha[mapa.USUARIO_ID - 1]) === usuarioId &&
+        textoSeguro(linha[mapa.UNIDADE_ID - 1]) === unidadeId;
+    });
+    if (existente >= 0) {
+      sheet.getRange(existente + 2, mapa.ATIVO).setValue("SIM");
+    } else {
+      const headers = DB.headers(sheet);
+      const nova = new Array(headers.length).fill("");
+      nova[mapa.ID - 1] = Utilities.getUuid();
+      nova[mapa.USUARIO_ID - 1] = usuarioId;
+      nova[mapa.UNIDADE_ID - 1] = unidadeId;
+      nova[mapa.ATIVO - 1] = "SIM";
+      sheet.appendRow(nova);
+    }
+  });
+}
 
+function processarSolicitacaoAPI(id, novoStatus) {
+  const lock = LockService.getScriptLock();
   let bloqueado = false;
-
   try {
     lock.waitLock(30000);
     bloqueado = true;
+    const auth = new AuthService();
+    auth.exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
+    const status = String(novoStatus || "").trim().toUpperCase();
+    if (!["APROVADO", "REJEITADO"].includes(status)) throw new Error("Status inválido.");
 
-    new AuthService(authDados).exigirPerfil(
-      CONFIG.PERFIS.GESTOR_SISTEMA
-    );
-
-    const idBusca = textoSeguro(id);
-
-    if (!idBusca) {
-      throw new Error(
-        "ID da solicitação é obrigatório."
-      );
+    const sheetSolic = DB.solicitacoesAcesso();
+    const solicitacao = localizarSolicitacaoAPI(sheetSolic, id);
+    if (!solicitacao) throw new Error("Solicitação não encontrada.");
+    if (solicitacao.status !== "PENDENTE") throw new Error("Esta solicitação já foi processada.");
+    if (solicitacao.nivel !== 1 && solicitacao.nivel !== 2) throw new Error("Nível solicitado inválido.");
+    if (solicitacao.nivel === 1 && solicitacao.unidadeIds.length === 0) {
+      throw new Error("Solicitação de nível 1 sem Unidades vinculadas.");
     }
-
-    const status =
-      String(novoStatus || "")
-        .trim()
-        .toUpperCase();
-
-    if (
-      !["APROVADO", "REJEITADO"].includes(status)
-    ) {
-      throw new Error(
-        "Status de solicitação inválido."
-      );
+    if (solicitacao.nivel === 2 && solicitacao.unidadeIds.length > 0) {
+      throw new Error("Solicitação de nível 2 não deve possuir vínculos de Unidade.");
     }
-
-    const ss = obterPlanilhaAPI();
-
-    const sheetSolic =
-      DB.solicitacoesAcesso();
-
-    if (!sheetSolic) {
-      throw new Error(
-        "Aba de solicitações de acesso não encontrada."
-      );
-    }
-
-    const solicitacao =
-      localizarSolicitacaoAPI(
-        sheetSolic,
-        idBusca
-      );
-
-    if (!solicitacao) {
-      throw new Error(
-        "Solicitação não encontrada."
-      );
-    }
-
-    if (solicitacao.status !== "PENDENTE") {
-      throw new Error(
-        "Esta solicitação já foi processada."
-      );
-    }
-
-    if (
-      solicitacao.perfil !== CONFIG.PERFIS.GESTOR_CONTEUDO &&
-      solicitacao.perfil !== CONFIG.PERFIS.GESTOR_SISTEMA
-    ) {
-      throw new Error(
-        "O perfil solicitado é inválido."
-      );
+    if (!emailValidoAPI(solicitacao.email) ||
+        !AuthService.emailPermitidoNoPrivado(solicitacao.email)) {
+      throw new Error("A solicitação não possui um e-mail institucional ou de teste permitido.");
     }
 
     if (status === "APROVADO") {
-      const sheetUsuarios =
-        ss.getSheetByName(
-          CONFIG.SHEETS.USUARIOS
-        );
-
-      if (!sheetUsuarios) {
-        throw new Error(
-          "Aba USUARIOS não encontrada."
-        );
+      if (solicitacao.nivel === 1) {
+        solicitacao.unidadeIds = validarIdsUnidadesAdministrativas(solicitacao.unidadeIds);
       }
+      const sheetUsuarios = DB.usuarios();
+      const mapaU = DB.map(sheetUsuarios);
+      const headersU = DB.headers(sheetUsuarios);
+      const dadosU = DB.read(sheetUsuarios);
+      const indice = dadosU.findIndex(function(linha) {
+        return normalizarEmail(linha[mapaU.EMAIL - 1]) === solicitacao.email;
+      });
+      let usuarioId = indice >= 0
+        ? textoSeguro(dadosU[indice][mapaU.ID - 1])
+        : Utilities.getUuid();
+      if (!usuarioId) usuarioId = Utilities.getUuid();
 
-      let mapaU = DB.map(sheetUsuarios);
-      if (mapaU.SENHA === undefined) {
-        garantirColunaSenhaUsuarios(ss, sheetUsuarios);
-        mapaU = DB.map(sheetUsuarios);
-      }
+      const nova = new Array(headersU.length).fill("");
+      nova[mapaU.ID - 1] = usuarioId;
+      nova[mapaU.NOME - 1] = solicitacao.nome;
+      nova[mapaU.EMAIL - 1] = solicitacao.email;
+      nova[mapaU.NIVEL - 1] = solicitacao.nivel;
+      nova[mapaU.ATIVO - 1] = "SIM";
+      if (indice >= 0) sheetUsuarios.getRange(indice + 2, 1, 1, nova.length).setValues([nova]);
+      else sheetUsuarios.appendRow(nova);
 
-      const idxEmailU = mapaU.EMAIL;
-      const idxNomeU = mapaU.NOME;
-      const idxPerfilU = mapaU.PERFIL;
-      const idxNivelU = mapaU.NIVEL;
-      const idxAtivoU = mapaU.ATIVO;
-      const idxSenhaU = mapaU.SENHA;
-      const idxIdU = mapaU.ID;
-
-      if (
-        idxEmailU === undefined ||
-        idxAtivoU === undefined ||
-        idxSenhaU === undefined ||
-        idxIdU === undefined ||
-        (idxNivelU === undefined && idxPerfilU === undefined)
-      ) {
-        throw new Error("A aba USUARIOS não possui os cabeçalhos esperados para autenticação.");
-      }
-
-      const dadosU = sheetUsuarios.getDataRange().getValues();
-      const perfilSolicitadoNorm = String(solicitacao.perfil || "").trim().toUpperCase();
-      const unidadesSolicitadas = validarUnidadesSolicitadas(
-        solicitacao.unidadeIds,
-        perfilSolicitadoNorm === CONFIG.PERFIS.GESTOR_CONTEUDO
-      );
-
-      let usuarioExiste = false;
-      let linhaUsuario = -1;
-      let usuarioIdAprovado = "";
-
-      for (let i = 1; i < dadosU.length; i++) {
-        const emailUsuario = idxEmailU !== undefined ? normalizarEmail(dadosU[i][idxEmailU - 1]) : normalizarEmail(dadosU[i][0]);
-        if (emailUsuario === solicitacao.email) {
-          linhaUsuario = i + 1;
-          usuarioExiste = true;
-          break;
-        }
-      }
-
-      if (usuarioExiste) {
-        // Nome
-        if (idxNomeU !== undefined) sheetUsuarios.getRange(linhaUsuario, idxNomeU).setValue(solicitacao.nome);
-        if (idxPerfilU !== undefined) sheetUsuarios.getRange(linhaUsuario, idxPerfilU).setValue(perfilSolicitadoNorm);
-        if (idxNivelU !== undefined) sheetUsuarios.getRange(linhaUsuario, idxNivelU).setValue(nivelPorPerfil(perfilSolicitadoNorm));
-        sheetUsuarios.getRange(linhaUsuario, idxAtivoU).setValue(true);
-        usuarioIdAprovado = textoSeguro(dadosU[linhaUsuario - 1][idxIdU - 1]);
-        if (!usuarioIdAprovado) {
-          usuarioIdAprovado = gerarNovoIdUsuario(sheetUsuarios);
-          sheetUsuarios.getRange(linhaUsuario, idxIdU).setValue(usuarioIdAprovado);
-        }
-
-        // Solicitações novas já têm senha; este fallback cobre solicitações legadas.
-        const senhaExistente = textoSeguro(dadosU[linhaUsuario - 1][idxSenhaU - 1]);
-        if (senhaExistente.length !== 20) {
-          const senhaLegada = gerarSenha20();
-          sheetUsuarios.getRange(linhaUsuario, idxSenhaU).setValue(senhaLegada);
-          try {
-            adicionarEmailPendente(
-              solicitacao.email,
-              "Sua senha de acesso — Sistema de Telefones PJES",
-              "Olá " + solicitacao.nome + ",\n\nSua solicitação foi aprovada.\n\nSenha (20 caracteres): " + senhaLegada + "\n\nUse seu e-mail institucional e esta senha em Acesso Administrativo."
-            );
-          } catch (erroSenhaLegada) {
-            registrarErroAPI("EMAIL_SENHA_APROVACAO_LEGADA", erroSenhaLegada);
-          }
-        }
-      } else {
-        // Compatibilidade com solicitações antigas em que o usuário ainda não existia.
-        const senhaNova = gerarSenha20();
-        const linhaNova = new Array(DB.headers(sheetUsuarios).length).fill("");
-        usuarioIdAprovado = gerarNovoIdUsuario(sheetUsuarios);
-        linhaNova[idxIdU - 1] = usuarioIdAprovado;
-        linhaNova[idxEmailU - 1] = solicitacao.email;
-        if (idxNomeU !== undefined) linhaNova[idxNomeU - 1] = solicitacao.nome;
-        if (idxPerfilU !== undefined) linhaNova[idxPerfilU - 1] = perfilSolicitadoNorm;
-        if (idxNivelU !== undefined) linhaNova[idxNivelU - 1] = nivelPorPerfil(perfilSolicitadoNorm);
-        linhaNova[idxAtivoU - 1] = true;
-        linhaNova[idxSenhaU - 1] = senhaNova;
-        sheetUsuarios.appendRow(linhaNova);
-        try {
-          adicionarEmailPendente(
-            solicitacao.email,
-            "Sua senha de acesso — Sistema de Telefones PJES",
-            "Olá " + solicitacao.nome + ",\n\nSua solicitação foi aprovada.\n\nSenha (20 caracteres): " + senhaNova + "\n\nUse seu e-mail institucional e esta senha em Acesso Administrativo."
-          );
-        } catch (erroSenhaNova) {
-          registrarErroAPI("EMAIL_SENHA_APROVACAO_LEGADA", erroSenhaNova);
-        }
-      }
-
-      sincronizarAcessosUnidadesUsuario(
-        usuarioIdAprovado,
-        perfilSolicitadoNorm === CONFIG.PERFIS.GESTOR_CONTEUDO ? unidadesSolicitadas : []
+      substituirAcessosUnidades(
+        usuarioId,
+        solicitacao.nivel === CONFIG.NIVEIS.GESTOR_CONTEUDO ? solicitacao.unidadeIds : []
       );
     }
 
-    const aprovador =
-      new AuthService(authDados).usuarioAtual().email || obterEmailSessaoAPI();
-
-    const indices =
-      indicesSolicitacao(
-        sheetSolic.getRange(1, 1, 1, sheetSolic.getLastColumn()).getDisplayValues()[0]
-      );
-
-    if (indices.STATUS !== undefined) {
-      sheetSolic
-        .getRange(solicitacao.linha, indices.STATUS + 1)
-        .setValue(status);
-    }
-
+    const indices = indicesSolicitacao(
+      sheetSolic.getRange(1, 1, 1, sheetSolic.getLastColumn()).getDisplayValues()[0]
+    );
+    sheetSolic.getRange(solicitacao.linha, indices.STATUS + 1).setValue(status);
     if (indices.APROVADOR !== undefined) {
-      sheetSolic
-        .getRange(solicitacao.linha, indices.APROVADOR + 1)
-        .setValue(aprovador);
+      sheetSolic.getRange(solicitacao.linha, indices.APROVADOR + 1)
+        .setValue(auth.usuarioAtual().email);
     }
-
     if (indices.DATA_APROVACAO !== undefined) {
-      sheetSolic
-        .getRange(solicitacao.linha, indices.DATA_APROVACAO + 1)
+      sheetSolic.getRange(solicitacao.linha, indices.DATA_APROVACAO + 1)
         .setValue(new Date());
     }
-
-    try {
-      notificarDecisaoSolicitacao(
-        solicitacao.email,
-        solicitacao.nome,
-        status,
-        solicitacao.perfil
-      );
-    } catch (erroEmail) {
-      registrarErroAPI(
-        "NOTIFICAR_DECISAO_SOLICITACAO",
-        erroEmail
-      );
-    }
-
-    try {
-      const aprovado = status === "APROVADO";
-      notificarUsuarioSobreDecisao(solicitacao.email, aprovado, solicitacao.perfil, idBusca);
-    } catch (erroNotifDecisao) {
-      registrarErroAPI("NOTIFICAR_DECISAO_NOTIF", erroNotifDecisao);
-    }
-
-    registrarInfoAPI(
-      status === "APROVADO"
-        ? "APROVAR_SOLICITACAO"
-        : "REJEITAR_SOLICITACAO",
-      "Solicitação processada: " +
-        idBusca +
-        " - " +
-        status
-    );
-
-    return respostaSucesso(true);
+    SpreadsheetApp.flush();
+    registrarInfoAPI("PROCESSAR_SOLICITACAO", solicitacao.email + " -> " + status);
+    return respostaSucesso({ id: solicitacao.id, status: status });
   } catch (erro) {
-    registrarErroAPI(
-      novoStatus === "APROVADO"
-        ? "APROVAR_SOLICITACAO"
-        : "REJEITAR_SOLICITACAO",
-      erro
-    );
-
+    registrarErroAPI("PROCESSAR_SOLICITACAO", erro);
     return respostaErro(erro);
   } finally {
-    if (bloqueado) {
-      lock.releaseLock();
-    }
+    if (bloqueado) lock.releaseLock();
   }
 }
 
-function aprovarSolicitacao(id, authDados) {
-  return processarSolicitacaoAPI(
-    id,
-    "APROVADO",
-    authDados
-  );
+function aprovarSolicitacao(id) {
+  return processarSolicitacaoAPI(id, "APROVADO");
 }
 
-function rejeitarSolicitacao(id, authDados) {
-  return processarSolicitacaoAPI(
-    id,
-    "REJEITADO",
-    authDados
-  );
+function rejeitarSolicitacao(id) {
+  return processarSolicitacaoAPI(id, "REJEITADO");
 }
 
 /**
@@ -1660,30 +934,9 @@ function rejeitarSolicitacao(id, authDados) {
 
 function listarHistoricoGeral(authDados) {
   try {
-    let usuarioHistPerm = null;
-    try {
-      new AuthService(authDados).exigirPermissao(
-        CONFIG.PERMISSOES.HISTORICO
-      );
-      usuarioHistPerm = new AuthService(authDados).usuarioAtual();
-    } catch (ePermHist) {
-      if (authDados && typeof authDados === "object") {
-        try {
-          const emailAuthH = normalizarEmail(valorObjeto(authDados, "email", "EMAIL") || "");
-          const senhaAuthH = textoSeguro(valorObjeto(authDados, "senha", "SENHA", "password") || "");
-          if (emailAuthH && senhaAuthH) {
-            const resAuthH = autenticarConsulta({ email: emailAuthH, senha: senhaAuthH });
-            if (resAuthH && resAuthH.sucesso === true && resAuthH.dados) {
-              const pH = String(resAuthH.dados.perfil || "").toUpperCase();
-              if (pH === CONFIG.PERFIS.GESTOR_SISTEMA || pH === CONFIG.PERFIS.GESTOR_CONTEUDO) {
-                usuarioHistPerm = { email: resAuthH.dados.email, perfil: pH, logado: true, ativo: true, comarcas: resAuthH.dados.comarcas || [] };
-              }
-            }
-          }
-        } catch (eAH) {}
-      }
-      if (!usuarioHistPerm || !usuarioHistPerm.logado) throw ePermHist;
-    }
+    const authHistorico = new AuthService();
+    authHistorico.exigirPermissao(CONFIG.PERMISSOES.HISTORICO);
+    const usuarioHistPerm = authHistorico.usuarioAtual();
 
     const service =
       new HistoryService();
@@ -2124,6 +1377,13 @@ function listarHistoricoGeral(authDados) {
             "SETOR"
           );
 
+        const unidadeId =
+          campo(
+            snapshot,
+            "unidadeId",
+            "UNIDADE_ID"
+          );
+
         const usuario =
           extrairUsuario(
             item,
@@ -2163,6 +1423,9 @@ function listarHistoricoGeral(authDados) {
           setor:
             String(setor || "").trim(),
 
+          unidadeId:
+            textoSeguro(unidadeId),
+
           data:
             dataFormatada,
 
@@ -2184,32 +1447,14 @@ function listarHistoricoGeral(authDados) {
         };
       });
 
-    // v3.32: Gestor Conteúdo vê apenas alterações das comarcas que possui acesso
-    let historicoFiltrado = resultado;
-
-    const usuarioHistorico = usuarioHistPerm || new AuthService().usuarioAtual();
-
-    if (
-      usuarioHistorico.logado &&
-      usuarioHistorico.perfil === CONFIG.PERFIS.GESTOR_CONTEUDO &&
-      (usuarioHistorico.comarcas || []).length > 0
-    ) {
-      const permitidasHist =
-        usuarioHistorico.comarcas.map(item =>
-          normalizarChave(item)
-        );
-
-      historicoFiltrado =
-        resultado.filter(item =>
-          permitidasHist.includes(
-            normalizarChave(
-              textoSeguro(item.comarca)
-            )
-          )
-        );
+    if (usuarioHistPerm.perfil === CONFIG.PERFIS.GESTOR_SISTEMA) {
+      return respostaSucesso(resultado);
     }
 
-    return respostaSucesso(historicoFiltrado);
+    const permitidas = new Set(usuarioHistPerm.unidadeIds || []);
+    return respostaSucesso(resultado.filter(function(item) {
+      return permitidas.has(textoSeguro(item.unidadeId || item.UNIDADE_ID));
+    }));
 
   } catch (erro) {
     registrarErroAPI(
@@ -2233,293 +1478,6 @@ function emailValidoAPI(email) {
       normalizarEmail(email)
     );
 }
-
-function notificarNovaSolicitacao(
-  emailSolicitante,
-  nomeSolicitante,
-  perfilSolicitado,
-  unidadesResumo,
-  justificativa
-) {
-  const gestorEmail =
-    obterConfiguracaoAPI(
-      "EMAIL_GESTOR"
-    );
-
-  if (
-    !gestorEmail ||
-    !emailValidoAPI(gestorEmail)
-  ) {
-    registrarInfoAPI(
-      "NOTIFICAR_NOVA_SOLICITACAO",
-      "EMAIL_GESTOR não está configurado."
-    );
-
-    return false;
-  }
-
-  const assunto =
-    "Nova solicitação de acesso - " +
-    nomeSolicitante;
-
-  let corpo =
-    "Foi recebida uma nova solicitação de acesso:\n\n" +
-    "Nome: " +
-    nomeSolicitante +
-    "\n" +
-    "E-mail: " +
-    emailSolicitante +
-    "\n";
-
-  const unidadesTexto =
-    textoSeguro(unidadesResumo);
-
-  if (unidadesTexto) {
-    corpo +=
-      "Unidades: " +
-      unidadesTexto +
-      "\n";
-  }
-
-  corpo +=
-    "Perfil solicitado: " +
-    perfilSolicitado +
-    "\n";
-
-  const justificativaTexto =
-    textoSeguro(justificativa);
-
-  if (justificativaTexto) {
-    corpo +=
-      "Justificativa: " +
-      justificativaTexto +
-      "\n";
-  }
-
-  corpo +=
-    "\nAcesse a área administrativa:\n" +
-    obterUrlAdmin();
-
-  adicionarEmailPendente(
-    gestorEmail,
-    assunto,
-    corpo
-  );
-
-  return true;
-}
-
-function notificarDecisaoSolicitacao(
-  emailSolicitante,
-  nomeSolicitante,
-  status,
-  perfil
-) {
-  const aprovado =
-    String(status || "")
-      .trim()
-      .toUpperCase() === "APROVADO";
-
-  const assunto =
-    aprovado
-      ? "Acesso administrativo aprovado"
-      : "Acesso administrativo rejeitado";
-
-  let corpo =
-    "Olá " +
-    nomeSolicitante +
-    ",\n\n";
-
-  corpo +=
-    "A sua solicitação de acesso como " +
-    perfil +
-    " foi " +
-    (
-      aprovado
-        ? "aprovada"
-        : "rejeitada"
-    ) +
-    ".\n\n";
-
-  if (aprovado) {
-    corpo +=
-      "Acesse o sistema pelo endereço:\n" +
-      obterUrlSistema();
-  } else {
-    corpo +=
-      "Você poderá tentar novamente mais tarde.";
-  }
-
-  adicionarEmailPendente(
-    emailSolicitante,
-    assunto,
-    corpo
-  );
-
-  return true;
-}
-
-function obterAbaEmailsPendenteAPI() {
-  const ss =
-    obterPlanilhaAPI();
-
-  let sheet =
-    ss.getSheetByName(
-      CONFIG.SHEETS.EMAILS_PENDENTES
-    );
-
-  if (!sheet) {
-    sheet =
-      ss.insertSheet(
-        CONFIG.SHEETS.EMAILS_PENDENTES
-      );
-  }
-
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow([
-      "DESTINATARIO",
-      "ASSUNTO",
-      "CORPO"
-    ]);
-  }
-
-  return sheet;
-}
-
-function adicionarEmailPendente(
-  destinatario,
-  assunto,
-  corpo
-) {
-  const destino =
-    normalizarEmail(
-      destinatario
-    );
-
-  const titulo =
-    textoSeguro(
-      assunto
-    );
-
-  const mensagem =
-    String(corpo || "");
-
-  if (
-    !emailValidoAPI(destino) ||
-    !titulo ||
-    !mensagem
-  ) {
-    return false;
-  }
-
-  obterAbaEmailsPendenteAPI()
-    .appendRow([
-      destino,
-      titulo,
-      mensagem
-    ]);
-
-  return true;
-}
-
-function processarFilaDeEmails() {
-  const sheet =
-    obterAbaEmailsPendenteAPI();
-
-  if (sheet.getLastRow() <= 1) {
-    return;
-  }
-
-  const dados =
-    sheet.getDataRange()
-      .getValues();
-
-  for (
-    let i = dados.length - 1;
-    i >= 1;
-    i--
-  ) {
-    const destinatario =
-      normalizarEmail(
-        dados[i][0]
-      );
-
-    const assunto =
-      textoSeguro(
-        dados[i][1]
-      );
-
-    const corpo =
-      String(
-        dados[i][2] || ""
-      );
-
-    if (
-      !emailValidoAPI(
-        destinatario
-      ) ||
-      !assunto ||
-      !corpo
-    ) {
-      sheet.deleteRow(i + 1);
-      continue;
-    }
-
-    try {
-      MailApp.sendEmail(
-        destinatario,
-        assunto,
-        corpo
-      );
-
-      sheet.deleteRow(i + 1);
-    } catch (erro) {
-      registrarErroAPI(
-        "PROCESSAR_FILA_EMAILS",
-        new Error(
-          "Falha ao enviar e-mail para " +
-          destinatario +
-          ": " +
-          (
-            erro.message ||
-            erro
-          )
-        )
-      );
-    }
-  }
-}
-
-function instalarTriggerEmails() {
-  ScriptApp
-    .getProjectTriggers()
-    .forEach(trigger => {
-      if (
-        trigger.getHandlerFunction() ===
-        "processarFilaDeEmails"
-      ) {
-        ScriptApp.deleteTrigger(
-          trigger
-        );
-      }
-    });
-
-  ScriptApp
-    .newTrigger(
-      "processarFilaDeEmails"
-    )
-    .timeBased()
-    .everyMinutes(1)
-    .create();
-
-  return "Gatilho de e-mails instalado.";
-}
-
-/**
- * ==========================================================
- * LOG
- * ==========================================================
- */
 
 function registrarLog(acao) {
   try {
@@ -2590,7 +1548,6 @@ function registrarErroAPI(
 
 const NOTIFICACAO_TIPOS = [
   "LOGIN",
-  "SENHA_GERADA",
   "SOLICITACAO_PERFIL",
   "SOLICITACAO_COMARCA",
   "SOLICITACAO_APROVADA",
@@ -2659,17 +1616,15 @@ function obterAbaNotificacoesAPI() {
 }
 
 function obterEmailsGestoresSistema() {
+  AuthService.exigirContextoPrivado();
   const lista = [];
   try {
     const sheet = DB.usuarios();
     const mapa = DB.map(sheet);
     const idxEmail = mapa.EMAIL;
+    const idxNivel = mapa.NIVEL;
     const idxAtivo = mapa.ATIVO;
-    if (
-      idxEmail === undefined ||
-      idxAtivo === undefined ||
-      (mapa.PERFIL === undefined && mapa.NIVEL === undefined)
-    ) {
+    if (idxEmail === undefined || idxNivel === undefined || idxAtivo === undefined) {
       const fallback = obterConfiguracaoAPI("EMAIL_GESTOR");
       if (fallback && emailValidoAPI(fallback)) {
         lista.push(normalizarEmail(fallback));
@@ -2677,11 +1632,11 @@ function obterEmailsGestoresSistema() {
       return lista;
     }
     DB.read(sheet).forEach(linha => {
-      const perfil = perfilUsuarioPorLinha(mapa, linha);
+      const nivel = Number(linha[idxNivel - 1]);
       const ativo = paraBoolean(linha[idxAtivo - 1]);
       const email = normalizarEmail(linha[idxEmail - 1]);
       if (
-        perfil === CONFIG.PERFIS.GESTOR_SISTEMA &&
+        nivel === CONFIG.NIVEIS.GESTOR_SISTEMA &&
         ativo &&
         emailValidoAPI(email)
       ) {
@@ -2718,6 +1673,7 @@ function criarNotificacao(destinatarioEmail, tipo, mensagem, referencia) {
   const lock = LockService.getScriptLock();
   let precisaLiberar = false;
   try {
+    new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
     if (!lock.hasLock()) {
       lock.waitLock(30000);
       precisaLiberar = true;
@@ -2779,10 +1735,14 @@ function criarNotificacao(destinatarioEmail, tipo, mensagem, referencia) {
   }
 }
 
-function listarNotificacoes(email, authDados) {
+function listarNotificacoes(email) {
   try {
+    AuthService.exigirContextoPrivado();
     let emailAlvo = normalizarEmail(email);
-    const usuario = new AuthService(authDados).usuarioAtual();
+    const usuario = new AuthService().usuarioAtual();
+    if (!usuario.logado || !usuario.ativo) {
+      throw new Error("É necessário acesso administrativo ativo.");
+    }
     if (!emailAlvo) {
       emailAlvo = normalizarEmail(usuario.email || obterEmailSessaoAPI() || "");
     }
@@ -2844,17 +1804,21 @@ function listarNotificacoes(email, authDados) {
   }
 }
 
-function marcarNotificacaoLida(id, authDados) {
+function marcarNotificacaoLida(id) {
   const lock = LockService.getScriptLock();
   let precisaLiberar = false;
   try {
+    AuthService.exigirContextoPrivado();
     if (!lock.hasLock()) {
       lock.waitLock(30000);
       precisaLiberar = true;
     }
     const idBusca = textoSeguro(id);
     if (!idBusca) throw new Error("ID da notifica\u00e7\u00e3o \u00e9 obrigat\u00f3rio.");
-    const usuario = new AuthService(authDados).usuarioAtual();
+    const usuario = new AuthService().usuarioAtual();
+    if (!usuario.logado || !usuario.ativo) {
+      throw new Error("É necessário acesso administrativo ativo.");
+    }
     const emailSessao = normalizarEmail(usuario.email || obterEmailSessaoAPI() || "");
     if (!emailSessao) throw new Error("\u00c9 necess\u00e1rio estar autenticado.");
     const sheet = obterAbaNotificacoesAPI();
@@ -2890,38 +1854,23 @@ function marcarTodasLidas(email, authDados) {
   const lock = LockService.getScriptLock();
   let precisaLiberar = false;
   try {
+    AuthService.exigirContextoPrivado();
     if (!lock.hasLock()) {
       lock.waitLock(30000);
       precisaLiberar = true;
     }
     let emailAlvo = normalizarEmail(email);
-    let usuario = new AuthService(authDados).usuarioAtual();
-    let emailSessao = normalizarEmail(usuario.email || "");
-    if ((!usuario.logado || !emailSessao) && authDados && typeof authDados === "object") {
-      try {
-        const emailAuth = normalizarEmail(valorObjeto(authDados, "email", "EMAIL") || "");
-        const senhaAuth = textoSeguro(valorObjeto(authDados, "senha", "SENHA", "password") || "");
-        if (emailAuth && senhaAuth) {
-          const resAuth = autenticarConsulta({ email: emailAuth, senha: senhaAuth });
-          if (resAuth && resAuth.sucesso === true && resAuth.dados) {
-            usuario = { email: resAuth.dados.email, nome: resAuth.dados.nome, perfil: resAuth.dados.perfil, logado: true, ativo: true, comarcas: resAuth.dados.comarcas || [] };
-            emailSessao = normalizarEmail(usuario.email || "");
-            if (!emailAlvo) emailAlvo = emailSessao;
-          }
-        }
-      } catch (eAuth2) {}
+    let usuario = new AuthService().usuarioAtual();
+    if (!usuario.logado || !usuario.ativo) {
+      throw new Error("É necessário acesso administrativo ativo.");
     }
+    let emailSessao = normalizarEmail(usuario.email || "");
     if (!emailAlvo) emailAlvo = normalizarEmail(usuario.email || obterEmailSessaoAPI() || emailSessao || "");
     if (!emailAlvo) throw new Error("E-mail n\u00e3o informado.");
     const ehProprio = normalizarEmail(usuario.email) === emailAlvo;
     const ehGestor = usuario.perfil === CONFIG.PERFIS.GESTOR_SISTEMA;
     if (!ehProprio && !ehGestor) {
-      let permitirProprio = false;
-      try {
-        const alvoInfo = new AuthService().buscarUsuario(emailAlvo);
-        if (alvoInfo && alvoInfo.ativo && alvoInfo.perfil === CONFIG.PERFIS.GESTOR_CONTEUDO) permitirProprio = true;
-      } catch (e) {}
-      if (!permitirProprio) emailAlvo = normalizarEmail(usuario.email || emailSessao || "");
+      throw new Error("Sem permissão para alterar notificações de outro usuário.");
     }
     const sheet = obterAbaNotificacoesAPI();
     if (sheet.getLastRow() <= 1) return respostaSucesso({ alteradas: 0 });
@@ -2951,34 +1900,19 @@ function marcarTodasLidas(email, authDados) {
 
 function contarNaoLidas(email, authDados) {
   try {
+    AuthService.exigirContextoPrivado();
     let emailAlvo = normalizarEmail(email);
-    let usuario = new AuthService(authDados).usuarioAtual();
-    let emailSessao = normalizarEmail(usuario.email || "");
-    if ((!usuario.logado || !emailSessao) && authDados && typeof authDados === "object") {
-      try {
-        const emailAuth = normalizarEmail(valorObjeto(authDados, "email", "EMAIL") || "");
-        const senhaAuth = textoSeguro(valorObjeto(authDados, "senha", "SENHA", "password") || "");
-        if (emailAuth && senhaAuth) {
-          const resAuth = autenticarConsulta({ email: emailAuth, senha: senhaAuth });
-          if (resAuth && resAuth.sucesso === true && resAuth.dados) {
-            usuario = { email: resAuth.dados.email, nome: resAuth.dados.nome, perfil: resAuth.dados.perfil, logado: true, ativo: true, comarcas: resAuth.dados.comarcas || [] };
-            emailSessao = normalizarEmail(usuario.email || "");
-            if (!emailAlvo) emailAlvo = emailSessao;
-          }
-        }
-      } catch (eAuth3) {}
+    let usuario = new AuthService().usuarioAtual();
+    if (!usuario.logado || !usuario.ativo) {
+      throw new Error("É necessário acesso administrativo ativo.");
     }
+    let emailSessao = normalizarEmail(usuario.email || "");
     if (!emailAlvo) emailAlvo = normalizarEmail(usuario.email || obterEmailSessaoAPI() || emailSessao || "");
     if (!emailAlvo) return respostaSucesso({ total: 0, count: 0 });
     const ehProprio = normalizarEmail(usuario.email) === emailAlvo;
     const ehGestor = usuario.perfil === CONFIG.PERFIS.GESTOR_SISTEMA;
     if (!ehProprio && !ehGestor) {
-      let permitirProprio = false;
-      try {
-        const alvoInfo = new AuthService().buscarUsuario(emailAlvo);
-        if (alvoInfo && alvoInfo.ativo && alvoInfo.perfil === CONFIG.PERFIS.GESTOR_CONTEUDO) permitirProprio = true;
-      } catch (e) {}
-      if (!permitirProprio) emailAlvo = normalizarEmail(usuario.email || emailSessao || "");
+      throw new Error("Sem permissão para consultar notificações de outro usuário.");
     }
     const sheet = obterAbaNotificacoesAPI();
     if (sheet.getLastRow() <= 1) return respostaSucesso({ total: 0, count: 0 });
@@ -3036,6 +1970,7 @@ function obterPlanilhaAPI() {
 }
 
 function obterEmailSessaoAPI() {
+  if (!AuthService.ehContextoPrivado()) return "";
   try {
     const usuario =
       new AuthService()
@@ -3049,12 +1984,12 @@ function obterEmailSessaoAPI() {
     }
   } catch (erro) {}
 
-  return AuthService
-    .obterEmailAtivo();
+  return AuthService.obterEmailAtivo();
 }
 
 function obterConfiguracaoAPI(chave) {
   try {
+    AuthService.exigirContextoPrivado();
     const sheet =
       obterPlanilhaAPI()
         .getSheetByName(
@@ -3118,1095 +2053,242 @@ function obterConfiguracaoAPI(chave) {
  * ==========================================================
  */
 
-function listarUsuarios(authDados) {
+function listarUsuarios() {
   try {
-    new AuthService(authDados).exigirPerfil(
-      CONFIG.PERFIS.GESTOR_SISTEMA
-    );
+    new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
+    const sheet = DB.usuarios();
+    const mapa = DB.map(sheet);
+    const auth = new AuthService();
+    const resultado = DB.read(sheet).map(function(linha) {
+      const nivel = Number(linha[mapa.NIVEL - 1]);
+      const id = textoSeguro(linha[mapa.ID - 1]);
+      const escopo = nivel === CONFIG.NIVEIS.GESTOR_CONTEUDO
+        ? auth.obterEscopoUnidades(id)
+        : { ids: [], unidades: [] };
+      return {
+        id: id,
+        email: normalizarEmail(linha[mapa.EMAIL - 1]),
+        nome: textoSeguro(linha[mapa.NOME - 1]),
+        nivel: nivel,
+        perfil: CONFIG.NIVEIS.POR_NIVEL[String(nivel)] || "",
+        ativo: paraBoolean(linha[mapa.ATIVO - 1]),
+        unidadeIds: escopo.ids,
+        unidades: escopo.unidades
+      };
+    });
+    return respostaSucesso(resultado);
+  } catch (erro) {
+    registrarErroAPI("LISTAR_USUARIOS", erro);
+    return respostaErro(erro);
+  }
+}
+
+function validarIdsUnidadesAdministrativas(unidadeIds) {
+  const ids = idsUnidadesSolicitadas(unidadeIds);
+  const sheet = DB.unidades();
+  const mapa = DB.map(sheet);
+  const validas = new Set(DB.read(sheet)
+    .filter(function(linha) { return !mapa.ATIVO || paraBoolean(linha[mapa.ATIVO - 1]); })
+    .map(function(linha) { return textoSeguro(linha[mapa.ID - 1]); }));
+  if (ids.some(function(id) { return !validas.has(id); })) {
+    throw new Error("Uma ou mais Unidades são inválidas ou inativas.");
+  }
+  return ids;
+}
+
+function contarGestoresSistemaAtivos(excetoEmail) {
+  const sheet = DB.usuarios();
+  const mapa = DB.map(sheet);
+  return DB.read(sheet).filter(function(linha) {
+    return normalizarEmail(linha[mapa.EMAIL - 1]) !== normalizarEmail(excetoEmail) &&
+      Number(linha[mapa.NIVEL - 1]) === CONFIG.NIVEIS.GESTOR_SISTEMA &&
+      paraBoolean(linha[mapa.ATIVO - 1]);
+  }).length;
+}
+
+function atualizarUsuario(email, dados) {
+  const lock = LockService.getScriptLock();
+  let bloqueado = false;
+  try {
+    lock.waitLock(30000);
+    bloqueado = true;
+    const auth = new AuthService();
+    auth.exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
+
+    const emailAlvo = normalizarEmail(email);
+    if (!emailAlvo) throw new Error("E-mail obrigatório.");
+    if (auth.usuarioAtual().email === emailAlvo) {
+      throw new Error("Você não pode editar a própria conta por este painel.");
+    }
 
     const sheet = DB.usuarios();
     const mapa = DB.map(sheet);
-    const dados = DB.read(sheet);
-
-    const idxEmail = mapa.EMAIL;
-    const idxNome = mapa.NOME;
-    const idxAtivo = mapa.ATIVO;
-    const idxComarcas = mapa.COMARCAS;
-
-    /*
-     * Visitantes (USUARIO_CONSULTA) não aparecem na lista:
-     * a lista gerencia pessoas com acesso administrativo.
-     */
-    const resultado =
-      dados
-        .filter(linha => {
-          const perfil = perfilUsuarioPorLinha(mapa, linha);
-
-          return perfil !== CONFIG.PERFIS.USUARIO_CONSULTA;
-        })
-        .map(linha => ({
-          id: mapa.ID !== undefined ? textoSeguro(linha[mapa.ID - 1]) : "",
-          email: idxEmail !== undefined ? normalizarEmail(linha[idxEmail - 1]) : "",
-          nome: textoSeguro(idxNome ? linha[idxNome - 1] : ""),
-          perfil: perfilUsuarioPorLinha(mapa, linha),
-          nivel: mapa.NIVEL !== undefined ? Number(linha[mapa.NIVEL - 1]) || 1 : nivelPorPerfil(perfilUsuarioPorLinha(mapa, linha)),
-          ativo: paraBoolean(idxAtivo ? linha[idxAtivo - 1] : false),
-          comarcas: idxComarcas !== undefined ? textoSeguro(linha[idxComarcas - 1]) : ""
-        }));
-
-    return respostaSucesso(resultado);
-  } catch (erro) {
-    registrarErroAPI(
-      "LISTAR_USUARIOS",
-      erro
-    );
-
-    return respostaErro(erro);
-  }
-}
-
-/**
- * Solicita acesso de edição a uma comarca fora do escopo
- * do gestor de conteúdo.
- *
- * Cria uma solicitação PENDENTE na aba SOLICITACOES_ACESSO
- * para que o Gestor do Sistema veja em solicitacoes-view
- * (via listarSolicitacoes) e possa aprovar/rejeitar.
- * Também notifica os gestores do sistema por e-mail
- * (fila EMAILS_PENDENTES) e registra no LOG.
- * Usa LockService para evitar duplicidade.
- */
-function solicitarPermissaoComarca(comarca, authDados) {
-  const lock =
-    LockService.getScriptLock();
-
-  let bloqueado = false;
-
-  try {
-    lock.waitLock(30000);
-    bloqueado = true;
-
-    let usuario = null;
-    let viaSenha = false;
-    // Prioriza sessão por senha (Login) quando authDados vier do frontend
-    var dadosAuthPre = (authDados && typeof authDados === "object") ? authDados : {};
-    var emailAuthPre = normalizarEmail(valorObjeto(dadosAuthPre, "email", "EMAIL") || "");
-    var senhaAuthPre = textoSeguro(valorObjeto(dadosAuthPre, "senha", "SENHA", "password") || "");
-    if (emailAuthPre && senhaAuthPre) {
-      var resAuthPre = autenticarConsulta({email: emailAuthPre, senha: senhaAuthPre});
-      if (resAuthPre && resAuthPre.sucesso === true && resAuthPre.dados) {
-        usuario = {
-          email: resAuthPre.dados.email,
-          nome: resAuthPre.dados.nome,
-          perfil: resAuthPre.dados.perfil,
-          ativo: true,
-          logado: true,
-          comarcas: resAuthPre.dados.comarcas || []
-        };
-        viaSenha = true;
-      } else {
-        var msgAuthPre = (resAuthPre && resAuthPre.erro) ? String(resAuthPre.erro) : "Sessão inválida. Faça login novamente.";
-        throw new Error(msgAuthPre);
-      }
-    }
-    if (!usuario || !usuario.logado) {
-      try {
-        const authTmp = new AuthService(authDados);
-        authTmp.exigirPermissao(CONFIG.PERMISSOES.EDITAR);
-        const uTmp = authTmp.usuarioAtual();
-        if (uTmp && uTmp.logado) usuario = uTmp;
-      } catch(eGoogle) { if(!usuario) usuario = null; }
-    }
-    if (!usuario || !usuario.logado) {
-      // tenta sessão por senha fallback (se não veio no pre)
-      var dadosAuth = (authDados && typeof authDados === "object") ? authDados : {};
-      var emailAuth = normalizarEmail(valorObjeto(dadosAuth, "email", "EMAIL") || "");
-      var senhaAuth = textoSeguro(valorObjeto(dadosAuth, "senha", "SENHA", "password") || "");
-      if (emailAuth && senhaAuth && !viaSenha) {
-        var resAuth = autenticarConsulta({email: emailAuth, senha: senhaAuth});
-        if (resAuth && resAuth.sucesso === true && resAuth.dados) {
-          usuario = {
-            email: resAuth.dados.email,
-            nome: resAuth.dados.nome,
-            perfil: resAuth.dados.perfil,
-            ativo: true,
-            logado: true,
-            comarcas: resAuth.dados.comarcas || []
-          };
-          viaSenha = true;
-        } else {
-          var msgAuth = (resAuth && resAuth.erro) ? String(resAuth.erro) : "Sessão inválida. Faça login novamente.";
-          throw new Error(msgAuth);
-        }
-      }
-    }
-    if (!usuario || !usuario.logado) {
-      throw new Error("É necessário estar autenticado.");
-    }
-    if (usuario.perfil !== CONFIG.PERFIS.GESTOR_CONTEUDO) {
-      if (usuario.perfil === CONFIG.PERFIS.GESTOR_SISTEMA) {
-        throw new Error("Gestor do Sistema já tem acesso a todas as comarcas.");
-      }
-      throw new Error(
-        "Somente gestores de conteúdo solicitam acesso a comarcas."
-      );
-    }
-
-    const comarcaAlvo =
-      textoSeguro(comarca);
-
-    if (!comarcaAlvo) {
-      throw new Error("Informe a comarca desejada.");
-    }
-
-    /*
-     * A comarca precisa existir na base.
-     */
-    const dados =
-      new TelefoneRepository().listar();
-
-    const chaveAlvo =
-      normalizarChave(comarcaAlvo);
-
-    const existe =
-      dados.some(item =>
-        normalizarChave(
-          textoSeguro(item.comarca)
-        ) === chaveAlvo
-      );
-
-    if (!existe) {
-      throw new Error(
-        "A comarca \"" +
-        comarcaAlvo +
-        "\" não foi encontrada na base."
-      );
-    }
-
-    /*
-     * Sem escopo definido (vazia = todas) não há o que solicitar.
-     */
-    const atuais =
-      Array.isArray(usuario.comarcas)
-        ? usuario.comarcas
-        : [];
-
-    if (atuais.length === 0) {
-      throw new Error(
-        "Você já pode editar todas as comarcas."
-      );
-    }
-
-    const jaTem =
-      atuais.some(item =>
-        normalizarChave(item) === chaveAlvo
-      );
-
-    if (jaTem) {
-      throw new Error(
-        "Você já tem acesso à comarca \"" +
-        comarcaAlvo +
-        "\"."
-      );
-    }
-
-    /*
-     * Verifica solicitação pendente já existente para este e-mail + comarca.
-     * Evita duplicidade na aba SOLICITACOES_ACESSO.
-     */
-    const sheetSolic =
-      DB.solicitacoesAcesso();
-
-    if (!sheetSolic) {
-      throw new Error(
-        "Aba de solicitações de acesso não encontrada."
-      );
-    }
-
-    const dadosSolic =
-      sheetSolic.getDataRange().getValues();
-
-    const indicesSolic =
-      indicesSolicitacao(dadosSolic[0] || []);
-
-    const emailSolicNorm =
-      normalizarEmail(usuario.email);
-
-    const jaPendenteMesmaComarca =
-      dadosSolic.slice(1).some(row => {
-        const emailLinha =
-          indicesSolic.EMAIL !== undefined
-            ? normalizarEmail(row[indicesSolic.EMAIL])
-            : normalizarEmail(row[1]);
-
-        const statusLinha =
-          indicesSolic.STATUS !== undefined
-            ? String(row[indicesSolic.STATUS] || "").trim().toUpperCase()
-            : String(row[5] || "").trim().toUpperCase();
-
-        const comarcaLinha =
-          indicesSolic.COMARCA !== undefined
-            ? normalizarChave(String(row[indicesSolic.COMARCA] || ""))
-            : "";
-
-        return (
-          emailLinha === emailSolicNorm &&
-          statusLinha === "PENDENTE" &&
-          comarcaLinha === chaveAlvo
-        );
-      });
-
-    if (jaPendenteMesmaComarca) {
-      throw new Error(
-        "Já existe uma solicitação pendente para a comarca \"" +
-        comarcaAlvo +
-        "\". Aguarde a análise do Gestor do Sistema."
-      );
-    }
-
-    /*
-     * Cria solicitação PENDENTE para que o Gestor do Sistema
-     * veja em solicitacoes-view (listarSolicitacoes).
-     */
-    const idSolic =
-      Utilities.getUuid();
-
-    const nomeSolic =
-      textoSeguro(usuario.nome) ||
-      String(usuario.email || "")
-        .split("@")[0];
-
-    const justificativaSolic =
-      "Solicitação de acesso à comarca \"" +
-      comarcaAlvo +
-      "\" via Telefones (Gestor de Conteúdo) \u2014 " +
-      nomeSolic +
-      " (" +
-      emailSolicNorm +
-      ")";
-
-    const linhaSolic =
-      montarLinhaSolicitacao(indicesSolic, {
-        ID: idSolic,
-        EMAIL: emailSolicNorm,
-        NOME: nomeSolic,
-        COMARCA: comarcaAlvo,
-        PERFIL: CONFIG.PERFIS.GESTOR_CONTEUDO,
-        JUSTIFICATIVA: justificativaSolic,
-        STATUS: "PENDENTE",
-        DATA: new Date()
-      });
-
-    sheetSolic.appendRow(linhaSolic);
-
-    /*
-     * Destinatários: gestores do sistema ativos;
-     * sem nenhum, usa a configuração EMAIL_GESTOR.
-     */
-    const destinatarios = [];
-
-    try {
-      const sheet = DB.usuarios();
-      const mapa = DB.map(sheet);
-
-      const idxAtivo = mapa.ATIVO;
-      const idxEmail = mapa.EMAIL;
-
-      DB.read(sheet).forEach(linha => {
-        const perfil = perfilUsuarioPorLinha(mapa, linha);
-
-        const ativo =
-          paraBoolean(
-            idxAtivo ? linha[idxAtivo - 1] : false
-          );
-
-        const email =
-          textoSeguro(
-            idxEmail ? linha[idxEmail - 1] : ""
-          );
-
-        if (
-          perfil === CONFIG.PERFIS.GESTOR_SISTEMA &&
-          ativo &&
-          emailValidoAPI(email)
-        ) {
-          destinatarios.push(email);
-        }
-      });
-    } catch (erro) {
-      registrarInfoAPI(
-        "SOLICITAR_ACESSO_COMARCA",
-        "Falha ao listar gestores do sistema: " + erro.message
-      );
-    }
-
-    if (destinatarios.length === 0) {
-      const fallback =
-        obterConfiguracaoAPI("EMAIL_GESTOR");
-
-      if (fallback && emailValidoAPI(fallback)) {
-        destinatarios.push(fallback);
-      }
-    }
-
-    const nomeSolicitante =
-      textoSeguro(usuario.nome) ||
-      String(usuario.email || "")
-        .split("@")[0];
-
-    const assunto =
-      "Solicitação de acesso à comarca - " +
-      comarcaAlvo;
-
-    const corpo =
-      "Um gestor de conteúdo solicitou acesso de edição a uma comarca:\n\n" +
-      "Nome: " + nomeSolicitante + "\n" +
-      "E-mail: " + textoSeguro(usuario.email) + "\n" +
-      "Comarca solicitada: " + comarcaAlvo + "\n\n" +
-      "Para liberar o acesso, edite o usuário no painel de Usuários\n" +
-      "e adicione a comarca à coluna COMARCAS.\n\n" +
-      "Acesse a área administrativa:\n" +
-      obterUrlAdmin();
-
-    let notificados = 0;
-
-    destinatarios.forEach(destino => {
-      if (
-        adicionarEmailPendente(
-          destino,
-          assunto,
-          corpo
-        )
-      ) {
-        notificados++;
-      }
+    const dadosSheet = DB.read(sheet);
+    const indice = dadosSheet.findIndex(function(linha) {
+      return normalizarEmail(linha[mapa.EMAIL - 1]) === emailAlvo;
     });
-
-    try{
-      const msgComarca = (textoSeguro(usuario.nome) || usuario.email) + " solicitou acesso \u00e0 comarca \"" + comarcaAlvo + "\".";
-      destinatarios.forEach(function(emailG){
-        try{ criarNotificacao(emailG, "SOLICITACAO_COMARCA", msgComarca, idSolic); }catch(e){}
-      });
-    }catch(eNC){ try{ registrarErroAPI("NOTIFICAR_SOLICITACAO_COMARCA", eNC); }catch(e){} }
-
-    registrarLog(
-      "SOLICITAR_ACESSO_COMARCA " +
-      textoSeguro(usuario.email) +
-      " -> " +
-      comarcaAlvo
-    );
-
-    return respostaSucesso({
-      comarca: comarcaAlvo,
-      notificados: notificados,
-      id: idSolic
-    });
-  } catch (erro) {
-    registrarErroAPI(
-      "SOLICITAR_ACESSO_COMARCA",
-      erro
-    );
-
-    return respostaErro(erro);
-  } finally {
-    if (bloqueado) {
-      lock.releaseLock();
-    }
-  }
-}
-
-/**
- * Cancela uma solicitação pendente de acesso à comarca.
- *
- * O gestor de conteúdo pode desfazer o pedido dentro da janela
- * de 10 minutos (controle de UI) ou a qualquer momento enquanto
- * ainda estiver PENDENTE. Remove a linha da aba SOLICITACOES_ACESSO
- * para que o Gestor do Sistema não veja mais o pedido.
- */
-function cancelarSolicitacaoComarca(comarca, authDados) {
-  const lock =
-    LockService.getScriptLock();
-
-  let bloqueado = false;
-
-  try {
-    lock.waitLock(30000);
-    bloqueado = true;
-
-    let usuario = null;
-    let viaSenha = false;
-    var dadosAuthPre2 = (authDados && typeof authDados === "object") ? authDados : {};
-    var emailAuthPre2 = normalizarEmail(valorObjeto(dadosAuthPre2, "email", "EMAIL") || "");
-    var senhaAuthPre2 = textoSeguro(valorObjeto(dadosAuthPre2, "senha", "SENHA", "password") || "");
-    if (emailAuthPre2 && senhaAuthPre2) {
-      var resAuthPre2 = autenticarConsulta({email: emailAuthPre2, senha: senhaAuthPre2});
-      if (resAuthPre2 && resAuthPre2.sucesso === true && resAuthPre2.dados) {
-        usuario = {
-          email: resAuthPre2.dados.email,
-          nome: resAuthPre2.dados.nome,
-          perfil: resAuthPre2.dados.perfil,
-          ativo: true,
-          logado: true,
-          comarcas: resAuthPre2.dados.comarcas || []
-        };
-        viaSenha = true;
-      } else {
-        var msgAuthPre2 = (resAuthPre2 && resAuthPre2.erro) ? String(resAuthPre2.erro) : "Sessão inválida. Faça login novamente.";
-        throw new Error(msgAuthPre2);
-      }
-    }
-    if (!usuario || !usuario.logado) {
-      try {
-        const authTmp2 = new AuthService(authDados);
-        authTmp2.exigirPermissao(CONFIG.PERMISSOES.EDITAR);
-        const uTmp2 = authTmp2.usuarioAtual();
-        if (uTmp2 && uTmp2.logado) usuario = uTmp2;
-      } catch(eGoogle2) { if(!usuario) usuario = null; }
-    }
-    if (!usuario || !usuario.logado) {
-      var dadosAuth2 = (authDados && typeof authDados === "object") ? authDados : {};
-      var emailAuth2 = normalizarEmail(valorObjeto(dadosAuth2, "email", "EMAIL") || "");
-      var senhaAuth2 = textoSeguro(valorObjeto(dadosAuth2, "senha", "SENHA", "password") || "");
-      if (emailAuth2 && senhaAuth2 && !viaSenha) {
-        var resAuth2 = autenticarConsulta({email: emailAuth2, senha: senhaAuth2});
-        if (resAuth2 && resAuth2.sucesso === true && resAuth2.dados) {
-          usuario = {
-            email: resAuth2.dados.email,
-            nome: resAuth2.dados.nome,
-            perfil: resAuth2.dados.perfil,
-            ativo: true,
-            logado: true,
-            comarcas: resAuth2.dados.comarcas || []
-          };
-          viaSenha = true;
-        } else {
-          var msgAuth2 = (resAuth2 && resAuth2.erro) ? String(resAuth2.erro) : "Sessão inválida. Faça login novamente.";
-          throw new Error(msgAuth2);
-        }
-      }
-    }
-    if (!usuario || !usuario.logado) {
-      throw new Error("É necessário estar autenticado.");
-    }
-    if (usuario.perfil !== CONFIG.PERFIS.GESTOR_CONTEUDO) {
-      throw new Error("Somente gestores de conteúdo podem cancelar solicitações de comarca.");
-    }
-
-    const comarcaAlvo2 =
-      textoSeguro(comarca);
-
-    if (!comarcaAlvo2) {
-      throw new Error("Informe a comarca desejada.");
-    }
-
-    const chaveAlvo2 =
-      normalizarChave(comarcaAlvo2);
-
-    const sheetSolic2 =
-      DB.solicitacoesAcesso();
-
-    if (!sheetSolic2) {
-      throw new Error("Aba de solicitações de acesso não encontrada.");
-    }
-
-    const dadosSolic2 =
-      sheetSolic2.getDataRange().getValues();
-
-    if (dadosSolic2.length <= 1) {
-      throw new Error("Nenhuma solicitação encontrada para cancelar.");
-    }
-
-    const indicesSolic2 =
-      indicesSolicitacao(dadosSolic2[0] || []);
-
-    const emailSolicNorm2 =
-      normalizarEmail(usuario.email);
-
-    let linhaAlvo = -1;
-    let idAlvo = "";
-
-    for (let i = 1; i < dadosSolic2.length; i++) {
-      const emailLinha2 =
-        indicesSolic2.EMAIL !== undefined
-          ? normalizarEmail(dadosSolic2[i][indicesSolic2.EMAIL])
-          : normalizarEmail(dadosSolic2[i][1]);
-
-      const statusLinha2 =
-        indicesSolic2.STATUS !== undefined
-          ? String(dadosSolic2[i][indicesSolic2.STATUS] || "").trim().toUpperCase()
-          : String(dadosSolic2[i][5] || "").trim().toUpperCase();
-
-      const comarcaLinha2 =
-        indicesSolic2.COMARCA !== undefined
-          ? normalizarChave(String(dadosSolic2[i][indicesSolic2.COMARCA] || ""))
-          : "";
-
-      if (
-        emailLinha2 === emailSolicNorm2 &&
-        statusLinha2 === "PENDENTE" &&
-        comarcaLinha2 === chaveAlvo2
-      ) {
-        linhaAlvo = i + 1;
-        idAlvo = indicesSolic2.ID !== undefined ? String(dadosSolic2[i][indicesSolic2.ID] || "") : "";
-        break;
-      }
-    }
-
-    if (linhaAlvo === -1) {
-      throw new Error("Nenhuma solicitação pendente encontrada para a comarca \"" + comarcaAlvo2 + "\".");
-    }
-
-    // Remove a linha pendente (Gestor do Sistema não verá mais)
-    sheetSolic2.deleteRow(linhaAlvo);
-
-    try{
-      const gestoresCancel = obterEmailsGestoresSistema();
-      const msgCancel = (textoSeguro(usuario.nome) || usuario.email) + " cancelou a solicita\u00e7\u00e3o de acesso \u00e0 comarca \"" + comarcaAlvo2 + "\".";
-      gestoresCancel.forEach(function(emailG){
-        try{ criarNotificacao(emailG, "CANCELAMENTO", msgCancel, idAlvo || comarcaAlvo2); }catch(e){}
-      });
-    }catch(eCancNotif){ try{ registrarErroAPI("NOTIFICAR_CANCELAMENTO", eCancNotif); }catch(e){} }
-
-    registrarLog(
-      "CANCELAR_SOLICITACAO_COMARCA " +
-      textoSeguro(usuario.email) +
-      " -> " +
-      comarcaAlvo2 +
-      (idAlvo ? " (" + idAlvo + ")" : "")
-    );
-
-    return respostaSucesso({
-      comarca: comarcaAlvo2,
-      id: idAlvo
-    });
-  } catch (erro) {
-    registrarErroAPI(
-      "CANCELAR_SOLICITACAO_COMARCA",
-      erro
-    );
-
-    return respostaErro(erro);
-  } finally {
-    if (bloqueado) {
-      lock.releaseLock();
-    }
-  }
-}
-
-/**
- * Atualiza um usuário da aba USUARIOS.
- *
- * Permite trocar o perfil (GESTOR_SISTEMA, GESTOR_CONTEUDO ou
- * USUARIO_CONSULTA/visitante), ativar/desativar e definir as
- * comarcas permitidas para gestores de conteúdo.
- *
- * Proteções:
- * - Somente GESTOR_SISTEMA;
- * - não é possível editar a própria conta (evita trava acidental);
- * - não é possível remover o último gestor do sistema ativo.
- */
-function atualizarUsuario(email, dados, authDados) {
-  const lock = LockService.getScriptLock();
-  let bloqueado = false;
-
-  try {
-    lock.waitLock(30000);
-    bloqueado = true;
-
-    const auth = new AuthService(authDados);
-
-    auth.exigirPerfil(
-      CONFIG.PERFIS.GESTOR_SISTEMA
-    );
-
-    const emailAlvo = normalizarEmail(email);
-
-    if (!emailAlvo) {
-      throw new Error("E-mail do usuário é obrigatório.");
-    }
-
-    const sessao = auth.usuarioAtual();
-
-    if (normalizarEmail(sessao.email) === emailAlvo) {
-      throw new Error("Você não pode editar a sua própria conta pelo painel de usuários.");
-    }
+    if (indice < 0) throw new Error("Usuário não encontrado.");
 
     const entrada = ehObjeto(dados) ? dados : {};
+    const nivelAtual = Number(dadosSheet[indice][mapa.NIVEL - 1]);
+    const ativoAtual = paraBoolean(dadosSheet[indice][mapa.ATIVO - 1]);
+    const nivel = possuiCampo(entrada, "nivel", "NIVEL", "perfil", "PERFIL")
+      ? nivelSolicitadoNumero(valorObjeto(entrada, "nivel", "NIVEL", "perfil", "PERFIL"))
+      : nivelAtual;
+    const ativo = possuiCampo(entrada, "ativo", "ATIVO")
+      ? paraBoolean(valorObjeto(entrada, "ativo", "ATIVO"))
+      : ativoAtual;
+    const nome = possuiCampo(entrada, "nome", "NOME")
+      ? textoSeguro(valorObjeto(entrada, "nome", "NOME"))
+      : textoSeguro(dadosSheet[indice][mapa.NOME - 1]);
+    const unidadeIds = nivel === CONFIG.NIVEIS.GESTOR_CONTEUDO
+      ? validarIdsUnidadesAdministrativas(valorObjeto(entrada, "unidadeIds", "UNIDADE_IDS", "unidades"))
+      : [];
 
-    const possuiNome =
-      possuiCampo(entrada, "nome", "NOME");
-
-    const nomeNovo =
-      possuiNome
-        ? textoSeguro(
-            valorObjeto(entrada, "nome", "NOME")
-          )
-        : null;
-
-    const possuiPerfil =
-      possuiCampo(entrada, "perfil", "PERFIL");
-
-    const possuiAtivo =
-      possuiCampo(entrada, "ativo", "ATIVO");
-
-    const possuiComarcas =
-      possuiCampo(entrada, "comarcas", "COMARCAS");
-
-    const perfilBruto =
-      possuiPerfil
-        ? String(
-            valorObjeto(entrada, "perfil", "PERFIL") || ""
-          )
-            .trim()
-            .toUpperCase()
-        : null;
-
-    const ativoBruto =
-      possuiAtivo
-        ? valorObjeto(entrada, "ativo", "ATIVO")
-        : null;
-
-    const comarcasBruto =
-      possuiComarcas
-        ? valorObjeto(entrada, "comarcas", "COMARCAS")
-        : null;
-
-    let sheet = DB.usuarios();
-    let mapa = DB.map(sheet);
-    let dadosSheet = sheet.getDataRange().getValues();
-
-    let idxEmail = mapa.EMAIL;
-    let idxNome = mapa.NOME;
-    let idxPerfil = mapa.PERFIL;
-    let idxNivel = mapa.NIVEL;
-    let idxAtivo = mapa.ATIVO;
-    let idxComarcas = mapa.COMARCAS;
-    let idxSenha = mapa.SENHA;
-
-    if (idxSenha === undefined) {
-      try {
-        const ssTmpSenha = DB.getSpreadsheet();
-        garantirColunaSenhaUsuarios(ssTmpSenha, sheet);
-        mapa = DB.map(sheet);
-        idxSenha = mapa.SENHA;
-      } catch (eSenhaU) {}
+    if (nivel !== 1 && nivel !== 2) throw new Error("Nível inválido. Use 1 ou 2.");
+    if (!nome) throw new Error("Nome obrigatório.");
+    if (nivel === 1 && unidadeIds.length === 0) {
+      throw new Error("Gestor de Conteúdo deve possuir ao menos uma Unidade.");
+    }
+    if (nivelAtual === 2 && ativoAtual && (nivel !== 2 || !ativo) &&
+        contarGestoresSistemaAtivos(emailAlvo) === 0) {
+      throw new Error("Não é possível remover o último Gestor do Sistema ativo.");
     }
 
-    let linhaEncontrada = -1;
-
-    for (let i = 1; i < dadosSheet.length; i++) {
-      if (normalizarEmail(dadosSheet[i][idxEmail - 1]) === emailAlvo) {
-        linhaEncontrada = i + 1;
-        break;
-      }
-    }
-
-    if (linhaEncontrada === -1) {
-      throw new Error("Usuário não encontrado na aba USUARIOS.");
-    }
-
-    const perfilAtual = perfilUsuarioPorLinha(mapa, dadosSheet[linhaEncontrada - 1]);
-
-    const ativoAtual =
-      paraBoolean(dadosSheet[linhaEncontrada - 1][idxAtivo - 1]);
-
-    const comarcasAtualRaw =
-      idxComarcas !== undefined
-        ? textoSeguro(dadosSheet[linhaEncontrada - 1][idxComarcas - 1])
-        : "";
-
-    const comarcasAtual = parseComarcas(comarcasAtualRaw);
-
-    const perfilNovo =
-      possuiPerfil ? perfilBruto : perfilAtual;
-
-    const perfisValidos = [
-      CONFIG.PERFIS.GESTOR_SISTEMA,
-      CONFIG.PERFIS.GESTOR_CONTEUDO,
-      CONFIG.PERFIS.USUARIO_CONSULTA
-    ];
-
-    if (!perfisValidos.includes(perfilNovo)) {
-      throw new Error("Perfil inválido.");
-    }
-
-    const ativoNovo =
-      possuiAtivo ? paraBoolean(ativoBruto) : ativoAtual;
-
-    let comarcasNovo =
-      possuiComarcas
-        ? parseComarcas(comarcasBruto)
-        : comarcasAtual;
-
-    if (perfilNovo === CONFIG.PERFIS.GESTOR_SISTEMA) {
-      comarcasNovo = [];
-    }
-
-    if (
-      perfilNovo === CONFIG.PERFIS.GESTOR_CONTEUDO &&
-      comarcasNovo.length > 0
-    ) {
-      // valida apenas que o texto não contém separadores inválidos
-      if (comarcasNovo.some(item => item.length > 150)) {
-        throw new Error("Nome de comarca muito longo.");
-      }
-    }
-
-    /*
-     * Proteção: não permitir desativar/demover o último
-     * gestor do sistema ativo.
-     */
-    if (
-      perfilAtual === CONFIG.PERFIS.GESTOR_SISTEMA &&
-      ativoAtual &&
-      (perfilNovo !== CONFIG.PERFIS.GESTOR_SISTEMA || !ativoNovo)
-    ) {
-      let outrosGestores = 0;
-
-      for (let i = 1; i < dadosSheet.length; i++) {
-        if (i === linhaEncontrada - 1) continue;
-
-        const perfil = perfilUsuarioPorLinha(mapa, dadosSheet[i]);
-
-        const ativo =
-          paraBoolean(dadosSheet[i][idxAtivo - 1]);
-
-        if (
-          perfil === CONFIG.PERFIS.GESTOR_SISTEMA &&
-          ativo
-        ) {
-          outrosGestores++;
-        }
-      }
-
-      if (outrosGestores === 0) {
-        throw new Error(
-          "Não é possível remover o último gestor do sistema ativo."
-        );
-      }
-    }
-
-    if (idxNome !== undefined && nomeNovo !== null) {
-      sheet.getRange(linhaEncontrada, idxNome).setValue(nomeNovo);
-    }
-
-    if (idxPerfil !== undefined && possuiPerfil) {
-      sheet.getRange(linhaEncontrada, idxPerfil).setValue(perfilNovo);
-    }
-
-    if (idxNivel !== undefined && possuiPerfil) {
-      sheet.getRange(linhaEncontrada, idxNivel).setValue(nivelPorPerfil(perfilNovo));
-    }
-
-    if (idxAtivo !== undefined && possuiAtivo) {
-      sheet.getRange(linhaEncontrada, idxAtivo).setValue(ativoNovo ? "SIM" : "NÃO");
-    }
-
-    const deveLimparComarcasSistema = perfilNovo === CONFIG.PERFIS.GESTOR_SISTEMA;
-
-    if (idxComarcas !== undefined && (possuiComarcas || deveLimparComarcasSistema)) {
-      sheet.getRange(linhaEncontrada, idxComarcas).setValue(
-        serializarComarcas(comarcasNovo)
-      );
-    }
-
-    if (idxSenha !== undefined) {
-      const senhaAtual = textoSeguro(dadosSheet[linhaEncontrada - 1][idxSenha - 1]);
-      if (!senhaAtual && ativoNovo) {
-        try {
-          const novaSenha = gerarSenha20();
-          sheet.getRange(linhaEncontrada, idxSenha).setValue(novaSenha);
-          try{ const emailAlvo2 = normalizarEmail(emailAlvo); if(emailValidoAPI(emailAlvo2)) criarNotificacao(emailAlvo2, "SENHA_GERADA", "Sua senha de acesso foi (re)gerada pelo Gestor do Sistema e enviada por e-mail.", emailAlvo2); }catch(eN){ try{ registrarErroAPI("NOTIFICAR_SENHA_ATUALIZAR", eN); }catch(e){} }
-        } catch (eNovaSenha) {}
-      }
-    }
-
-    SpreadsheetApp.flush();
-
-    registrarInfoAPI(
-      "ATUALIZAR_USUARIO",
-      emailAlvo + " -> " + perfilNovo + (ativoNovo ? " (ativo)" : " (inativo)")
+    sheet.getRange(indice + 2, mapa.NOME).setValue(nome);
+    sheet.getRange(indice + 2, mapa.NIVEL).setValue(nivel);
+    sheet.getRange(indice + 2, mapa.ATIVO).setValue(ativo ? "SIM" : "NÃO");
+    substituirAcessosUnidades(
+      textoSeguro(dadosSheet[indice][mapa.ID - 1]),
+      nivel === 1 && ativo ? unidadeIds : []
     );
-
+    SpreadsheetApp.flush();
     return respostaSucesso({
       email: emailAlvo,
-      perfil: perfilNovo,
-      ativo: ativoNovo,
-      comarcas: serializarComarcas(comarcasNovo)
+      nome: nome,
+      nivel: nivel,
+      perfil: CONFIG.NIVEIS.POR_NIVEL[String(nivel)],
+      ativo: ativo,
+      unidadeIds: unidadeIds
     });
   } catch (erro) {
-    registrarErroAPI(
-      "ATUALIZAR_USUARIO",
-      erro
-    );
-
+    registrarErroAPI("ATUALIZAR_USUARIO", erro);
     return respostaErro(erro);
   } finally {
-    if (bloqueado) {
-      lock.releaseLock();
-    }
+    if (bloqueado) lock.releaseLock();
   }
 }
-/**
- * Cria um novo usuário na aba USUARIOS.
- *
- * Somente GESTOR_SISTEMA pode criar.
- * Valida e-mail institucional (@tjes.jus.br), perfil,
- * comarcas e verifica duplicidade.
- */
-function criarUsuario(dados, authDados) {
+
+function criarUsuario(dados) {
   const lock = LockService.getScriptLock();
   let bloqueado = false;
-
   try {
     lock.waitLock(30000);
     bloqueado = true;
-
-    const auth = new AuthService(authDados);
+    const auth = new AuthService();
     auth.exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
-
     const entrada = ehObjeto(dados) ? dados : {};
-
-    const emailBruto = textoSeguro(valorObjeto(entrada, "email", "EMAIL"));
-    const email = normalizarEmail(emailBruto);
-
-    if (!email) {
-      throw new Error("E-mail é obrigatório.");
-    }
-
-    if (!emailValidoAPI(email)) {
-      throw new Error("E-mail inválido.");
-    }
-
-    if (!emailInstitucional(email)) {
-      throw new Error("Somente e-mails institucionais (@tjes.jus.br) são permitidos.");
-    }
-
+    const email = normalizarEmail(valorObjeto(entrada, "email", "EMAIL"));
     const nome = textoSeguro(valorObjeto(entrada, "nome", "NOME"));
+    const nivel = nivelSolicitadoNumero(valorObjeto(entrada, "nivel", "NIVEL", "perfil", "PERFIL"));
+    const ativo = possuiCampo(entrada, "ativo", "ATIVO")
+      ? paraBoolean(valorObjeto(entrada, "ativo", "ATIVO"))
+      : true;
+    const unidadeIds = nivel === 1
+      ? validarIdsUnidadesAdministrativas(valorObjeto(entrada, "unidadeIds", "UNIDADE_IDS", "unidades"))
+      : [];
 
-    if (!nome) {
-      throw new Error("Nome é obrigatório.");
+    if (!emailValidoAPI(email)) throw new Error("E-mail inválido.");
+    if (!AuthService.emailPermitidoNoPrivado(email)) {
+      throw new Error("Use e-mail institucional ou um e-mail de teste explicitamente permitido.");
+    }
+    if (!nome || nome.length > CONFIG.LIMITES.TAMANHO_MAXIMO_NOME) throw new Error("Nome inválido.");
+    if (nivel !== 1 && nivel !== 2) throw new Error("Nível inválido. Use 1 ou 2.");
+    if (nivel === 1 && unidadeIds.length === 0) {
+      throw new Error("Gestor de Conteúdo deve possuir ao menos uma Unidade.");
     }
 
-    if (nome.length < 3) {
-      throw new Error("Informe um nome válido (mínimo de 3 caracteres).");
-    }
+    const sheet = DB.usuarios();
+    const mapa = DB.map(sheet);
+    if (DB.read(sheet).some(function(linha) {
+      return normalizarEmail(linha[mapa.EMAIL - 1]) === email;
+    })) throw new Error("Já existe um usuário com este e-mail.");
 
-    if (nome.length > CONFIG.LIMITES.TAMANHO_MAXIMO_NOME) {
-      throw new Error("Nome muito longo.");
-    }
-
-    const perfilBruto = String(valorObjeto(entrada, "perfil", "PERFIL") || "").trim().toUpperCase();
-    const perfil = perfilBruto || CONFIG.PERFIS.GESTOR_CONTEUDO;
-
-    const perfisValidos = [CONFIG.PERFIS.GESTOR_SISTEMA, CONFIG.PERFIS.GESTOR_CONTEUDO];
-
-    if (!perfisValidos.includes(perfil)) {
-      throw new Error("Perfil inválido. Use Gestor do Sistema ou Gestor de Conteúdo.");
-    }
-
-    const ativo = possuiCampo(entrada, "ativo", "ATIVO") ? paraBoolean(valorObjeto(entrada, "ativo", "ATIVO")) : true;
-
-    const comarcasBruto = valorObjeto(entrada, "comarcas", "COMARCAS");
-    const comarcasLista = parseComarcas(comarcasBruto);
-
-    if (perfil === CONFIG.PERFIS.GESTOR_CONTEUDO && comarcasLista.length > 0) {
-      if (comarcasLista.some(item => item.length > 150)) {
-        throw new Error("Nome de comarca muito longo.");
-      }
-    }
-
-    const comarcasSerial = perfil === CONFIG.PERFIS.GESTOR_SISTEMA ? "" : serializarComarcas(comarcasLista);
-
-    const senhaGerada = gerarSenha20();
-
-    let sheet = DB.usuarios();
-    let mapa = DB.map(sheet);
-    let idxEmail = mapa.EMAIL;
-    let idxNome = mapa.NOME;
-    let idxPerfil = mapa.PERFIL;
-    let idxNivel = mapa.NIVEL;
-    let idxId = mapa.ID;
-    let idxAtivo = mapa.ATIVO;
-    let idxComarcas = mapa.COMARCAS;
-    let idxSenha = mapa.SENHA;
-
-    if (idxSenha === undefined) {
-      try {
-        const ssTmp = DB.getSpreadsheet();
-        garantirColunaSenhaUsuarios(ssTmp, sheet);
-        mapa = DB.map(sheet);
-        idxSenha = mapa.SENHA;
-      } catch (eSenha) {}
-    }
-
-    if (!idxEmail || (!idxPerfil && !idxNivel) || !idxAtivo) {
-      throw new Error("Aba USUARIOS sem cabeçalhos esperados. Execute instalarSistema().");
-    }
-
-    const dadosSheet = sheet.getDataRange().getValues();
-
-    for (let i = 1; i < dadosSheet.length; i++) {
-      if (normalizarEmail(dadosSheet[i][idxEmail - 1]) === email) {
-        throw new Error("Já existe um usuário com este e-mail.");
-      }
-    }
-
-    let headers = DB.headers(sheet);
-
-    if (idxSenha === undefined) {
-      try {
-        const ssTmp2 = DB.getSpreadsheet();
-        garantirColunaSenhaUsuarios(ssTmp2, sheet);
-        mapa = DB.map(sheet);
-        headers = DB.headers(sheet);
-        idxSenha = mapa.SENHA;
-      } catch (eSenha2) {}
-    }
-
-    const novaLinha = new Array(headers.length).fill("");
-
-    if (idxId) novaLinha[idxId - 1] = gerarNovoIdUsuario(sheet);
-    if (idxEmail) novaLinha[idxEmail - 1] = email;
-    if (idxNome) novaLinha[idxNome - 1] = nome;
-    if (idxPerfil) novaLinha[idxPerfil - 1] = perfil;
-    if (idxNivel) novaLinha[idxNivel - 1] = nivelPorPerfil(perfil);
-    if (idxAtivo) novaLinha[idxAtivo - 1] = ativo ? "SIM" : "NÃO";
-    if (idxComarcas !== undefined) novaLinha[idxComarcas - 1] = comarcasSerial;
-    if (idxSenha !== undefined) novaLinha[idxSenha - 1] = senhaGerada;
-
-    sheet.appendRow(novaLinha);
+    const headers = DB.headers(sheet);
+    const id = Utilities.getUuid();
+    const nova = new Array(headers.length).fill("");
+    nova[mapa.ID - 1] = id;
+    nova[mapa.NOME - 1] = nome;
+    nova[mapa.EMAIL - 1] = email;
+    nova[mapa.NIVEL - 1] = nivel;
+    nova[mapa.ATIVO - 1] = ativo ? "SIM" : "NÃO";
+    sheet.appendRow(nova);
+    substituirAcessosUnidades(id, nivel === 1 && ativo ? unidadeIds : []);
     SpreadsheetApp.flush();
 
-    try{
-      criarNotificacao(email, "SENHA_GERADA", "Sua senha de acesso ao Sistema de Telefones foi gerada e enviada por e-mail. Guarde-a em local seguro.", email);
-    }catch(eNotifSenha){ try{ registrarErroAPI("NOTIFICAR_SENHA_GERADA", eNotifSenha); }catch(e){} }
-
-    // Envia senha ao novo usuário por e-mail (fila) — também visível ao Gestor na resposta
-    try{
-      var assuntoN = "PJES Telefones — sua senha de acesso (" + perfil + ")";
-      var corpoN =
-        "Olá " + (nome || email.split("@")[0]) + ",\n\n" +
-        "Seu acesso ao Sistema Inteligente de Gestão de Telefones do PJES foi criado.\n\n" +
-        "E-mail: " + email + "\n" +
-        "Perfil: " + perfil + "\n" +
-        (comarcasSerial ? "Comarcas: " + comarcasSerial + "\n" : "Comarcas: Todas\n") +
-        "Senha (20 caracteres): " + senhaGerada + "\n\n" +
-        "Anote sua senha de acesso. Também foi enviada ao e-mail institucional.\n" +
-        "Você já pode fazer login imediatamente.\n\n" +
-        "Atenciosamente,\nPJES — STI";
-      if (typeof adicionarEmailPendente==="function") adicionarEmailPendente(email, assuntoN, corpoN);
-      else if (typeof MailApp!=="undefined" && MailApp.sendEmail) MailApp.sendEmail({to: email, subject: assuntoN, body: corpoN});
-    }catch(eN){ try{ registrarErroAPI("EMAIL_SENHA_CRIAR_USUARIO", eN); }catch(e2){} }
-
-    registrarInfoAPI("CRIAR_USUARIO", email + " -> " + perfil + (ativo ? " (ativo)" : " (inativo)"));
-
     return respostaSucesso({
+      id: id,
       email: email,
       nome: nome,
-      perfil: perfil,
+      nivel: nivel,
+      perfil: CONFIG.NIVEIS.POR_NIVEL[String(nivel)],
       ativo: ativo,
-      comarcas: comarcasSerial,
-      senha: senhaGerada
+      unidadeIds: unidadeIds
     });
   } catch (erro) {
     registrarErroAPI("CRIAR_USUARIO", erro);
     return respostaErro(erro);
   } finally {
-    if (bloqueado) {
-      lock.releaseLock();
-    }
+    if (bloqueado) lock.releaseLock();
   }
 }
 
-/**
- * Exclui um usuário da aba USUARIOS (remoção física da linha).
- *
- * Somente GESTOR_SISTEMA. Proteções:
- * - não pode excluir a própria conta;
- * - não pode excluir o último gestor do sistema ativo.
- */
-function excluirUsuario(email, authDados) {
+function excluirUsuario(email) {
   const lock = LockService.getScriptLock();
   let bloqueado = false;
-
   try {
     lock.waitLock(30000);
     bloqueado = true;
-
-    const auth = new AuthService(authDados);
+    const auth = new AuthService();
     auth.exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
-
     const emailAlvo = normalizarEmail(email);
-
-    if (!emailAlvo) {
-      throw new Error("E-mail é obrigatório.");
-    }
-
-    const sessao = auth.usuarioAtual();
-
-    if (normalizarEmail(sessao.email) === emailAlvo) {
-      throw new Error("Você não pode remover a sua própria conta.");
+    if (auth.usuarioAtual().email === emailAlvo) {
+      throw new Error("Você não pode excluir a própria conta.");
     }
 
     const sheet = DB.usuarios();
     const mapa = DB.map(sheet);
-    const idxEmail = mapa.EMAIL;
-    const idxAtivo = mapa.ATIVO;
-
-    if (!idxEmail) {
-      throw new Error("Aba USUARIOS sem cabeçalho EMAIL.");
+    const dados = DB.read(sheet);
+    const indice = dados.findIndex(function(linha) {
+      return normalizarEmail(linha[mapa.EMAIL - 1]) === emailAlvo;
+    });
+    if (indice < 0) throw new Error("Usuário não encontrado.");
+    if (Number(dados[indice][mapa.NIVEL - 1]) === 2 &&
+        paraBoolean(dados[indice][mapa.ATIVO - 1]) &&
+        contarGestoresSistemaAtivos(emailAlvo) === 0) {
+      throw new Error("Não é possível excluir o último Gestor do Sistema ativo.");
     }
 
-    const dadosSheet = sheet.getDataRange().getValues();
-    let linhaEncontrada = -1;
-
-    for (let i = 1; i < dadosSheet.length; i++) {
-      if (normalizarEmail(dadosSheet[i][idxEmail - 1]) === emailAlvo) {
-        linhaEncontrada = i + 1;
-        break;
-      }
-    }
-
-    if (linhaEncontrada === -1) {
-      throw new Error("Usuário não encontrado na aba USUARIOS.");
-    }
-
-    const perfilAtual = perfilUsuarioPorLinha(mapa, dadosSheet[linhaEncontrada - 1]);
-    const ativoAtual = paraBoolean(dadosSheet[linhaEncontrada - 1][idxAtivo - 1]);
-
-    if (perfilAtual === CONFIG.PERFIS.GESTOR_SISTEMA && ativoAtual) {
-      let outrosGestores = 0;
-
-      for (let i = 1; i < dadosSheet.length; i++) {
-        if (i === linhaEncontrada - 1) continue;
-
-        const perfil = perfilUsuarioPorLinha(mapa, dadosSheet[i]);
-        const ativo = paraBoolean(dadosSheet[i][idxAtivo - 1]);
-
-        if (perfil === CONFIG.PERFIS.GESTOR_SISTEMA && ativo) {
-          outrosGestores++;
-        }
-      }
-
-      if (outrosGestores === 0) {
-        throw new Error("Não é possível remover o último gestor do sistema ativo.");
-      }
-    }
-
-    sheet.deleteRow(linhaEncontrada);
+    substituirAcessosUnidades(textoSeguro(dados[indice][mapa.ID - 1]), []);
+    sheet.deleteRow(indice + 2);
     SpreadsheetApp.flush();
-
-    registrarInfoAPI("EXCLUIR_USUARIO", emailAlvo);
-
     return respostaSucesso({ email: emailAlvo });
   } catch (erro) {
     registrarErroAPI("EXCLUIR_USUARIO", erro);
     return respostaErro(erro);
   } finally {
-    if (bloqueado) {
-      lock.releaseLock();
-    }
+    if (bloqueado) lock.releaseLock();
   }
 }
 
+function solicitarPermissaoComarca() {
+  return respostaErro(new Error(
+    "Solicitações por comarca foram descontinuadas. O escopo é administrado por Unidade."
+  ));
+}
+
+function cancelarSolicitacaoComarca() {
+  return respostaErro(new Error(
+    "Solicitações por comarca foram descontinuadas. O escopo é administrado por Unidade."
+  ));
+}

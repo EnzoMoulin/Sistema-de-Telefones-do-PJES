@@ -8,84 +8,8 @@
 /**
  * Instala as abas e os cabeçalhos do sistema.
  */
-function instalarSistema() {
-  const lock =
-    LockService.getScriptLock();
-
-  let bloqueado =
-    false;
-
-  try {
-    lock.waitLock(30000);
-
-    bloqueado =
-      true;
-
-    /*
-     * O DB utiliza a planilha ativa quando
-     * executado pelo editor e a vinculação salva
-     * quando executado pelo Web App.
-     */
-    const spreadsheet =
-      DB.getSpreadsheet();
-
-    criarAbaTelefones(
-      spreadsheet
-    );
-
-    // V4 — modelo definitivo MUNICIPIOS -> FORUM -> UNIDADES -> SETORES -> CONTATOS (mantém TELEFONES legado para compat)
-    criarAbaMunicipios(spreadsheet);
-    criarAbaForum(spreadsheet);
-    criarAbaUnidades(spreadsheet);
-    criarAbaSetores(spreadsheet);
-    criarAbaContatos(spreadsheet);
-    criarAbaTelefonesUteis(spreadsheet);
-    criarAbaAcessosUnidades(spreadsheet);
-
-    criarAbaUsuarios(
-      spreadsheet
-    );
-
-    criarAbaConfiguracao(
-      spreadsheet
-    );
-
-    criarAbaSolicitacoesAcesso(
-      spreadsheet
-    );
-
-    criarAbaHistorico(
-      spreadsheet
-    );
-
-    criarAbaLog(
-      spreadsheet
-    );
-
-    criarAbaEmailsPendentes(
-      spreadsheet
-    );
-
-    criarAbaNotificacoes(
-      spreadsheet
-    );
-
-    garantirGestorInicial(
-      spreadsheet
-    );
-
-    SpreadsheetApp.flush();
-
-    CACHE.limparTudo();
-
-    return (
-      "Sistema instalado com sucesso."
-    );
-  } finally {
-    if (bloqueado) {
-      lock.releaseLock();
-    }
-  }
+function instalarSistema(segredo) {
+  return instalarSistemaForum(segredo);
 }
 
 /**
@@ -96,7 +20,8 @@ function instalarSistema() {
  *
  * Planilha > Extensões > Apps Script
  */
-function registrarPlanilhaVinculada() {
+function registrarPlanilhaVinculada(segredo) {
+  exigirSegredoConfiguracao_(segredo);
   const spreadsheet =
     DB.registrarPlanilhaAtiva();
 
@@ -110,9 +35,20 @@ function registrarPlanilhaVinculada() {
 }
 
 /**
+ * Atalho privado para execução manual pelo editor do Apps Script.
+ * O sufixo "_" impede chamadas pelo google.script.run.
+ */
+function registrarPlanilhaVinculadaEditor_() {
+  const segredo = PropertiesService.getScriptProperties()
+    .getProperty(CONFIG.AUTH.PROPRIEDADE_SEGREDO_CONFIGURACAO) || "";
+  return registrarPlanilhaVinculada(segredo);
+}
+
+/**
  * Testa a planilha vinculada e lista suas abas.
  */
 function testarPlanilhaVinculada() {
+  new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
   const spreadsheet =
     DB.getSpreadsheet();
 
@@ -185,209 +121,21 @@ function garantirAbaComCabecalho(
   } catch(e) {}
   return sheet;
 }
-
-/**
- * Cria a aba TELEFONES.
- */
-function criarAbaTelefones(spreadsheet) {
-  return garantirAbaComCabecalho(
-    spreadsheet,
-    CONFIG.SHEETS.TELEFONES,
-    [
-      "ID",
-      "MICRORREGIAO",
-      "COMARCA",
-      "SETOR",
-      "TIPO",
-      "TELEFONE",
-      "RAMAL",
-      "WHATSAPP",
-      "E-MAIL",
-      "ENDERECO",
-      "STATUS",
-      "OBSERVACAO",
-      "DATA_CRIACAO",
-      "DATA_ATUALIZACAO"
-    ]
-  );
-}
-
-/**
- * Cria a aba USUARIOS.
- */
 function criarAbaUsuarios(
   spreadsheet
 ) {
-  // v3.34 — detecta modelo: se já existe MUNICIPIOS/CONTATOS, usa NIVEL schema; senão legado PERFIL
-  const temNormalizado = !!(spreadsheet.getSheetByName(CONFIG.SHEETS.MUNICIPIOS) && spreadsheet.getSheetByName(CONFIG.SHEETS.CONTATOS));
-  const cabecalho = temNormalizado
-    ? ["ID","NOME","EMAIL","NIVEL","SENHA","ATIVO"]
-    : [
-        "EMAIL",
-        "NOME",
-        "PERFIL",
-        "ATIVO",
-        "COMARCAS",
-        "SENHA"
-      ];
-  const sheet =
-    garantirAbaComCabecalho(
-      spreadsheet,
-      CONFIG.SHEETS.USUARIOS,
-      cabecalho
-    );
-
-  if (!temNormalizado) {
-    garantirColunaComarcasUsuarios(
-      spreadsheet,
-      sheet
-    );
-
-    garantirColunaSenhaUsuarios(
-      spreadsheet,
-      sheet
-    );
-  } else {
-    // V4 — normalizado: garante ID/NIVEL/SENHA se faltarem.
-    garantirColunaIdNivelUsuarios(spreadsheet, sheet);
-    garantirColunaSenhaUsuarios(spreadsheet, sheet);
-  }
-
-  return sheet;
-}
-
-/**
- * Migração: garante a coluna COMARCAS na aba USUARIOS
- * de instalações antigas (limitadores de comarca para
- * gestores de conteúdo).
- */
-function garantirColunaIdNivelUsuarios(spreadsheet, sheet){
-  var headers = DB.headers(sheet);
-  var temId = headers.some(function(h){ return normalizarChave(h)==="ID"; });
-  var temNivel = headers.some(function(h){ return normalizarChave(h)==="NIVEL"; });
-  if(!temId){
-    var ultima = sheet.getLastColumn();
-    sheet.insertColumns(1,1);
-    sheet.getRange(1,1).setValue("ID");
-    headers = DB.headers(sheet);
-  }
-  headers = DB.headers(sheet);
-  temNivel = headers.some(function(h){ return normalizarChave(h)==="NIVEL"; });
-  if(!temNivel){
-    var ultima2 = sheet.getLastColumn();
-    sheet.insertColumns(Math.max(ultima2,1)+1,1);
-    sheet.getRange(1, Math.max(ultima2,1)+1).setValue("NIVEL");
-  }
-  return sheet;
-}
-
-function garantirColunaComarcasUsuarios(
-  spreadsheet,
-  sheet
-) {
-  const headers = DB.headers(sheet);
-
-  const temComarcas =
-    headers.some(header =>
-      normalizarChave(header) === "COMARCAS"
-    );
-
-  if (temComarcas) {
-    return sheet;
-  }
-
-  const ultimaColuna = sheet.getLastColumn();
-
-  sheet.insertColumns(
-    Math.max(ultimaColuna, 1) + 1,
-    1
+  return garantirAbaComCabecalho(
+    spreadsheet,
+    CONFIG.SHEETS.USUARIOS,
+    ["ID", "NOME", "EMAIL", "NIVEL", "ATIVO"]
   );
-
-  sheet
-    .getRange(1, Math.max(ultimaColuna, 1) + 1)
-    .setValue("COMARCAS");
-
-  return sheet;
-}
-
-function garantirColunaSenhaUsuarios(spreadsheet, sheet){
-  var headers = DB.headers(sheet);
-  var tem = headers.some(function(h){ return normalizarChave(h)==="SENHA"; });
-  if(tem) return sheet;
-  var ultima = sheet.getLastColumn();
-  sheet.insertColumns(Math.max(ultima,1)+1, 1);
-  sheet.getRange(1, Math.max(ultima,1)+1).setValue("SENHA");
-  return sheet;
-}
-
-function gerarNovoIdUsuario(sheet) {
-  const mapa = DB.map(sheet);
-  const idxId = mapa.ID;
-  let maior = 0;
-
-  if (idxId !== undefined) {
-    DB.read(sheet).forEach(function(linha) {
-      const encontrado = textoSeguro(linha[idxId - 1]).match(/^USR(\d+)$/i);
-      if (encontrado) maior = Math.max(maior, Number(encontrado[1]) || 0);
-    });
-  }
-
-  return "USR" + String(maior + 1).padStart(4, "0");
-}
-
-/**
- * Migração única para instalações que já possuíam gestores antes da coluna SENHA.
- * Gera senha somente para usuários administrativos ativos que ainda estão sem senha
- * e coloca a mensagem na fila EMAILS_PENDENTES, sem expor senhas em logs/retorno.
- */
-function migrarAutenticacaoUsuarios() {
-  new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
-
-  const spreadsheet = DB.getSpreadsheet();
-  const sheet = DB.usuarios();
-  garantirColunaSenhaUsuarios(spreadsheet, sheet);
-
-  const mapa = DB.map(sheet);
-  const dados = sheet.getDataRange().getValues();
-  let geradas = 0;
-
-  if (
-    mapa.EMAIL === undefined ||
-    mapa.ATIVO === undefined ||
-    mapa.SENHA === undefined ||
-    (mapa.NIVEL === undefined && mapa.PERFIL === undefined)
-  ) {
-    throw new Error("A aba USUARIOS não possui os cabeçalhos esperados.");
-  }
-
-  for (let i = 1; i < dados.length; i++) {
-    const perfil = perfilUsuarioPorLinha(mapa, dados[i]);
-    const administrativo = perfil === CONFIG.PERFIS.GESTOR_SISTEMA || perfil === CONFIG.PERFIS.GESTOR_CONTEUDO;
-    const ativo = paraBoolean(dados[i][mapa.ATIVO - 1]);
-    const senhaAtual = textoSeguro(dados[i][mapa.SENHA - 1]);
-    const email = normalizarEmail(dados[i][mapa.EMAIL - 1]);
-
-    if (!administrativo || !ativo || senhaAtual || !emailValidoAPI(email) || !emailInstitucional(email)) continue;
-
-    const senha = gerarSenha20();
-    sheet.getRange(i + 1, mapa.SENHA).setValue(senha);
-    adicionarEmailPendente(
-      email,
-      "Sua senha de acesso — Sistema de Telefones PJES",
-      "Sua senha para Acesso Administrativo foi criada.\n\nSenha (20 caracteres): " + senha + "\n\nUse seu e-mail institucional e esta senha na tela de Login."
-    );
-    geradas++;
-  }
-
-  SpreadsheetApp.flush();
-  return "Migração concluída. Senhas geradas: " + geradas + ".";
 }
 
 /**
  * Cria a aba de solicitações de acesso.
  *
- * Usa o nome canônico ("Solicitações de Acesso do sistema");
- * se a aba legada "SOLICITACOES_ACESSO" existir, ela é
+ * Usa o nome canônico "SOLICITACOES_ACESSO"; se a aba
+ * descritiva antiga existir, ela é
  * reaproveitada em vez de criar uma duplicata.
  */
 function criarAbaSolicitacoesAcesso(
@@ -414,6 +162,7 @@ function criarAbaSolicitacoesAcesso(
         "ID",
         "EMAIL",
         "NOME",
+        "COMARCA",
         "NIVEL_SOLICITADO",
         "UNIDADE_ID",
         "JUSTIFICATIVA",
@@ -425,19 +174,11 @@ function criarAbaSolicitacoesAcesso(
     );
   }
 
-  garantirColunaUnidadeSolicitacao(sheet);
+  garantirColunaComarca(
+    spreadsheet,
+    sheet
+  );
 
-  return sheet;
-}
-
-/** Garante onde os IDs múltiplos ficam armazenados até a aprovação. */
-function garantirColunaUnidadeSolicitacao(sheet) {
-  const headers = DB.headers(sheet);
-  const existe = headers.some(function(header) {
-    const chave = normalizarChave(header);
-    return chave === "UNIDADEID" || chave === "UNIDADESIDS" || chave === "UNIDADEIDS";
-  });
-  if (!existe) sheet.getRange(1, sheet.getLastColumn() + 1).setValue("UNIDADE_ID");
   return sheet;
 }
 
@@ -482,9 +223,10 @@ function garantirColunaComarca(
 
 /**
  * Executa apenas a migração da aba SOLICITACOES_ACESSO
- * (adiciona a coluna UNIDADE_ID em instalações antigas).
+ * (adiciona a coluna COMARCA em instalações antigas).
  */
 function atualizarAbaSolicitacoesAcesso() {
+  new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
   const spreadsheet = DB.getSpreadsheet();
 
   const sheet =
@@ -498,11 +240,14 @@ function atualizarAbaSolicitacoesAcesso() {
     );
   }
 
-  garantirColunaUnidadeSolicitacao(sheet);
+  garantirColunaComarca(
+    spreadsheet,
+    sheet
+  );
 
   SpreadsheetApp.flush();
 
-  return "Coluna UNIDADE_ID garantida na aba SOLICITACOES_ACESSO.";
+  return "Coluna COMARCA garantida na aba SOLICITACOES_ACESSO.";
 }
 
 /**
@@ -651,109 +396,30 @@ function criarAbaAcessosUnidades(spreadsheet) {
 function garantirGestorInicial(
   spreadsheet
 ) {
-  const sheet =
-    spreadsheet.getSheetByName(
-      CONFIG.SHEETS.USUARIOS
-    );
-
-  if (!sheet) {
-    return;
-  }
-
-  const dados = sheet.getDataRange().getValues();
+  const sheet = spreadsheet.getSheetByName(CONFIG.SHEETS.USUARIOS);
+  if (!sheet) return;
   const mapa = DB.map(sheet);
-  const idxEmail = mapa.EMAIL;
-  const idxAtivo = mapa.ATIVO;
+  const existe = DB.read(sheet).some(function(linha) {
+    return Number(linha[mapa.NIVEL - 1]) === CONFIG.NIVEIS.GESTOR_SISTEMA &&
+      paraBoolean(linha[mapa.ATIVO - 1]);
+  });
+  if (existe) return;
 
-  let gestorExistente =
-    false;
-
-  let primeiroGestorEmail =
-    "";
-
-  for (
-    let i = 1;
-    i < dados.length;
-    i++
-  ) {
-    const perfil = perfilUsuarioPorLinha(mapa, dados[i]);
-
-    const ativo =
-      paraBoolean(
-        idxAtivo !== undefined ? dados[i][idxAtivo - 1] : dados[i][3]
-      );
-
-    const email =
-      normalizarEmail(
-        idxEmail !== undefined ? dados[i][idxEmail - 1] : dados[i][0]
-      );
-
-    if (
-      perfil ===
-        CONFIG.PERFIS.GESTOR_SISTEMA &&
-      ativo
-    ) {
-      gestorExistente =
-        true;
-
-      if (
-        !primeiroGestorEmail
-      ) {
-        primeiroGestorEmail =
-          email;
-      }
-    }
-  }
-
-  const emailAtual =
-    normalizarEmail(
-      AuthService.obterEmailAtivo()
-    );
-
-  if (
-    !gestorExistente &&
-    emailInstitucional(
-      emailAtual
-    )
-  ) {
-    const linhaGestor = new Array(DB.headers(sheet).length).fill("");
-    const senhaInicial = gerarSenha20();
-    if (mapa.ID !== undefined) linhaGestor[mapa.ID - 1] = gerarNovoIdUsuario(sheet);
-    if (mapa.NOME !== undefined) linhaGestor[mapa.NOME - 1] = emailAtual.split("@")[0];
-    if (mapa.EMAIL !== undefined) linhaGestor[mapa.EMAIL - 1] = emailAtual;
-    if (mapa.NIVEL !== undefined) linhaGestor[mapa.NIVEL - 1] = CONFIG.NIVEIS.NIVEL_3;
-    if (mapa.PERFIL !== undefined) linhaGestor[mapa.PERFIL - 1] = CONFIG.PERFIS.GESTOR_SISTEMA;
-    if (mapa.SENHA !== undefined) linhaGestor[mapa.SENHA - 1] = senhaInicial;
-    if (mapa.ATIVO !== undefined) linhaGestor[mapa.ATIVO - 1] = true;
-    sheet.appendRow(linhaGestor);
-
-    try {
-      adicionarEmailPendente(
-        emailAtual,
-        "Sua senha de acesso — Sistema de Telefones PJES",
-        "Seu acesso inicial como Gestor do Sistema foi criado.\n\nSenha (20 caracteres): " + senhaInicial + "\n\nUse seu e-mail institucional e esta senha em Acesso Administrativo."
-      );
-    } catch (erroEmailInicial) {}
-
-    primeiroGestorEmail =
-      emailAtual;
-  }
-
-  const config =
-    spreadsheet.getSheetByName(
-      CONFIG.SHEETS.CONFIGURACAO
-    );
-
-  if (
-    config &&
-    primeiroGestorEmail
-  ) {
-    garantirConfiguracao(
-      config,
-      "EMAIL_GESTOR",
-      primeiroGestorEmail
+  const emailAtual = AuthService.obterEmailAtivo();
+  if (!AuthService.emailPermitidoNoPrivado(emailAtual)) {
+    throw new Error(
+      "Nenhum Gestor do Sistema ativo. Configure APP_MODE=PRIVATE e execute a instalação com uma conta institucional ou de teste permitida."
     );
   }
+
+  const headers = DB.headers(sheet);
+  const linha = new Array(headers.length).fill("");
+  linha[mapa.ID - 1] = Utilities.getUuid();
+  linha[mapa.NOME - 1] = emailAtual.split("@")[0];
+  linha[mapa.EMAIL - 1] = emailAtual;
+  linha[mapa.NIVEL - 1] = CONFIG.NIVEIS.GESTOR_SISTEMA;
+  linha[mapa.ATIVO - 1] = "SIM";
+  sheet.appendRow(linha);
 }
 
 /**
@@ -796,27 +462,6 @@ function criarAbaLog(
     ]
   );
 }
-
-/**
- * Cria a aba EMAILS_PENDENTES.
- */
-function criarAbaEmailsPendentes(
-  spreadsheet
-) {
-  return garantirAbaComCabecalho(
-    spreadsheet,
-    CONFIG.SHEETS.EMAILS_PENDENTES,
-    [
-      "DESTINATARIO",
-      "ASSUNTO",
-      "CORPO"
-    ]
-  );
-}
-
-/**
- * Cria a aba NOTIFICACOES.
- */
 function criarAbaNotificacoes(spreadsheet) {
   return garantirAbaComCabecalho(
     spreadsheet,
@@ -837,45 +482,9 @@ function criarAbaNotificacoes(spreadsheet) {
  * Executa manualmente para solicitar autorizações.
  */
 function autorizar() {
-  const spreadsheet =
-    DB.getSpreadsheet();
-
-  /*
-   * Solicita acesso à planilha vinculada.
-   */
-  spreadsheet.getSheets();
-
-  /*
-   * Solicita acesso ao envio de e-mails.
-   */
-  MailApp.getRemainingDailyQuota();
-
-  /*
-   * Solicita acesso ao cache do usuário.
-   */
-  CacheService
-    .getUserCache()
-    .get("teste");
-
-  /*
-   * Solicita acesso à sessão do usuário.
-   */
-  Session
-    .getActiveUser()
-    .getEmail();
-
-  /*
-   * Solicita acesso ao HTML Service.
-   */
-  HtmlService
-    .createHtmlOutput("teste");
-
-  /*
-   * Solicita acesso à URL do Web App.
-   */
-  ScriptApp
-    .getService()
-    .getUrl();
+  DB.getSpreadsheet().getSheets();
+  AuthService.obterEmailAtivo();
+  ScriptApp.getService().getUrl();
 
   Logger.log(
     "Autorização concluída."
@@ -890,6 +499,7 @@ function autorizar() {
  * Limpa o cache do sistema.
  */
 function limparCacheAgora() {
+  new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
   CACHE.limparTudo();
 
   return "Cache limpo.";

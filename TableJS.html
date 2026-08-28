@@ -57,8 +57,8 @@ function normalizarChaveTabela(valor) {
  * Comarcas em que o usuário logado pode editar telefones.
  *
  * - GESTOR_SISTEMA: todas (null).
- * - GESTOR_CONTEUDO: somente as da coluna COMARCAS
- *   (lista vazia = todas, retorna null).
+ * - GESTOR_CONTEUDO: municípios derivados das Unidades vinculadas.
+ *   Lista vazia significa nenhum escopo e retorna [].
  * - Demais perfis: nenhuma ([]).
  */
 function comarcasPermitidasDoUsuario() {
@@ -84,10 +84,6 @@ function comarcasPermitidasDoUsuario() {
     Array.isArray(usuarioAtual.comarcas)
       ? usuarioAtual.comarcas
       : [];
-
-  if (comarcas.length === 0) {
-    return null;
-  }
 
   return comarcas.map(item =>
     normalizarChaveTabela(item)

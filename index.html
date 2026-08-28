@@ -25,7 +25,6 @@ Arquivo: index.html
 
   <body>
     <script>
-      var MOSTRAR_MODAL_ACESSO = <?= mostrarModalAcesso ? true : false ?>;
       var URL_SISTEMA = <?!= JSON.stringify(urlSistema || "") ?>;
       var SISTEMA_NOME = <?!= JSON.stringify(sistemaNome || "") ?>;
       var SISTEMA_VERSAO = <?!= JSON.stringify(sistemaVersao || "") ?>;
@@ -34,6 +33,7 @@ Arquivo: index.html
       var DOMINIO_INSTITUCIONAL = <?!= JSON.stringify(dominioInstitucional || "") ?>;
       var URL_ADMIN = <?!= JSON.stringify(urlAdmin || "") ?>;
       var EH_CONTEXTO_ADMIN = <?= ehContextoAdmin ? true : false ?>;
+      var MODO_APLICACAO = <?!= JSON.stringify(modoAplicacao || "PUBLIC") ?>;
 
       window.URL_SISTEMA = URL_SISTEMA;
       window.SISTEMA_NOME = SISTEMA_NOME;
@@ -43,6 +43,7 @@ Arquivo: index.html
       window.DOMINIO_INSTITUCIONAL = DOMINIO_INSTITUCIONAL;
       window.URL_ADMIN = URL_ADMIN;
       window.EH_CONTEXTO_ADMIN = EH_CONTEXTO_ADMIN;
+      window.MODO_APLICACAO = MODO_APLICACAO;
     </script>
 
     <div id="app"><?!= include("Layout"); ?></div>
