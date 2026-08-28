@@ -23,12 +23,12 @@ Arquivo: Sidebar.html
         <span>Contatos</span>
       </button>
 
-      <button type="button" id="menu-login" class="menu-item" onclick="mostrarView('login-view')">
+      <button type="button" id="menu-login" class="menu-item hidden" onclick="mostrarView('login-view')">
         <span class="icon">🔐</span>
         <span>Login</span>
       </button>
 
-      <button type="button" id="menu-formulario" class="menu-item" onclick="mostrarView('formulario-acesso-view')">
+      <button type="button" id="menu-formulario" class="menu-item hidden" onclick="mostrarView('formulario-acesso-view')">
         <span class="icon">📝</span>
         <span>Formulário de Acesso</span>
       </button>
@@ -64,7 +64,7 @@ Arquivo: Sidebar.html
   </div>
 
   <div class="sidebar-footer">
-    <button type="button" id="btn-status-acesso" onclick="mostrarView('login-view')"
+    <button type="button" id="btn-status-acesso" class="hidden" onclick="entrarAreaAdministrativa()"
       style="
         width: 100%;
         padding: 10px 12px;
@@ -92,7 +92,7 @@ Arquivo: Sidebar.html
     </div>
 
     <div id="sidebar-version" style="margin-top: 4px; font-size: 10px; color: #cbd5e1; text-align: center;">
-      v<span id="sidebar-version-num">4.4</span>
+      v<span id="sidebar-version-num">4.2</span>
     </div>
   </div>
 </div>
@@ -104,7 +104,7 @@ function atualizarVersaoSidebar() {
 
   var versao =
     (typeof window.SISTEMA_VERSAO !== "undefined" && window.SISTEMA_VERSAO) ||
-    "4.4";
+    "4.2";
 
   elemento.textContent = String(versao);
 }

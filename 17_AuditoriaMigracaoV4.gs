@@ -81,6 +81,7 @@ function audV4Ids(sheet) {
 }
 
 function auditarContatosV4() {
+  new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
   const ss = DB.getSpreadsheet();
 
   const shMun = ss.getSheetByName("MUNICIPIOS");

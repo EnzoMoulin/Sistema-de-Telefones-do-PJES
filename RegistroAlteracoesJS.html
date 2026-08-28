@@ -19,11 +19,6 @@ function carregarRegistroAlteracoes() {
       '<p style="text-align:center;">Carregando histórico...</p>' +
     '</div>';
 
-  let authDadosHist = null;
-  try {
-    if (typeof obterAutenticacaoAPI === "function") authDadosHist = obterAutenticacaoAPI();
-  } catch (eHist) {}
-
   const runner = google.script.run
     .withSuccessHandler(res => {
       if (res?.sucesso) {
@@ -32,16 +27,14 @@ function carregarRegistroAlteracoes() {
         const msgRawHist = String(res?.erro || "");
         const msgLowerHist = msgRawHist.toLowerCase();
         const ehLoginHist = msgLowerHist.indexOf("fa\u00e7a login") !== -1 || msgLowerHist.indexOf("acesso administrativo") !== -1 || msgLowerHist.indexOf("precisa estar autenticado") !== -1;
-        // v3.32: GC sem histórico nas suas comarcas não deve ver erro de login, mas mensagem de vazio
+        // Gestor de Conteúdo sem histórico nas suas Unidades vê estado vazio.
         const ehGC = (typeof usuarioAtual !== "undefined" && usuarioAtual && String(usuarioAtual.perfil || "").toUpperCase() === "GESTOR_CONTEUDO");
         if (ehLoginHist && ehGC) {
           renderizarHistoricoGeral([]);
           return;
         }
         if (ehLoginHist) {
-          // GC via senha ainda não refletiu em google session: tenta tratar como vazio
-          const temAuthHist = !!(authDadosHist && authDadosHist.token);
-          if (temAuthHist) { renderizarHistoricoGeral([]); return; }
+          renderizarHistoricoGeral([]); return;
         }
         container.innerHTML =
           '<div class="panel">' +
@@ -66,11 +59,7 @@ function carregarRegistroAlteracoes() {
           '</p>' +
         '</div>';
     });
-  if (authDadosHist && authDadosHist.token) {
-    runner.listarHistoricoGeral(authDadosHist);
-  } else {
-    runner.listarHistoricoGeral();
-  }
+  runner.listarHistoricoGeral();
 }
 
 function interpretarHistorico(valor) {

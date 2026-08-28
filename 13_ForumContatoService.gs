@@ -383,6 +383,11 @@ function pesquisarHierarquiaContatos(termo) {
 }
 
 function validarModeloForumContatos() {
+  new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
+  return validarModeloForumContatosInterno_();
+}
+
+function validarModeloForumContatosInterno_() {
   const ss = DB.getSpreadsheet();
   const obrigatorias = [
     CONFIG.SHEETS.MUNICIPIOS,

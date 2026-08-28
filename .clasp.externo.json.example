@@ -1,0 +1,9 @@
+{
+  "scriptId": "SCRIPT_ID_DO_PROJETO_EXTERNO",
+  "rootDir": "",
+  "scriptExtensions": [".js", ".gs"],
+  "htmlExtensions": [".html"],
+  "jsonExtensions": [".json"],
+  "filePushOrder": [],
+  "skipSubdirectories": false
+}

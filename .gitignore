@@ -1,5 +1,10 @@
 # Credenciais locais do Google Clasp
 .clasprc.json
+.clasp.json
+.clasp.externo.json
+.clasp.interno.json
+!.clasp.externo.json.example
+!.clasp.interno.json.example
 
 # Dependências Node.js
 node_modules/
