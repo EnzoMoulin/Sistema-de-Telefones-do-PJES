@@ -593,8 +593,9 @@ function listarUnidadesParaAcesso() {
       throw new Error("Não foi possível identificar uma conta autorizada nesta URL privada.");
     }
 
-    const shUnidades = DB.unidades();
+    const shUnidades = DB.unidadesOrganizacionais();
     const mapaU = DB.map(shUnidades);
+    const nos = _fcIndiceOrganizacional();
     const shForum = DB.forum();
     const mapaF = DB.map(shForum);
     const shMunicipios = DB.municipios();
@@ -612,19 +613,28 @@ function listarUnidadesParaAcesso() {
     });
 
     const unidades = DB.read(shUnidades)
-      .filter(function(linha) { return !mapaU.ATIVO || paraBoolean(linha[mapaU.ATIVO - 1]); })
+      .filter(function(linha) {
+        return (!mapaU.ATIVO || paraBoolean(linha[mapaU.ATIVO - 1])) &&
+          (!mapaU.SELECIONAVEL_ACESSO || paraBoolean(linha[mapaU.SELECIONAVEL_ACESSO - 1]));
+      })
       .map(function(linha) {
+        const id = textoSeguro(linha[mapaU.ID - 1]);
         const forumId = mapaU.FORUM_ID ? textoSeguro(linha[mapaU.FORUM_ID - 1]) : "";
         const forum = foruns[forumId] || {};
+        const caminho = id && nos[id] ? _fcResolverAncestros(nos, id) : [];
+        if (caminho.some(function(no) { return !no.ativo; })) return null;
         return {
-          id: textoSeguro(linha[mapaU.ID - 1]),
+          id: id,
           nome: textoSeguro(linha[mapaU.NOME - 1]),
+          tipo: mapaU.TIPO ? textoSeguro(linha[mapaU.TIPO - 1]) : "UNIDADE",
+          caminho: caminho.map(function(no) { return no.nome; }),
+          caminhoTexto: caminho.map(function(no) { return no.nome; }).join(" › "),
           forumId: forumId,
           forum: forum.nome || "",
           municipio: municipios[forum.municipioId] || ""
         };
       })
-      .filter(function(item) { return item.id && item.nome; })
+      .filter(function(item) { return item && item.id && item.nome; })
       .sort(function(a, b) {
         return [a.municipio, a.forum, a.nome].join("|").localeCompare(
           [b.municipio, b.forum, b.nome].join("|"), "pt-BR"
@@ -644,11 +654,14 @@ function listarSolicitacoes() {
     const dados = sheet.getDataRange().getValues();
     if (dados.length <= 1) return respostaSucesso([]);
     const indices = indicesSolicitacao(dados[0]);
-    const sheetUnidades = DB.unidades();
+    const sheetUnidades = DB.unidadesOrganizacionais();
     const mapaUnidades = DB.map(sheetUnidades);
+    const nos = _fcIndiceOrganizacional();
     const nomesUnidades = {};
     DB.read(sheetUnidades).forEach(function(linha) {
-      nomesUnidades[textoSeguro(linha[mapaUnidades.ID - 1])] =
+      const id = textoSeguro(linha[mapaUnidades.ID - 1]);
+      const caminho = id && nos[id] ? _fcResolverAncestros(nos, id) : [];
+      nomesUnidades[id] = caminho.map(function(no) { return no.nome; }).join(" › ") ||
         textoSeguro(linha[mapaUnidades.NOME - 1]);
     });
     const resultado = dados.slice(1)
@@ -739,17 +752,7 @@ function enviarFormularioAcesso(dados) {
       throw new Error("A justificativa é muito longa.");
     }
 
-    const unidadesValidas = new Set();
-    const shUnidades = DB.unidades();
-    const mapaU = DB.map(shUnidades);
-    DB.read(shUnidades).forEach(function(linha) {
-      if (!mapaU.ATIVO || paraBoolean(linha[mapaU.ATIVO - 1])) {
-        unidadesValidas.add(textoSeguro(linha[mapaU.ID - 1]));
-      }
-    });
-    if (unidadeIds.some(function(id) { return !unidadesValidas.has(id); })) {
-      throw new Error("Uma ou mais Unidades selecionadas são inválidas ou inativas.");
-    }
+    validarIdsUnidadesAdministrativas(unidadeIds);
 
     const sheet = DB.solicitacoesAcesso();
     const dadosSheet = sheet.getDataRange().getValues();
@@ -2123,10 +2126,13 @@ function listarUsuarios() {
 
 function validarIdsUnidadesAdministrativas(unidadeIds) {
   const ids = idsUnidadesSolicitadas(unidadeIds);
-  const sheet = DB.unidades();
+  const sheet = DB.unidadesOrganizacionais();
   const mapa = DB.map(sheet);
   const validas = new Set(DB.read(sheet)
-    .filter(function(linha) { return !mapa.ATIVO || paraBoolean(linha[mapa.ATIVO - 1]); })
+    .filter(function(linha) {
+      return (!mapa.ATIVO || paraBoolean(linha[mapa.ATIVO - 1])) &&
+        (!mapa.SELECIONAVEL_ACESSO || paraBoolean(linha[mapa.SELECIONAVEL_ACESSO - 1]));
+    })
     .map(function(linha) { return textoSeguro(linha[mapa.ID - 1]); }));
   if (ids.some(function(id) { return !validas.has(id); })) {
     throw new Error("Uma ou mais Unidades são inválidas ou inativas.");

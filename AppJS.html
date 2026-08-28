@@ -243,7 +243,7 @@ function atualizarInterfaceUsuario() {
         unidadesUsuario.forEach(function(unidade){
           var chip = document.createElement("span");
           chip.className = "config-comarca-chip";
-          chip.textContent = String(unidade.nome || unidade.id || "");
+          chip.textContent = [unidade.municipio, unidade.forum, unidade.caminhoTexto || unidade.nome || unidade.id].filter(Boolean).join(" › ");
           comarcasList.appendChild(chip);
         });
         comarcasWrap.classList.remove("hidden");
@@ -436,7 +436,7 @@ function atualizarInterfaceUsuario() {
 
     if (subtitulo && escopoInfo) {
       if (logado && perfil === "GESTOR_CONTEUDO" && Array.isArray(usuario.unidades) && usuario.unidades.length > 0) {
-        subtitulo.textContent = "Gerenciamento de contatos — Unidades vinculadas: " + usuario.unidades.map(function(unidade){ return unidade.nome || unidade.id; }).join(", ");
+        subtitulo.textContent = "Gerenciamento de contatos — Unidades vinculadas: " + usuario.unidades.map(function(unidade){ return unidade.caminhoTexto || unidade.nome || unidade.id; }).join(", ");
         escopoInfo.textContent = "Você só pode adicionar, editar ou excluir contatos vinculados a essas Unidades.";
         escopoInfo.style.display = "block";
       } else if (logado && perfil === "GESTOR_CONTEUDO") {

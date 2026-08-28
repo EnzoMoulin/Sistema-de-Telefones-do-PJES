@@ -1,8 +1,5 @@
 <script>
-/**
- * Navegação pública V4 — MUNICÍPIO -> FÓRUM -> UNIDADE -> SETOR -> CONTATO.
- * Esta camada substitui a navegação flat sem apagar os arquivos legados.
- */
+/** Navegação V5 — MUNICÍPIO -> FÓRUM -> árvore organizacional -> CONTATO. */
 (function () {
   "use strict";
 
@@ -10,8 +7,7 @@
     dados: null,
     municipio: null,
     forum: null,
-    unidade: null,
-    setor: null,
+    no: null,
     mapa: null,
     geojson: null,
     resizeObserver: null,
@@ -19,319 +15,71 @@
   };
 
   function esc(v) {
-    return String(v == null ? "" : v)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+    return String(v == null ? "" : v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
   }
 
-  function fmtTipo(tipo) {
-    var t = String(tipo || "").trim().toUpperCase();
-    if (t === "E_MAIL" || t === "EMAIL" || t === "E-MAIL") return "E-mail";
-    if (t === "WHATSAPP") return "WhatsApp";
-    if (t === "RAMAL") return "Ramal";
-    if (t === "FAX") return "Fax";
-    return tipo || "Contato";
+  function fmtTipoContato(tipo) {
+    var t=String(tipo||"").trim().toUpperCase();
+    if(t==="E_MAIL"||t==="EMAIL"||t==="E-MAIL")return "E-mail";
+    if(t==="WHATSAPP")return "WhatsApp";
+    if(t==="RAMAL")return "Ramal";
+    if(t==="FAX")return "Fax";
+    return tipo||"Contato";
   }
 
-  function fmtValor(tipo, valor) {
-    var t = String(tipo || "").toUpperCase();
-    var s = String(valor || "").trim();
-    if (!s) return "";
-    var nums = s.replace(/\D/g, "");
-    if ((t.indexOf("TELEFONE") >= 0 || t.indexOf("WHATSAPP") >= 0 || t === "CELULAR") && nums.indexOf("27") === 0) {
-      if (nums.length === 10) return "(" + nums.slice(0,2) + ") " + nums.slice(2,6) + "-" + nums.slice(6);
-      if (nums.length === 11) return "(" + nums.slice(0,2) + ") " + nums.slice(2,7) + "-" + nums.slice(7);
-    }
-    return s;
+  function fmtTipoNo(tipo) {
+    var mapa={UNIDADE:"Unidade",SECRETARIA:"Secretaria",VARA:"Vara",JUIZADO:"Juizado",SETOR:"Setor",GABINETE:"Gabinete",ASSESSORIA:"Assessoria",SALAAUDIENCIA:"Sala de audiência",GENERICO:"Unidade organizacional"};
+    return mapa[String(tipo||"").replace(/[^A-Za-z0-9]/g,"").toUpperCase()]||String(tipo||"Unidade organizacional");
   }
 
-  function hrefContato(tipo, valor) {
-    var t = String(tipo || "").toUpperCase();
-    var s = String(valor || "").trim();
-    if (!s) return "";
-    var n = s.replace(/\D/g, "");
-    if (t === "WHATSAPP" && n) return "https://wa.me/" + (n.indexOf("55") === 0 ? n : "55" + n);
-    if ((t === "TELEFONE" || t === "CELULAR") && n) {
-      var local = n.indexOf("55") === 0 ? n.slice(2) : n;
-      return "tel:+55" + local;
-    }
-    if (t === "E-MAIL" || t === "EMAIL" || t === "E_MAIL") return "mailto:" + encodeURIComponent(s);
-    return "";
+  function fmtValor(tipo,valor){var t=String(tipo||"").toUpperCase(),s=String(valor||"").trim(),n=s.replace(/\D/g,"");if(!s)return"";if((t.indexOf("TELEFONE")>=0||t.indexOf("WHATSAPP")>=0||t==="CELULAR")&&n.indexOf("27")===0){if(n.length===10)return"("+n.slice(0,2)+") "+n.slice(2,6)+"-"+n.slice(6);if(n.length===11)return"("+n.slice(0,2)+") "+n.slice(2,7)+"-"+n.slice(7);}return s;}
+  function hrefContato(tipo,valor){var t=String(tipo||"").toUpperCase(),s=String(valor||"").trim(),n=s.replace(/\D/g,"");if(!s)return"";if(t==="WHATSAPP"&&n)return"https://wa.me/"+(n.indexOf("55")===0?n:"55"+n);if((t==="TELEFONE"||t==="CELULAR")&&n)return"tel:+55"+(n.indexOf("55")===0?n.slice(2):n);if(t==="E-MAIL"||t==="EMAIL"||t==="E_MAIL")return"mailto:"+encodeURIComponent(s);return"";}
+
+  function contatosTable(contatos){
+    if(!contatos||!contatos.length)return'<div class="fc-empty">Nenhum contato cadastrado neste nível.</div>';
+    return'<table class="fc-table"><thead><tr><th>Descrição</th><th>Tipo</th><th>Valor</th></tr></thead><tbody>'+contatos.map(function(c){var tipo=fmtTipoContato(c.tipo),valor=fmtValor(c.tipo,c.valor),href=hrefContato(c.tipo,c.valor),v=href?'<a href="'+esc(href)+'" '+(tipo==="WhatsApp"?'target="_blank" rel="noopener noreferrer"':'')+'>'+esc(valor)+'</a>':esc(valor);return'<tr><td>'+esc(c.descricao||tipo)+'</td><td>'+esc(tipo)+'</td><td>'+v+'</td></tr>';}).join("")+'</tbody></table>';
   }
 
-  function contatoHtml(contato) {
-    var tipo = fmtTipo(contato.tipo);
-    var valor = fmtValor(contato.tipo, contato.valor);
-    var href = hrefContato(contato.tipo, contato.valor);
-    var valorHtml = href
-      ? '<a href="' + esc(href) + '" ' + (tipo === "WhatsApp" ? 'target="_blank" rel="noopener noreferrer"' : '') + '>' + esc(valor) + '</a>'
-      : esc(valor);
-    return '<div class="fc-contato-row"><div class="fc-contato-desc">' + esc(contato.descricao || tipo) + '</div><div class="fc-contato-type">' + esc(tipo) + '</div><div class="fc-contato-value">' + valorHtml + '</div></div>';
-  }
-
-  function injectStyle() {
-    if (document.getElementById("fc-navigation-style")) return;
-    var style = document.createElement("style");
-    style.id = "fc-navigation-style";
-    style.textContent = `
+  function injectStyle(){
+    if(document.getElementById("fc-navigation-style"))return;
+    var style=document.createElement("style");style.id="fc-navigation-style";style.textContent=`
       .fc-map{width:100%;height:100%;min-height:0;border-radius:10px;overflow:hidden;background:#e2e8f0}
       .fc-panel{width:100%;height:100%;min-height:0;overflow-y:auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:clamp(16px,2vw,24px);box-shadow:0 4px 16px rgba(15,23,42,.06)}
-      .fc-title{font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px}
-      .fc-subtitle{color:#64748b;font-size:13px;margin:0 0 14px}
-      .fc-search{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #cbd5e1;border-radius:10px;margin-bottom:10px;font-size:14px}
-      .fc-select{width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;margin-bottom:12px}
-      .fc-card{border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-top:10px;cursor:pointer;background:#fff;transition:.15s}
-      .fc-card:hover{box-shadow:0 8px 22px rgba(15,23,42,.08);transform:translateY(-1px)}
-      .fc-card h4{margin:0 0 6px;font-size:15px;color:#0f172a}
-      .fc-card p{margin:3px 0;color:#475569;font-size:13px;line-height:1.45}
-      .fc-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-      .fc-pill{font-size:11px;background:#f1f5f9;color:#334155;border-radius:999px;padding:4px 8px}
-      .fc-back{border:0;background:transparent;color:#1d4ed8;font-weight:700;padding:0;margin-bottom:12px;cursor:pointer}
-      .fc-section{margin-top:16px}.fc-section h3{font-size:15px;margin:0 0 8px;color:#0f172a}
+      .fc-title{font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px}.fc-subtitle{color:#64748b;font-size:13px;margin:0 0 14px;line-height:1.45}
+      .fc-search{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #cbd5e1;border-radius:10px;margin-bottom:10px;font-size:14px}.fc-select{width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;margin-bottom:12px}
+      .fc-card{border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-top:10px;cursor:pointer;background:#fff;transition:.15s}.fc-card:hover{box-shadow:0 8px 22px rgba(15,23,42,.08);transform:translateY(-1px)}.fc-card h4{margin:0 0 6px;font-size:15px;color:#0f172a}.fc-card p{margin:3px 0;color:#475569;font-size:13px;line-height:1.45}
+      .fc-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.fc-pill{font-size:11px;background:#f1f5f9;color:#334155;border-radius:999px;padding:4px 8px}.fc-pill-type{background:#dbeafe;color:#1e40af}
+      .fc-back{border:0;background:transparent;color:#1d4ed8;font-weight:700;padding:0;margin-bottom:12px;cursor:pointer}.fc-section{margin-top:16px}.fc-section h3{font-size:15px;margin:0 0 8px;color:#0f172a}
       .fc-table{width:100%;border-collapse:collapse;font-size:13px}.fc-table th,.fc-table td{padding:8px 7px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top}.fc-table th{font-size:11px;text-transform:uppercase;color:#64748b}
-      .fc-inherit{margin-top:10px;padding:10px 12px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;color:#475569;font-size:12px}
-      .fc-empty{padding:20px;border:1px dashed #cbd5e1;border-radius:12px;color:#64748b;text-align:center}
-    `;
-    document.head.appendChild(style);
+      .fc-inherit{margin-top:10px;padding:10px 12px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;color:#475569;font-size:12px}.fc-empty{padding:20px;border:1px dashed #cbd5e1;border-radius:12px;color:#64748b;text-align:center}
+    `;document.head.appendChild(style);
   }
 
-  function getHost() {
-    return document.getElementById("fc-content");
+  function callServer(termo,cb){try{google.script.run.withSuccessHandler(function(resp){if(resp&&resp.sucesso&&resp.dados)cb(resp.dados);else cb({municipios:[]});}).withFailureHandler(function(erro){console.error("Falha ao carregar hierarquia:",erro);cb({municipios:[]});}).obterHierarquiaPublicaForum(termo||"");}catch(e){console.error(e);cb({municipios:[]});}}
+  function host(){return document.getElementById("fc-content");}
+  function findNo(lista,id){for(var i=0;i<(lista||[]).length;i++){if(lista[i].id===id)return lista[i];var filho=findNo(lista[i].filhos,id);if(filho)return filho;}return null;}
+  function findPai(lista,id,pai){for(var i=0;i<(lista||[]).length;i++){if(lista[i].id===id)return pai||null;var achado=findPai(lista[i].filhos,id,lista[i]);if(achado)return achado;}return null;}
+
+  function renderInicio(){
+    estado.municipio=null;estado.forum=null;estado.no=null;var c=host();if(!c)return;var municipios=(estado.dados&&estado.dados.municipios)||[],options=municipios.map(function(m){return'<option value="'+esc(m.id)+'">'+esc(m.nome)+'</option>';}).join("");
+    c.innerHTML='<h2 class="fc-title">Contatos do PJES</h2><p class="fc-subtitle">Selecione um município no mapa ou pesquise por unidade, caminho organizacional ou contato.</p><input id="fc-search" class="fc-search" type="search" placeholder="Buscar unidade, gabinete, telefone ou e-mail"><select id="fc-municipio" class="fc-select"><option value="">Selecione o município</option>'+options+'</select><div class="fc-section"><h3>Municípios</h3>'+(municipios.length?municipios.map(function(m){return'<div class="fc-card" data-mun="'+esc(m.id)+'"><h4>'+esc(m.nome)+'</h4><div class="fc-meta"><span class="fc-pill">'+esc(m.qtdForuns)+' fórum(ns)</span><span class="fc-pill">'+esc(m.qtdNos)+' nós</span><span class="fc-pill">'+esc(m.qtdContatos)+' contato(s)</span></div></div>';}).join(""):'<div class="fc-empty">Nenhum município encontrado.</div>')+'</div>';
+    document.getElementById("fc-municipio").onchange=function(){if(this.value)abrirMunicipio(this.value);};document.querySelectorAll("[data-mun]").forEach(function(el){el.onclick=function(){abrirMunicipio(this.getAttribute("data-mun"));};});document.getElementById("fc-search").oninput=function(){var v=this.value.trim();if(v.length>=2)callServer(v,function(d){estado.dados=d;renderInicio();});};
   }
 
-  function callServer(termo, cb) {
-    try {
-      google.script.run
-        .withSuccessHandler(function (resp) {
-          if (resp && resp.sucesso && resp.dados) cb(resp.dados);
-          else cb({ municipios: [] });
-        })
-        .withFailureHandler(function (erro) {
-          console.error("Falha ao carregar hierarquia:", erro);
-          cb({ municipios: [] });
-        })
-        .obterHierarquiaPublicaForum(termo || "");
-    } catch (e) {
-      console.error(e);
-      cb({ municipios: [] });
-    }
-  }
+  function abrirMunicipio(id){var m=((estado.dados&&estado.dados.municipios)||[]).find(function(x){return x.id===id;});if(!m)return;estado.municipio=m;estado.forum=null;estado.no=null;if((m.foruns||[]).length===1)abrirForum(m.foruns[0].id);else renderForuns();if(estado.mapa&&estado.geojson)destacarMunicipio(m.codigoIbge);}
+  function renderForuns(){var c=host();if(!c||!estado.municipio)return;var m=estado.municipio;c.innerHTML='<button class="fc-back" onclick="window.fcInicio()">← Municípios</button><h2 class="fc-title">'+esc(m.nome)+'</h2><p class="fc-subtitle">'+esc(m.qtdForuns)+' fórum(ns) • '+esc(m.qtdNos)+' nós organizacionais • '+esc(m.qtdContatos)+' contato(s)</p><div class="fc-section"><h3>Fóruns</h3>'+(m.foruns||[]).map(function(f){return'<div class="fc-card" data-forum="'+esc(f.id)+'"><h4>'+esc(f.nome)+'</h4><p>'+esc(f.endereco||'Endereço não informado')+'</p><div class="fc-meta"><span class="fc-pill">'+esc(f.qtdNos)+' nós</span><span class="fc-pill">'+esc(f.qtdContatos)+' contato(s)</span></div></div>';}).join("")+'</div>';document.querySelectorAll("[data-forum]").forEach(function(el){el.onclick=function(){abrirForum(this.getAttribute("data-forum"));};});}
+  function abrirForum(id){var f=(estado.municipio&&estado.municipio.foruns||[]).find(function(x){return x.id===id;});if(!f)return;estado.forum=f;estado.no=null;renderForum();}
+  function cardNo(no){return'<div class="fc-card" data-no="'+esc(no.id)+'"><h4>'+esc(no.nome)+'</h4><div class="fc-meta"><span class="fc-pill fc-pill-type">'+esc(fmtTipoNo(no.tipo))+'</span><span class="fc-pill">'+esc(no.qtdFilhos)+' filho(s)</span><span class="fc-pill">'+esc(no.qtdContatos)+' contato(s)</span></div></div>';}
+  function renderForum(){var c=host();if(!c||!estado.forum)return;var f=estado.forum;c.innerHTML='<button class="fc-back" onclick="window.fcMunicipio()">← '+esc(estado.municipio.nome)+'</button><h2 class="fc-title">'+esc(f.nome)+'</h2><p class="fc-subtitle">'+esc(f.endereco||'Endereço não informado')+'</p><input id="fc-search" class="fc-search" type="search" placeholder="Buscar nesta hierarquia"><div class="fc-section"><h3>Contatos gerais</h3>'+contatosTable(f.contatos||[])+'</div><div class="fc-section"><h3>Estrutura organizacional</h3>'+((f.nos||[]).length?(f.nos||[]).map(cardNo).join(""):'<div class="fc-empty">Nenhum nó cadastrado.</div>')+'</div>';document.querySelectorAll("[data-no]").forEach(function(el){el.onclick=function(){abrirNo(this.getAttribute("data-no"));};});document.getElementById("fc-search").oninput=function(){var v=this.value.trim();if(v.length<2)return;var idForum=f.id,idMunicipio=estado.municipio.id;callServer(v,function(d){var m=(d.municipios||[]).find(function(x){return x.id===idMunicipio;});if(!m)return;var novo=(m.foruns||[]).find(function(x){return x.id===idForum;});if(novo){estado.municipio=m;estado.forum=novo;renderForum();}});};}
+  function abrirNo(id){var no=findNo(estado.forum&&estado.forum.nos,id);if(!no)return;estado.no=no;renderNo();}
+  function renderNo(){var c=host();if(!c||!estado.no)return;var no=estado.no,pai=findPai(estado.forum.nos,no.id,null),voltar=pai?'<button class="fc-back" onclick="window.fcNo(\''+esc(pai.id)+'\')">← '+esc(pai.nome)+'</button>':'<button class="fc-back" onclick="window.fcForum()">← '+esc(estado.forum.nome)+'</button>',caminho=[estado.municipio.nome,estado.forum.nome].concat(no.caminhoNomes||[]).join(' › ');c.innerHTML=voltar+'<h2 class="fc-title">'+esc(no.nome)+'</h2><p class="fc-subtitle">'+esc(caminho)+'</p><div class="fc-meta"><span class="fc-pill fc-pill-type">'+esc(fmtTipoNo(no.tipo))+'</span></div><div class="fc-inherit"><strong>Endereço:</strong> '+esc(no.enderecoExibicao||'não informado')+(no.endereco?'':' (herdado)')+'</div><div class="fc-section"><h3>Contatos deste nível</h3>'+contatosTable(no.contatos||[])+'</div><div class="fc-section"><h3>Subdivisões</h3>'+((no.filhos||[]).length?no.filhos.map(cardNo).join(""):'<div class="fc-empty">Este é o último nível da hierarquia.</div>')+'</div>';document.querySelectorAll("[data-no]").forEach(function(el){el.onclick=function(){abrirNo(this.getAttribute("data-no"));};});}
 
-  function renderInicio() {
-    estado.municipio = null; estado.forum = null; estado.unidade = null; estado.setor = null;
-    var c = document.getElementById("fc-content");
-    if (!c) return;
-    var municipios = (estado.dados && estado.dados.municipios) || [];
-    var options = municipios.map(function(m){ return '<option value="' + esc(m.id) + '">' + esc(m.nome) + '</option>'; }).join('');
-    c.innerHTML =
-      '<h2 class="fc-title">Contatos do PJES</h2>' +
-      '<p class="fc-subtitle">Selecione um município no mapa ou use a busca rápida.</p>' +
-      '<input id="fc-search" class="fc-search" type="search" placeholder="Buscar unidade, setor, telefone ou e-mail">' +
-      '<select id="fc-municipio" class="fc-select"><option value="">Selecione o município</option>' + options + '</select>' +
-      '<div class="fc-section"><h3>Municípios</h3>' + (municipios.length ? municipios.map(function(m){ return '<div class="fc-card" data-mun="' + esc(m.id) + '"><h4>' + esc(m.nome) + '</h4><div class="fc-meta"><span class="fc-pill">' + esc(m.qtdForuns) + ' fórum(ns)</span><span class="fc-pill">' + esc(m.qtdUnidades) + ' unidade(s)</span><span class="fc-pill">' + esc(m.qtdContatos) + ' contato(s)</span></div></div>'; }).join('') : '<div class="fc-empty">Nenhum município encontrado.</div>') + '</div>';
-    var sel = document.getElementById("fc-municipio");
-    if (sel) sel.onchange = function(){ if(this.value) abrirMunicipio(this.value); };
-    document.querySelectorAll("[data-mun]").forEach(function(el){ el.onclick = function(){ abrirMunicipio(this.getAttribute("data-mun")); }; });
-    var search = document.getElementById("fc-search");
-    if (search) search.oninput = function(){ var v=this.value.trim(); if(v.length>=2) callServer(v,function(d){ estado.dados=d; renderInicio(); }); };
-  }
+  function destacarMunicipio(codigo){if(!estado.mapa||!estado.geojson||!codigo)return;estado.geojson.eachLayer(function(layer){var p=layer.feature&&layer.feature.properties||{},cod=String(p.CD_MUN||p.codmun||p.id||p.code||""),ativo=cod===String(codigo)||cod.replace(/\D/g,"")===String(codigo).replace(/\D/g,"");layer.setStyle({weight:ativo?3:1,fillOpacity:ativo?.55:.18});});}
+  function iniciarMapa(){if(!window.L){setTimeout(iniciarMapa,250);return;}var el=document.getElementById("fc-map");if(!el)return;try{if(estado.mapa)estado.mapa.remove();estado.mapa=L.map(el,{scrollWheelZoom:false}).setView([-19.7,-40.5],7.6);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap'}).addTo(estado.mapa);fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-32-mun.json').then(function(r){return r.json();}).then(function(data){estado.geojson=L.geoJSON(data,{style:function(){return{color:'#2563eb',weight:1,fillColor:'#60a5fa',fillOpacity:.18};},onEachFeature:function(feature,layer){var p=feature.properties||{},nome=String(p.name||p.NOME||p.NM_MUN||"Município");layer.bindTooltip(esc(nome),{sticky:true});layer.on('click',function(){var cod=String(p.CD_MUN||p.codmun||p.id||p.code||''),m=(estado.dados&&estado.dados.municipios||[]).find(function(x){return String(x.codigoIbge)===cod||String(x.codigoIbge).replace(/\D/g,'')===cod.replace(/\D/g,'');});if(m)abrirMunicipio(m.id);});}}).addTo(estado.mapa);estado.mapa.fitBounds(estado.geojson.getBounds(),{padding:[10,10]});}).catch(function(err){console.warn('GeoJSON não carregado',err);});if(window.ResizeObserver){estado.resizeObserver=new ResizeObserver(function(){try{estado.mapa.invalidateSize();}catch(e){}});estado.resizeObserver.observe(el);}}catch(e){console.warn('Mapa não inicializado',e);}}
+  function atualizarMapaIntegrado(){if(!estado.inicializado){window.iniciarConsultaTelefones();return false;}setTimeout(function(){try{estado.mapa.invalidateSize();if(estado.geojson)estado.mapa.fitBounds(estado.geojson.getBounds(),{padding:[10,10]});}catch(e){}},80);return true;}
 
-  function abrirMunicipio(id) {
-    var m = ((estado.dados && estado.dados.municipios) || []).find(function(x){ return x.id === id; });
-    if (!m) return;
-    estado.municipio = m; estado.forum = null; estado.unidade = null; estado.setor = null;
-    if ((m.foruns || []).length === 1) abrirForum(m.foruns[0].id);
-    else renderForuns();
-    if (estado.mapa && estado.geojson) destacarMunicipio(m.codigoIbge);
-  }
-
-  function renderForuns() {
-    var c = document.getElementById("fc-content"); if (!c || !estado.municipio) return;
-    var m = estado.municipio;
-    c.innerHTML = '<button class="fc-back" onclick="window.fcInicio()">← Municípios</button>' +
-      '<h2 class="fc-title">' + esc(m.nome) + '</h2>' +
-      '<p class="fc-subtitle">' + esc(m.qtdForuns) + ' fórum(ns) • ' + esc(m.qtdUnidades) + ' unidade(s) • ' + esc(m.qtdContatos) + ' contato(s)</p>' +
-      '<input id="fc-search" class="fc-search" type="search" placeholder="Buscar unidade, setor, telefone ou e-mail">' +
-      '<div class="fc-section"><h3>Fóruns</h3>' +
-      (m.foruns || []).map(function(f){ return '<div class="fc-card" data-forum="' + esc(f.id) + '"><h4>' + esc(f.nome) + '</h4><p>' + esc(f.endereco || 'Endereço não informado') + '</p><p>' + esc(f.email || 'E-mail não informado') + '</p><div class="fc-meta"><span class="fc-pill">' + esc(f.qtdUnidades) + ' unidade(s)</span><span class="fc-pill">' + esc(f.qtdContatos) + ' contato(s)</span></div></div>'; }).join('') + '</div>';
-    document.querySelectorAll("[data-forum]").forEach(function(el){ el.onclick = function(){ abrirForum(this.getAttribute("data-forum")); }; });
-    var search = document.getElementById("fc-search");
-    if (search) search.oninput = function(){ var v=this.value.trim(); if(v.length>=2) callServer(v,function(d){ estado.dados=d; var nm=(d.municipios||[]).find(function(x){ return x.id===m.id; }); if(nm){ estado.municipio=nm; renderForuns(); }}); };
-  }
-
-  function abrirForum(id) {
-    var f = (estado.municipio && estado.municipio.foruns || []).find(function(x){ return x.id === id; });
-    if (!f) return;
-    estado.forum = f; estado.unidade = null; estado.setor = null; renderForum();
-  }
-
-  function contatosTable(contatos) {
-    if (!contatos || !contatos.length) return '<div class="fc-empty">Nenhum contato cadastrado.</div>';
-    return '<table class="fc-table"><thead><tr><th>Descrição</th><th>Tipo</th><th>Valor</th></tr></thead><tbody>' + contatos.map(contatoHtml).map(function(row){ return '<tr>' + row.replace(/^<div class="fc-contato-row">|<\/div>$/g,'').replace(/<div class="fc-contato-desc">/,'<td>').replace(/<\/div><div class="fc-contato-type">/,'</td><td>').replace(/<\/div><div class="fc-contato-value">/,'</td><td>').replace(/<\/div>$/,'</td>'); }).join('') + '</tbody></table>';
-  }
-
-  function renderForum() {
-    var c = document.getElementById("fc-content"); if (!c || !estado.forum) return;
-    var f = estado.forum;
-    c.innerHTML = '<button class="fc-back" onclick="window.fcMunicipio()">← ' + esc(estado.municipio.nome) + '</button>' +
-      '<h2 class="fc-title">' + esc(f.nome) + '</h2>' +
-      '<p class="fc-subtitle">' + esc(f.endereco || 'Endereço não informado') + ' • ' + esc(f.email || 'E-mail não informado') + '</p>' +
-      '<input id="fc-search" class="fc-search" type="search" placeholder="Buscar unidade, setor, telefone ou e-mail">' +
-      '<div class="fc-section"><h3>Contatos gerais</h3>' + contatosTable(f.contatos || []) + '</div>' +
-      '<div class="fc-section"><h3>Unidades</h3>' +
-      ((f.unidades || []).map(function(u){ return '<div class="fc-card" data-unidade="' + esc(u.id) + '"><h4>' + esc(u.nome) + '</h4><p>' + esc(u.emailExibicao || 'E-mail herdado/não informado') + '</p><div class="fc-meta"><span class="fc-pill">' + esc((u.setores||[]).length) + ' setor(es)</span><span class="fc-pill">' + esc((u.contatosDiretos||[]).length + (u.setores||[]).reduce(function(s,set){return s+(set.contatos||[]).length;},0)) + ' contato(s)</span></div></div>'; }).join('')) + '</div>';
-    document.querySelectorAll("[data-unidade]").forEach(function(el){ el.onclick = function(){ abrirUnidade(this.getAttribute("data-unidade")); }; });
-    var search = document.getElementById("fc-search");
-    if (search) search.oninput = function(){ var v=this.value.trim(); if(v.length>=2) callServer(v,function(d){ var nm=(d.municipios||[]).find(function(x){return x.id===estado.municipio.id;}); if(nm){ estado.municipio=nm; estado.forum=(nm.foruns||[]).find(function(x){return x.id===f.id;}); renderForum(); }}); };
-  }
-
-  function abrirUnidade(id) {
-    var u = (estado.forum && estado.forum.unidades || []).find(function(x){ return x.id === id; });
-    if (!u) return;
-    estado.unidade = u; estado.setor = null; renderUnidade();
-  }
-
-  function renderUnidade() {
-    var c = document.getElementById("fc-content"); if (!c || !estado.unidade) return;
-    var u = estado.unidade, f = estado.forum;
-    var heranca = '<div class="fc-inherit"><strong>Endereço exibido:</strong> ' + esc(u.enderecoExibicao || 'não informado') + '<br><strong>E-mail exibido:</strong> ' + esc(u.emailExibicao || 'não informado') + ((u.endereco ? '' : ' (herdado do Fórum)')) + '</div>';
-    c.innerHTML = '<button class="fc-back" onclick="window.fcForum()">← ' + esc(f.nome) + '</button>' +
-      '<h2 class="fc-title">' + esc(u.nome) + '</h2>' +
-      '<p class="fc-subtitle">' + esc(estado.municipio.nome) + ' › ' + esc(f.nome) + ' › ' + esc(u.nome) + '</p>' +
-      heranca +
-      (u.contatosDiretos && u.contatosDiretos.length ? '<div class="fc-section"><h3>Contatos próprios</h3>' + contatosTable(u.contatosDiretos) + '</div>' : '') +
-      '<div class="fc-section"><h3>Setores</h3>' +
-      ((u.setores || []).map(function(s){ return '<div class="fc-card" data-setor="' + esc(s.id) + '"><h4>' + esc(s.nome) + '</h4><p>E-mail: ' + esc(s.emailExibicao || 'não informado') + '</p><p>Endereço: ' + esc(s.enderecoExibicao || 'não informado') + '</p><div class="fc-meta"><span class="fc-pill">' + esc((s.contatos||[]).length) + ' contato(s)</span></div></div>'; }).join('')) + '</div>';
-    document.querySelectorAll("[data-setor]").forEach(function(el){ el.onclick = function(){ abrirSetor(this.getAttribute("data-setor")); }; });
-  }
-
-  function abrirSetor(id) {
-    var s = (estado.unidade && estado.unidade.setores || []).find(function(x){ return x.id === id; });
-    if (!s) return;
-    estado.setor = s; renderSetor();
-  }
-
-  function renderSetor() {
-    var c = document.getElementById("fc-content"); if (!c || !estado.setor) return;
-    var s = estado.setor, u = estado.unidade, f = estado.forum;
-    c.innerHTML = '<button class="fc-back" onclick="window.fcUnidade()">← ' + esc(u.nome) + '</button>' +
-      '<h2 class="fc-title">' + esc(s.nome) + '</h2>' +
-      '<p class="fc-subtitle">' + esc(estado.municipio.nome) + ' › ' + esc(f.nome) + ' › ' + esc(u.nome) + ' › ' + esc(s.nome) + '</p>' +
-      '<div class="fc-inherit"><strong>Endereço:</strong> ' + esc(s.enderecoExibicao || 'não informado') + '<br><strong>E-mail:</strong> ' + esc(s.emailExibicao || 'não informado') + '<br><span>Dados herdados aparecem aqui apenas para visualização; não são duplicados na base.</span></div>' +
-      '<div class="fc-section"><h3>Contatos</h3>' + contatosTable(s.contatos || []) + '</div>';
-  }
-
-  function destacarMunicipio(codigo) {
-    if (!estado.mapa || !estado.geojson || !codigo) return;
-    estado.geojson.eachLayer(function(layer){
-      var props = layer.feature && layer.feature.properties || {};
-      var cod = String(props.CD_MUN || props.codmun || props.id || props.code || "");
-      var ativo = cod === String(codigo) || cod.replace(/\D/g,"") === String(codigo).replace(/\D/g,"");
-      layer.setStyle({ weight: ativo ? 3 : 1, fillOpacity: ativo ? 0.55 : 0.18 });
-    });
-  }
-
-  function iniciarMapa() {
-    if (!window.L) { setTimeout(iniciarMapa, 250); return; }
-    var el = document.getElementById("fc-map"); if (!el) return;
-    try {
-      if (estado.mapa) estado.mapa.remove();
-      estado.mapa = L.map(el, { scrollWheelZoom: false }).setView([-19.7, -40.5], 7.6);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(estado.mapa);
-      fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-32-mun.json')
-        .then(function(r){ return r.json(); })
-        .then(function(data){
-          estado.geojson = L.geoJSON(data, {
-            style: function(){ return { color:'#2563eb', weight:1, fillColor:'#60a5fa', fillOpacity:.18 }; },
-            onEachFeature: function(feature, layer){
-              var props = feature.properties || {};
-              var nome = String(props.name || props.NOME || props.NM_MUN || "Município");
-              layer.bindTooltip(esc(nome), { permanent:false, direction:"auto", sticky:true, className:"tooltip-premium" });
-              layer.on('click', function(){
-                var cod = String(props.CD_MUN || props.codmun || props.id || props.code || '');
-                var m = (estado.dados && estado.dados.municipios || []).find(function(x){ return String(x.codigoIbge) === cod || String(x.codigoIbge).replace(/\D/g,'') === cod.replace(/\D/g,''); });
-                if (m) abrirMunicipio(m.id);
-              });
-            }
-          }).addTo(estado.mapa);
-          try { estado.mapa.fitBounds(estado.geojson.getBounds(), { padding:[10,10] }); } catch (e) {}
-          setTimeout(function(){
-            try {
-              estado.mapa.invalidateSize();
-              estado.mapa.fitBounds(estado.geojson.getBounds(), { padding:[10,10] });
-            } catch (e) {}
-          }, 180);
-        })
-        .catch(function(err){ console.warn('GeoJSON não carregado', err); });
-      if (window.ResizeObserver) {
-        if (estado.resizeObserver) estado.resizeObserver.disconnect();
-        estado.resizeObserver = new ResizeObserver(function(){
-          try { if (estado.mapa) estado.mapa.invalidateSize(); } catch (e) {}
-        });
-        estado.resizeObserver.observe(el);
-      }
-    } catch(e) { console.warn('Mapa não inicializado', e); }
-  }
-
-  function atualizarMapaIntegrado() {
-    if (!estado.inicializado) {
-      window.iniciarConsultaTelefones();
-      return false;
-    }
-    setTimeout(function(){
-      try {
-        if (estado.mapa) {
-          estado.mapa.invalidateSize();
-          if (estado.geojson) estado.mapa.fitBounds(estado.geojson.getBounds(), { padding:[10,10] });
-        }
-      } catch (e) {}
-    }, 80);
-    return true;
-  }
-
-  window.fcInicio = function(){ renderInicio(); };
-  window.fcMunicipio = function(){ renderForuns(); };
-  window.fcForum = function(){ renderForum(); };
-  window.fcUnidade = function(){ renderUnidade(); };
-
-  // Sobrescreve a entrada principal usada pelo aplicativo legado.
-  window.iniciarConsultaTelefones = function() {
-    if (estado.inicializado) return;
-    estado.inicializado = true;
-    injectStyle();
-    var host = getHost();
-    if (!host) {
-      estado.inicializado = false;
-      return;
-    }
-    host.innerHTML = '<div class="fc-empty">Carregando contatos...</div>';
-    callServer("", function(dados){
-      estado.dados = dados || { municipios: [] };
-      renderInicio();
-      iniciarMapa();
-    });
-  };
-
-  // Compatibilidade com o nome antigo chamado por algumas telas.
-  window.carregarTelefones = window.iniciarConsultaTelefones;
-  window.renderizarMapaConsulta = atualizarMapaIntegrado;
-  window.tentarInicializarMapa = atualizarMapaIntegrado;
-})();
-
-// V4 fallback: if hierarquia empty, fallback to legacy iniciarConsultaTelefones
-(function(){
- var legadoIniciar = window.iniciarConsultaTelefones;
- window.iniciarConsultaTelefones = function(){
-   try{
-     if(typeof API!=="undefined" && API.obterHierarquiaPublicaForum){
-       var hier = API.obterHierarquiaPublicaForum();
-       if(hier && hier.municipios && hier.municipios.length>0) return window.iniciarNavegacaoForum ? window.iniciarNavegacaoForum() : legadoIniciar();
-     }
-   }catch(e){}
-   return legadoIniciar ? legadoIniciar.apply(this, arguments) : null;
- };
+  window.fcInicio=renderInicio;window.fcMunicipio=renderForuns;window.fcForum=renderForum;window.fcNo=function(id){abrirNo(id);};
+  window.iniciarConsultaTelefones=function(){if(estado.inicializado)return;estado.inicializado=true;injectStyle();var c=host();if(!c){estado.inicializado=false;return;}c.innerHTML='<div class="fc-empty">Carregando contatos...</div>';callServer("",function(dados){estado.dados=dados||{municipios:[]};renderInicio();iniciarMapa();});};
+  window.carregarTelefones=window.iniciarConsultaTelefones;window.renderizarMapaConsulta=atualizarMapaIntegrado;window.tentarInicializarMapa=atualizarMapaIntegrado;
 })();
 </script>

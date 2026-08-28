@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * INTEGRAÇÃO V4 — LEGACY -> MUNICIPIOS/FORUM/UNIDADES/SETORES/CONTATOS
+ * INTEGRAÇÃO V5 — LEGACY -> MUNICIPIOS/FORUM/UNIDADES_ORGANIZACIONAIS/CONTATOS
  * ==========================================================
  *
  * Este arquivo faz a ponte dos caminhos legados do aplicativo para a
@@ -62,34 +62,29 @@ function v4ObterUsuarioAtual() {
   return respostaSucesso(_v4Usuario());
 }
 
-function _v4EscopoPermitido(usuario, forumId, unidadeId) {
+function _v4EscopoPermitido(usuario, forumId, noId) {
   if (!usuario || !usuario.logado || !usuario.ativo) return false;
   if (usuario.perfil === CONFIG.PERFIS.GESTOR_SISTEMA) return true;
   if (usuario.perfil !== CONFIG.PERFIS.GESTOR_CONTEUDO) return false;
-  return Boolean(unidadeId) && Array.isArray(usuario.unidadeIds) &&
-    usuario.unidadeIds.includes(textoSeguro(unidadeId));
+  const unidades = new Set(Array.isArray(usuario.unidadeIds) ? usuario.unidadeIds.map(textoSeguro) : []);
+  const nos = _fcIndiceOrganizacional();
+  if (noId && nos[noId]) {
+    const caminho = _fcResolverAncestros(nos, noId);
+    return caminho.some(function(no) { return unidades.has(no.id); });
+  }
+  if (!noId && forumId) return Array.from(unidades).some(function(id) { return nos[id] && nos[id].forumId === forumId; });
+  return false;
 }
 
 function _v4ResolverContexto(dados) {
   const entrada = ehObjeto(dados) ? dados : {};
   let forumId = textoSeguro(valorObjeto(entrada, "forumId", "FORUM_ID"));
-  let unidadeId = textoSeguro(valorObjeto(entrada, "unidadeId", "UNIDADE_ID"));
-  let setorId = textoSeguro(valorObjeto(entrada, "setorId", "SETOR_ID"));
-
-  const shSet = DB.setores();
-  const ms = DB.map(shSet);
-  if (setorId) {
-    const row = DB.read(shSet).find(l => textoSeguro(_v4Col(ms, l, ["ID"])) === setorId);
-    if (!row) throw new Error("Setor não encontrado.");
-    unidadeId = unidadeId || textoSeguro(_v4Col(ms, row, ["UNIDADE_ID"]));
-  }
-
-  const shUni = DB.unidades();
-  const mu = DB.map(shUni);
-  if (unidadeId) {
-    const row = DB.read(shUni).find(l => textoSeguro(_v4Col(mu, l, ["ID"])) === unidadeId);
-    if (!row) throw new Error("Unidade não encontrada.");
-    forumId = forumId || textoSeguro(_v4Col(mu, row, ["FORUM_ID"]));
+  let noId = textoSeguro(valorObjeto(entrada, "unidadeOrganizacionalId", "noId", "UNIDADE_ORGANIZACIONAL_ID", "setorId", "SETOR_ID", "unidadeId", "UNIDADE_ID"));
+  const nos = _fcIndiceOrganizacional();
+  if (noId) {
+    if (!nos[noId]) throw new Error("Unidade organizacional não encontrada.");
+    forumId = forumId || nos[noId].forumId;
+    if (forumId !== nos[noId].forumId) throw new Error("A Unidade Organizacional não pertence ao Fórum informado.");
   }
 
   if (forumId) {
@@ -99,8 +94,15 @@ function _v4ResolverContexto(dados) {
     if (!row) throw new Error("Fórum não encontrado.");
   }
 
-  if (!forumId && !unidadeId && !setorId) throw new Error("Informe Fórum, Unidade ou Setor.");
-  return { forumId, unidadeId, setorId };
+  if (!forumId && !noId) throw new Error("Informe Fórum ou Unidade Organizacional.");
+  const ancora = noId ? _fcAncoraAcesso(nos, noId) : null;
+  return {
+    forumId: forumId,
+    noId: noId,
+    unidadeOrganizacionalId: noId,
+    unidadeId: ancora ? ancora.id : "",
+    setorId: noId && (!ancora || ancora.id !== noId) ? noId : ""
+  };
 }
 
 function _v4Flat(opcoes) {
@@ -108,8 +110,8 @@ function _v4Flat(opcoes) {
   const out = [];
   const vistos = new Set();
 
-  (hier.municipios || []).forEach(m => {
-    (m.foruns || []).forEach(f => {
+  (hier.municipios || []).forEach(function(m) {
+    (m.foruns || []).forEach(function(f) {
       const base = {
         municipioId: m.id,
         municipio: m.nome,
@@ -119,40 +121,38 @@ function _v4Flat(opcoes) {
         forumEmail: f.email || "",
         forumEndereco: f.endereco || ""
       };
-      const incluir = c => {
+      const incluir = function(c, no) {
         if (!c || vistos.has(c.id)) return;
         vistos.add(c.id);
-        let unidade = null, setor = null;
-        (f.unidades || []).some(u => {
-          if (u.id === c.unidadeId) { unidade = u; return true; }
-          return false;
-        });
-        if (c.setorId) {
-          for (const u of (f.unidades || [])) {
-            const s = (u.setores || []).find(x => x.id === c.setorId);
-            if (s) { unidade = u; setor = s; break; }
-          }
-        }
         const tipo = _v4TipoNormalizado(c.tipo);
         const valor = textoSeguro(c.valor);
+        const caminhoIds = no ? (no.caminhoIds || []) : [];
+        const caminhoNomes = no ? (no.caminhoNomes || []) : [];
+        const ancoraId = no ? (no.ancoraAcessoId || (caminhoIds.length ? caminhoIds[0] : "")) : "";
+        const ancoraNome = no ? (no.ancoraAcessoNome || (caminhoNomes.length ? caminhoNomes[0] : "")) : "";
         const row = Object.assign({}, base, {
           ID: c.id,
           id: c.id,
           tipo,
           descricao: c.descricao || "",
           valor,
-          setorId: c.setorId || "",
-          setor: setor ? setor.nome : "",
-          unidadeId: c.unidadeId || (unidade ? unidade.id : ""),
-          unidade: unidade ? unidade.nome : "",
-          endereco: setor && setor.enderecoExibicao ? setor.enderecoExibicao : (unidade && unidade.enderecoExibicao ? unidade.enderecoExibicao : f.endereco || ""),
-          emailEfetivo: setor && setor.emailExibicao ? setor.emailExibicao : (unidade && unidade.emailExibicao ? unidade.emailExibicao : f.email || ""),
+          unidadeOrganizacionalId: no ? no.id : "",
+          noId: no ? no.id : "",
+          tipoNo: no ? no.tipo : "FORUM",
+          caminho: caminhoNomes,
+          caminhoTexto: caminhoNomes.join(" › "),
+          setorId: no && no.id !== ancoraId ? no.id : "",
+          setor: no && no.id !== ancoraId ? no.nome : "",
+          unidadeId: ancoraId,
+          unidade: ancoraNome,
+          endereco: no ? no.enderecoExibicao : (f.endereco || ""),
+          emailEfetivo: f.email || "",
           emailHerdado: tipo !== "E-mail",
-          contatoDiretoForum: !c.setorId && !c.unidadeId && !!c.forumId,
-          contatoDiretoUnidade: !c.setorId && !!c.unidadeId,
+          contatoDiretoForum: !no,
+          contatoDiretoUnidade: !!no,
           ativo: true,
           status: "ATIVO",
-          observacao: c.observacao || (setor ? setor.observacao : ""),
+          observacao: c.observacao || (no ? no.observacao : ""),
           ordem: c.ordem || ""
         });
         row.numero = tipo === "Telefone" ? valor : "";
@@ -161,11 +161,12 @@ function _v4Flat(opcoes) {
         row.email = tipo === "E-mail" ? valor : "";
         out.push(row);
       };
-      (f.contatos || []).forEach(incluir);
-      (f.unidades || []).forEach(u => {
-        (u.contatosDiretos || []).forEach(incluir);
-        (u.setores || []).forEach(s => (s.contatos || []).forEach(incluir));
-      });
+      (f.contatos || []).forEach(function(c) { incluir(c, null); });
+      const percorrer = function(no) {
+        (no.contatos || []).forEach(function(c) { incluir(c, no); });
+        (no.filhos || []).forEach(percorrer);
+      };
+      (f.nos || []).forEach(percorrer);
     });
   });
   return out;
@@ -183,7 +184,7 @@ function v4PesquisarContatos(texto) {
   const dados = _v4Flat({});
   const t = limparTexto(termo);
   if (!t) return respostaSucesso(dados);
-  return respostaSucesso(dados.filter(x => limparTexto([x.municipio, x.forum, x.unidade, x.setor, x.tipo, x.descricao, x.valor, x.email, x.endereco, x.observacao].join(" ")).includes(t)));
+  return respostaSucesso(dados.filter(x => limparTexto([x.municipio, x.forum, x.caminhoTexto, x.unidade, x.setor, x.tipo, x.descricao, x.valor, x.email, x.endereco, x.observacao].join(" ")).includes(t)));
 }
 
 function v4ListarMunicipios() {
@@ -250,7 +251,7 @@ function v4CriarContato(dados) {
   const entrada = ehObjeto(dados) ? dados : {};
   const contexto = _v4ResolverContexto(entrada);
   const usuario = _v4Usuario();
-  if (!_v4EscopoPermitido(usuario, contexto.forumId, contexto.unidadeId)) throw new Error("Sem permissão para este Fórum/Unidade.");
+  if (!_v4EscopoPermitido(usuario, contexto.forumId, contexto.noId)) throw new Error("Sem permissão para esta Unidade Organizacional.");
   const tipo = _v4TipoNormalizado(valorObjeto(entrada, "tipo", "TIPO"));
   const valor = textoSeguro(valorObjeto(entrada, "valor", "VALOR"));
   const descricao = textoSeguro(valorObjeto(entrada, "descricao", "DESCRICAO", "descrição"));
@@ -258,8 +259,8 @@ function v4CriarContato(dados) {
   if (tipo === "E-mail" && !/^\S+@\S+\.\S+$/.test(valor)) throw new Error("E-mail inválido.");
 
   const existentes = _v4Flat({});
-  const chave = limparTexto(tipo + "|" + valor + "|" + descricao + "|" + contexto.forumId + "|" + contexto.unidadeId + "|" + contexto.setorId);
-  if (existentes.some(x => limparTexto(x.tipo + "|" + x.valor + "|" + x.descricao + "|" + x.forumId + "|" + x.unidadeId + "|" + x.setorId) === chave)) throw new Error("Contato duplicado no mesmo contexto.");
+  const chave = limparTexto(tipo + "|" + valor + "|" + descricao + "|" + contexto.forumId + "|" + contexto.noId);
+  if (existentes.some(x => limparTexto(x.tipo + "|" + x.valor + "|" + x.descricao + "|" + x.forumId + "|" + x.noId) === chave)) throw new Error("Contato duplicado no mesmo contexto.");
 
   const sh = DB.contatos();
   const headers = DB.headers(sh);
@@ -269,6 +270,7 @@ function v4CriarContato(dados) {
     const k = normalizarChave(h);
     if (k === "ID") return id;
     if (k === "FORUMID") return contexto.forumId;
+    if (k === "UNIDADEORGANIZACIONALID") return contexto.noId;
     if (k === "UNIDADEID") return contexto.unidadeId;
     if (k === "SETORID") return contexto.setorId;
     if (k === "TIPO") return tipo;
@@ -295,7 +297,7 @@ function v4AtualizarContato(id, dados) {
   const antigo = v4ObterContato(id).dados;
   const entrada = ehObjeto(dados) ? dados : {};
   const contexto = _v4ResolverContexto(Object.assign({}, antigo, entrada));
-  if (!_v4EscopoPermitido(usuario, contexto.forumId, contexto.unidadeId)) throw new Error("Sem permissão para este Fórum/Unidade.");
+  if (!_v4EscopoPermitido(usuario, contexto.forumId, contexto.noId)) throw new Error("Sem permissão para esta Unidade Organizacional.");
   const sh = DB.contatos();
   const headers = DB.headers(sh);
   const rowIndex = DB.read(sh).findIndex(l => textoSeguro(_v4Col(atual.mapa, l, ["ID"])) === textoSeguro(id)) + 2;
@@ -308,6 +310,7 @@ function v4AtualizarContato(id, dados) {
     const k = normalizarChave(h);
     if (k === "ID") return id;
     if (k === "FORUMID") return contexto.forumId;
+    if (k === "UNIDADEORGANIZACIONALID") return contexto.noId;
     if (k === "UNIDADEID") return contexto.unidadeId;
     if (k === "SETORID") return contexto.setorId;
     if (k === "TIPO") return tipo;
@@ -331,7 +334,7 @@ function v4ExcluirContato(id) {
   const atual = v4ObterContato(id).dados;
   if (!atual) throw new Error("Contato não encontrado.");
   const usuario = _v4Usuario();
-  if (!_v4EscopoPermitido(usuario, atual.forumId, atual.unidadeId)) throw new Error("Sem permissão para este Fórum/Unidade.");
+  if (!_v4EscopoPermitido(usuario, atual.forumId, atual.noId)) throw new Error("Sem permissão para esta Unidade Organizacional.");
   const sh = DB.contatos();
   const mapa = DB.map(sh);
   const valores = DB.read(sh);
@@ -347,7 +350,7 @@ function v4HistoricoContato(id) {
   new AuthService().exigirPermissao(CONFIG.PERMISSOES.HISTORICO);
   const atual = v4ObterContato(id).dados;
   if (!atual) return respostaSucesso([]);
-  if (!_v4EscopoPermitido(_v4Usuario(), atual.forumId, atual.unidadeId)) throw new Error("Sem permissão para este Fórum/Unidade.");
+  if (!_v4EscopoPermitido(_v4Usuario(), atual.forumId, atual.noId)) throw new Error("Sem permissão para esta Unidade Organizacional.");
   const sh = DB.historico();
   const mapa = DB.map(sh);
   return respostaSucesso(DB.read(sh).filter(l => textoSeguro(_v4Col(mapa, l, ["CONTATO_ID", "TELEFONE_ID", "TELEFONEID"])) === textoSeguro(id)).map(l => {
@@ -356,7 +359,10 @@ function v4HistoricoContato(id) {
 }
 
 function validarDadosReaisForumV4() {
+  // Alias de compatibilidade: a validação operacional passou a ser V5.
   new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
+  return validarIntegridadeHierarquiaOrganizacionalV5();
+  /* Código histórico V4 mantido abaixo apenas como referência de migração.
   const ss = DB.getSpreadsheet();
 
   const obrigatorias = [
@@ -664,4 +670,5 @@ function validarDadosReaisForumV4() {
         : 0
     }
   };
+  */
 }

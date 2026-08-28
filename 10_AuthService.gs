@@ -185,16 +185,18 @@ class AuthService {
       .filter(Boolean);
     const unicos = Array.from(new Set(ids));
 
-    const sheetUnidades = DB.unidadesOuNulo();
+    const sheetUnidades = DB.unidadesOrganizacionaisOuNulo();
     if (!sheetUnidades) return { ids: unicos, unidades: unicos.map(id => ({ id: id, nome: id })) };
     const mapaU = DB.map(sheetUnidades);
     const sheetForuns = DB.forumOuNulo();
     const mapaF = sheetForuns ? DB.map(sheetForuns) : null;
     const foruns = {};
     if (sheetForuns) DB.read(sheetForuns).forEach(function(linha) {
-      foruns[textoSeguro(linha[mapaF.ID - 1])] = mapaF.MUNICIPIO_ID
-        ? textoSeguro(linha[mapaF.MUNICIPIO_ID - 1])
-        : "";
+      const id = textoSeguro(linha[mapaF.ID - 1]);
+      foruns[id] = {
+        nome: mapaF.NOME ? textoSeguro(linha[mapaF.NOME - 1]) : "",
+        municipioId: mapaF.MUNICIPIO_ID ? textoSeguro(linha[mapaF.MUNICIPIO_ID - 1]) : ""
+      };
     });
     const sheetMunicipios = DB.municipiosOuNulo();
     const mapaM = sheetMunicipios ? DB.map(sheetMunicipios) : null;
@@ -203,15 +205,22 @@ class AuthService {
       municipios[textoSeguro(linha[mapaM.ID - 1])] = textoSeguro(linha[mapaM.NOME - 1]);
     });
 
+    const nos = _fcIndiceOrganizacional();
     const unidades = DB.read(sheetUnidades)
       .filter(linha => unicos.includes(textoSeguro(linha[mapaU.ID - 1])))
       .map(function(linha) {
+        const id = textoSeguro(linha[mapaU.ID - 1]);
         const forumId = mapaU.FORUM_ID ? textoSeguro(linha[mapaU.FORUM_ID - 1]) : "";
+        const forum = foruns[forumId] || {};
+        const caminho = id && nos[id] ? _fcResolverAncestros(nos, id) : [];
         return {
-          id: textoSeguro(linha[mapaU.ID - 1]),
-          nome: textoSeguro(linha[mapaU.NOME - 1]) || textoSeguro(linha[mapaU.ID - 1]),
+          id: id,
+          nome: textoSeguro(linha[mapaU.NOME - 1]) || id,
+          caminho: caminho.map(function(no) { return no.nome; }),
+          caminhoTexto: caminho.map(function(no) { return no.nome; }).join(" › "),
           forumId: forumId,
-          municipio: municipios[foruns[forumId]] || ""
+          forum: forum.nome || "",
+          municipio: municipios[forum.municipioId] || ""
         };
       });
     return { ids: unicos, unidades: unidades };

@@ -39,12 +39,26 @@ function validarArquiteturaForum() {
   }
 }
 
+function validarArquiteturaForumV5() {
+  return validarArquiteturaForum();
+}
+
 function validarDadosReaisForumV4API() {
   try {
     new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
     return respostaSucesso(validarDadosReaisForumV4());
   } catch (erro) {
     try { registrarErroAPI("VALIDAR_DADOS_REAIS_FORUM_V4", erro); } catch (e) {}
+    return respostaErro(erro);
+  }
+}
+
+function validarDadosReaisForumV5API() {
+  try {
+    new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
+    return respostaSucesso(validarIntegridadeHierarquiaOrganizacionalV5());
+  } catch (erro) {
+    try { registrarErroAPI("VALIDAR_DADOS_REAIS_FORUM_V5", erro); } catch (e) {}
     return respostaErro(erro);
   }
 }
