@@ -31,6 +31,15 @@ Este arquivo é o índice rápido do projeto. Antes de ler código, consulte a s
 
 ## 3. Arquivos de suporte
 
+### Organização local
+
+- `src/` contém todo o código publicado pelo Clasp e o `appsscript.json`.
+- `src/backend/` contém os arquivos `.gs`, incluindo `src/backend/Main.gs`, a entrada web da aplicação (`doGet`, templates e `include`).
+- `src/frontend/` contém os arquivos `.html` de telas, estilos e JavaScript cliente.
+- `data/` contém planilhas locais `.xlsx` e não faz parte do pacote sincronizado.
+- `scripts/` contém ferramentas auxiliares de desenvolvimento local, como `scripts/clasp-alvo.sh`.
+- As configurações `.clasp.*.json.example` usam `rootDir: "src"`; arquivos `.clasp.*.json` reais permanecem locais por conterem identificadores/configurações do ambiente.
+
 - `02_Utils.gs`: normalização, conversões, datas, serialização e utilidades compartilhadas.
 - `06_ValidationService.gs`: validações de dados e regras de entrada.
 - `07_IdService.gs`: geração/controle de identificadores.
@@ -105,4 +114,3 @@ Evite “máximo” e “ultra” por padrão. Use-os somente quando houver falh
 - Quais arquivos podem ser editados?
 - Qual comportamento deve ser preservado?
 - Qual validação mínima prova que terminou?
-

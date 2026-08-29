@@ -9,7 +9,22 @@
 # Dependências Node.js
 node_modules/
 
-# Arquivos temporários
+# Dados locais e planilhas
+data/
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+*.tsv
+
+# Arquivos temporários do Excel e editores
+~$*.xlsx
+~$*.xls
+~$*.xlsm
+*.tmp
+*.temp
+*.bak
+*.swp
 *.log
 
 # Arquivos do sistema

@@ -8,6 +8,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [interno, externo]
     steps:
     - name: Checkout repo
       uses: actions/checkout@v4
@@ -22,9 +25,11 @@ jobs:
 
     - name: Create clasprc.json
       env:
-        CLASPRC_CONTENT: ${{ secrets.CLASPRC_JSON }}
-      run: echo "$CLASPRC_CONTENT" > ~/.clasprc.json
+        CLASPRC_CONTENT: ${{ secrets[format('CLASPRC_{0}', matrix.target)] }}
+      run: printf '%s' "$CLASPRC_CONTENT" > ~/.clasprc.json
 
-    - name: Push code to Apps Script
+    - name: Select Clasp project
+      run: cp ".clasp.${{ matrix.target }}.json.example" .clasp.json
+
+    - name: Push code to Apps Script (${{ matrix.target }})
       run: clasp push -f
-
