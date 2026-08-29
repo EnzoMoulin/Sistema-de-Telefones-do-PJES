@@ -5,14 +5,15 @@ Sistema Web App do **Poder Judiciário do Estado do Espírito Santo (TJES)** par
 ## Arquitetura atual
 
 ```text
-MUNICIPIOS
-    ↓
-  FORUM
-    ↓
- UNIDADES_ORGANIZACIONAIS (UNIDADES E SETORES)
-    ↳ 
-    ↓
- CONTATOS
+        MUNICIPIOS
+            ↓
+          FORUM
+            ↓
+ UNIDADES_ORGANIZACIONAIS
+
+            ↳ (UNIDADES E SETORES)
+                        ↓
+                     CONTATOS
 ```
 
 ## Regras principais
