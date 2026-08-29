@@ -30,3 +30,7 @@ data/
 # Arquivos do sistema
 .DS_Store
 Thumbs.db
+
+# Documentação local (exceto o README principal)
+*.md
+!README.md
