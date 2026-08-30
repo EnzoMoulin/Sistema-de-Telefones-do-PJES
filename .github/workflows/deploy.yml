@@ -10,8 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Removido o 'interno', deixando apenas o 'externo'
-        target: [externo]
+        # Coloque o 'interno' de volta na lista para o GitHub rodar ambos
+        target: [interno, externo]
     steps:
     - name: Checkout repo
       uses: actions/checkout@v4
