@@ -7,7 +7,7 @@
  */
 function doGet() {
   const privado = AuthService.ehContextoPrivado();
-  const template = prepararTemplateAplicacao(HtmlService.createTemplateFromFile("index"));
+  const template = prepararTemplateAplicacao(criarTemplateFrontend("index"));
 
   template.perfilAdmin = "";
   template.sessaoEmail = privado ? AuthService.obterEmailAtivo() : "";
@@ -77,10 +77,7 @@ function escaparHtmlServidor(valor) {
 }
 
 function include(nomeArquivo) {
-  const nome = textoSeguro(nomeArquivo);
-  if (!nome) throw new Error("Nome do arquivo não informado.");
-
-  const template = HtmlService.createTemplateFromFile(nome);
+  const template = criarTemplateFrontend(nomeArquivo);
   template.sistemaNome = CONFIG.SISTEMA.NOME;
   template.sistemaVersao = CONFIG.SISTEMA.VERSAO;
   template.urlSistema = obterUrlSistema();
@@ -88,4 +85,18 @@ function include(nomeArquivo) {
   template.dominioInstitucional = CONFIG.AUTH.DOMINIO_INSTITUCIONAL;
   template.ehContextoAdmin = AuthService.ehContextoPrivado();
   return template.evaluate().getContent();
+}
+
+/**
+ * O Clasp preserva as subpastas ao publicar os arquivos do projeto. Assim,
+ * os templates em src/frontend são identificados no Apps Script como
+ * "frontend/NomeDoArquivo", embora os includes usem somente o nome lógico.
+ */
+function criarTemplateFrontend(nomeArquivo) {
+  const nome = textoSeguro(nomeArquivo);
+  if (!nome) throw new Error("Nome do arquivo não informado.");
+  if (!/^[A-Za-z0-9_-]+$/.test(nome)) {
+    throw new Error("Nome de template inválido.");
+  }
+  return HtmlService.createTemplateFromFile("frontend/" + nome);
 }
