@@ -1,8 +1,10 @@
-# Credenciais locais do Google Clasp
-.clasprc.json
+# Credenciais locais do Google Clasp e tokens de sessão
+.clasprc*
 .clasp.json
-.clasp.externo.json
-.clasp.interno.json
+
+# Mantém os arquivos de configuração reais rastreados no Git
+!.clasp.externo.json
+!.clasp.interno.json
 !.clasp.externo.json.example
 !.clasp.interno.json.example
 
@@ -34,3 +36,6 @@ Thumbs.db
 # Documentação local (exceto o README principal)
 *.md
 !README.md
+
+# Automação local
+deploy_all.sh
