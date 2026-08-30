@@ -1,0 +1,8 @@
+# Ignora absolutamente tudo por padrão
+**/*
+
+# Abre exceção APENAS para os arquivos de código do Apps Script
+!**/*.js
+!**/*.gs
+!**/*.html
+!appsscript.json
