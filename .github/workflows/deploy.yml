@@ -10,7 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [interno, externo]
+        # Removido o 'interno', deixando apenas o 'externo'
+        target: [externo]
     steps:
     - name: Checkout repo
       uses: actions/checkout@v4
