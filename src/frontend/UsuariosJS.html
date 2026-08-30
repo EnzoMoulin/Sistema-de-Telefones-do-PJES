@@ -1,63 +1,86 @@
 <script>
-var unidadesUsuarios = [];
+var escoposUsuarios = [];
+var usuarioEmEdicao = null;
 
-function carregarUsuarios(){
-  API.listarUnidadesParaAcesso(function(respUnidades){
-    unidadesUsuarios = respUnidades && respUnidades.sucesso === true ? (respUnidades.dados || []) : [];
-    preencherUnidadesNovoUsuario();
-    API.listarUsuarios(function(resp){
-      if(!resp || resp.sucesso !== true){ mostrarToast((resp&&resp.erro)||"Erro ao carregar usuários.","error"); return; }
+function textoEscopoUsuario(escopo) {
+  var prefixo = { MUNICIPIO: "Município", FORUM: "Fórum", UNIDADE: "Unidade" }[escopo.tipo] || escopo.tipo;
+  return prefixo + ": " + (escopo.caminhoTexto || escopo.nome || escopo.id);
+}
+
+function carregarUsuarios() {
+  API.listarEscoposParaAcesso(function(respEscopos) {
+    escoposUsuarios = respEscopos && respEscopos.sucesso === true ? (respEscopos.dados || []) : [];
+    API.listarUsuarios(function(resp) {
+      if (!resp || resp.sucesso !== true) { mostrarToast((resp && resp.erro) || "Erro ao carregar usuários.", "error"); return; }
       renderizarUsuarios(resp.dados || []);
-    }, function(erro){ mostrarToast((erro&&erro.message)||"Falha de comunicação.","error"); });
-  }, function(erro){ mostrarToast((erro&&erro.message)||"Falha ao carregar Unidades.","error"); });
+    }, function(erro) { mostrarToast((erro && erro.message) || "Falha de comunicação.", "error"); });
+  }, function(erro) { mostrarToast((erro && erro.message) || "Falha ao carregar escopos de acesso.", "error"); });
 }
 
-function seletorUnidadesUsuario(ids, nivel){
-  var select=document.createElement("select"); select.multiple=true; select.size=5; select.style.minWidth="260px"; select.disabled=Number(nivel)!==1;
-  var atuais=new Set(Array.isArray(ids)?ids:[]);
-  unidadesUsuarios.forEach(function(u){ var op=document.createElement("option"); op.value=u.id; op.textContent=[u.municipio,u.forum,u.nome].filter(Boolean).join(" — "); op.selected=atuais.has(u.id); select.appendChild(op); });
-  return select;
-}
-
-function renderizarUsuarios(lista){
-  var tbody=document.getElementById("corpo-tabela-usuarios"); if(!tbody)return; tbody.textContent="";
-  if(!lista.length){ var tr0=document.createElement("tr"); var td0=document.createElement("td"); td0.colSpan=6; td0.textContent="Nenhum usuário cadastrado."; tr0.appendChild(td0); tbody.appendChild(tr0); return; }
-  lista.forEach(function(u){
-    var tr=document.createElement("tr");
-    var tdEmail=document.createElement("td"); tdEmail.textContent=u.email; tr.appendChild(tdEmail);
-    var tdNome=document.createElement("td"); var nome=document.createElement("input"); nome.value=u.nome||""; nome.maxLength=150; tdNome.appendChild(nome); tr.appendChild(tdNome);
-    var tdNivel=document.createElement("td"); var nivel=document.createElement("select"); nivel.innerHTML='<option value="1">1 — Conteúdo</option><option value="2">2 — Sistema</option>'; nivel.value=String(u.nivel); tdNivel.appendChild(nivel); tr.appendChild(tdNivel);
-    var tdUnidades=document.createElement("td"); var unidades=seletorUnidadesUsuario(u.unidadeIds,u.nivel); tdUnidades.appendChild(unidades); tr.appendChild(tdUnidades);
-    nivel.addEventListener("change",function(){ unidades.disabled=Number(nivel.value)!==1; if(unidades.disabled) Array.from(unidades.options).forEach(function(o){o.selected=false;}); });
-    var tdAtivo=document.createElement("td"); var ativo=document.createElement("input"); ativo.type="checkbox"; ativo.checked=u.ativo===true; tdAtivo.appendChild(ativo); tr.appendChild(tdAtivo);
-    var tdAcoes=document.createElement("td");
-    var salvar=document.createElement("button"); salvar.type="button"; salvar.className="btn btn-primary"; salvar.textContent="Salvar"; salvar.onclick=function(){ salvarUsuario(u.email,{nome:nome.value,nivel:Number(nivel.value),ativo:ativo.checked,unidadeIds:Array.from(unidades.selectedOptions).map(function(o){return o.value;})},salvar); };
-    var excluir=document.createElement("button"); excluir.type="button"; excluir.className="btn btn-danger"; excluir.textContent="Excluir"; excluir.style.marginLeft="6px"; excluir.onclick=function(){ excluirUsuario(u.email,excluir); };
-    tdAcoes.appendChild(salvar); tdAcoes.appendChild(excluir); tr.appendChild(tdAcoes); tbody.appendChild(tr);
+function renderizarUsuarios(lista) {
+  var tbody = document.getElementById("corpo-tabela-usuarios"); if (!tbody) return; tbody.textContent = "";
+  if (!lista.length) { var tr0 = document.createElement("tr"), td0 = document.createElement("td"); td0.colSpan = 5; td0.textContent = "Nenhum usuário cadastrado."; tr0.appendChild(td0); tbody.appendChild(tr0); return; }
+  lista.forEach(function(usuario) {
+    var tr = document.createElement("tr"); tr.tabIndex = 0; tr.style.cursor = "pointer"; tr.title = "Clique para gerenciar este usuário";
+    function celula(texto) { var td = document.createElement("td"); td.textContent = texto || "-"; tr.appendChild(td); }
+    celula(usuario.nome); celula(usuario.email);
+    celula(usuario.nivel === 1 ? "Gestor de Conteúdo" : "Gestor do Sistema");
+    celula(usuario.nivel === 2 ? "Acesso global" : (usuario.unidades || []).map(textoEscopoUsuario).join(" • "));
+    celula(usuario.ativo === true ? "Sim" : "Não");
+    tr.onclick = function() { abrirModalEditarUsuario(usuario); };
+    tr.onkeydown = function(evento) { if (evento.key === "Enter" || evento.key === " ") { evento.preventDefault(); abrirModalEditarUsuario(usuario); } };
+    tbody.appendChild(tr);
   });
 }
 
-function salvarUsuario(email,dados,botao){
-  if(Number(dados.nivel)===1 && !dados.unidadeIds.length){ mostrarToast("Selecione ao menos uma Unidade para o nível 1.","warning"); return; }
-  botao.disabled=true; API.atualizarUsuario(email,dados,function(resp){ botao.disabled=false; if(resp&&resp.sucesso===true){mostrarToast("Usuário atualizado.","success");carregarUsuarios();}else mostrarToast((resp&&resp.erro)||"Falha ao atualizar.","error"); },function(erro){botao.disabled=false;mostrarToast((erro&&erro.message)||"Falha de comunicação.","error");});
+function preencherEscoposUsuario(selecionados) {
+  var select = document.getElementById("usuario-escopos"); if (!select) return; select.textContent = "";
+  var atuais = new Set((selecionados || []).map(function(escopo) { return escopo.tipo + ":" + escopo.id; }));
+  ["MUNICIPIO", "FORUM", "UNIDADE"].forEach(function(tipo) {
+    var grupo = document.createElement("optgroup"); grupo.label = { MUNICIPIO: "Municípios", FORUM: "Fóruns", UNIDADE: "Unidades" }[tipo];
+    escoposUsuarios.filter(function(escopo) { return escopo.tipo === tipo; }).forEach(function(escopo) {
+      var opcao = document.createElement("option"); opcao.value = escopo.tipo + ":" + escopo.id; opcao.textContent = textoEscopoUsuario(escopo); opcao.selected = atuais.has(opcao.value); grupo.appendChild(opcao);
+    });
+    if (grupo.children.length) select.appendChild(grupo);
+  });
 }
 
-function excluirUsuario(email,botao){
-  if(!confirm("Excluir o acesso de "+email+"?"))return; botao.disabled=true;
-  API.excluirUsuario(email,function(resp){botao.disabled=false;if(resp&&resp.sucesso===true){mostrarToast("Usuário excluído.","success");carregarUsuarios();}else mostrarToast((resp&&resp.erro)||"Falha ao excluir.","error");},function(erro){botao.disabled=false;mostrarToast((erro&&erro.message)||"Falha de comunicação.","error");});
+function abrirModalAdicionarUsuario() {
+  usuarioEmEdicao = null;
+  document.getElementById("titulo-modal-usuario").textContent = "Adicionar usuário";
+  document.getElementById("usuario-email").value = ""; document.getElementById("usuario-email").disabled = false;
+  document.getElementById("usuario-nome").value = ""; document.getElementById("usuario-nivel").value = "1"; document.getElementById("usuario-ativo").checked = true;
+  document.getElementById("btn-excluir-usuario").classList.add("hidden"); document.getElementById("btn-salvar-usuario").textContent = "Adicionar";
+  preencherEscoposUsuario([]); alternarEscoposUsuario(); document.getElementById("modal-usuario").classList.remove("hidden");
 }
 
-function preencherUnidadesNovoUsuario(){
-  var select=document.getElementById("novo-usuario-unidades"); if(!select)return; select.textContent="";
-  unidadesUsuarios.forEach(function(u){var op=document.createElement("option");op.value=u.id;op.textContent=[u.municipio,u.forum,u.nome].filter(Boolean).join(" — ");select.appendChild(op);});
+function abrirModalEditarUsuario(usuario) {
+  usuarioEmEdicao = usuario;
+  document.getElementById("titulo-modal-usuario").textContent = "Gerenciar usuário";
+  document.getElementById("usuario-email").value = usuario.email || ""; document.getElementById("usuario-email").disabled = true;
+  document.getElementById("usuario-nome").value = usuario.nome || ""; document.getElementById("usuario-nivel").value = String(usuario.nivel || 1); document.getElementById("usuario-ativo").checked = usuario.ativo === true;
+  document.getElementById("btn-excluir-usuario").classList.remove("hidden"); document.getElementById("btn-salvar-usuario").textContent = "Salvar";
+  preencherEscoposUsuario(usuario.escopos || []); alternarEscoposUsuario(); document.getElementById("modal-usuario").classList.remove("hidden");
 }
-function abrirModalAdicionarUsuario(){document.getElementById("modal-adicionar-usuario")?.classList.remove("hidden");preencherUnidadesNovoUsuario();alternarUnidadesNovoUsuario();}
-function fecharModalAdicionarUsuario(){document.getElementById("modal-adicionar-usuario")?.classList.add("hidden");}
-function alternarUnidadesNovoUsuario(){var nivel=Number(document.getElementById("novo-usuario-nivel")?.value||0);var grupo=document.getElementById("grupo-novo-usuario-unidades");if(grupo)grupo.style.display=nivel===1?"":"none";}
-function salvarNovoUsuario(){
-  var email=String(document.getElementById("novo-usuario-email")?.value||"").trim(); var nome=String(document.getElementById("novo-usuario-nome")?.value||"").trim(); var nivel=Number(document.getElementById("novo-usuario-nivel")?.value||0); var ativo=document.getElementById("novo-usuario-ativo")?.checked===true; var select=document.getElementById("novo-usuario-unidades"); var unidadeIds=select?Array.from(select.selectedOptions).map(function(o){return o.value;}):[];
-  if(nivel===1&&!unidadeIds.length){mostrarToast("Selecione ao menos uma Unidade.","warning");return;} var btn=document.getElementById("btn-salvar-novo-usuario");btn.disabled=true;
-  API.criarUsuario({email:email,nome:nome,nivel:nivel,ativo:ativo,unidadeIds:unidadeIds},function(resp){btn.disabled=false;if(resp&&resp.sucesso===true){fecharModalAdicionarUsuario();mostrarToast("Usuário criado.","success");carregarUsuarios();}else mostrarToast((resp&&resp.erro)||"Falha ao criar.","error");},function(erro){btn.disabled=false;mostrarToast((erro&&erro.message)||"Falha de comunicação.","error");});
+
+function fecharModalUsuario() { document.getElementById("modal-usuario").classList.add("hidden"); usuarioEmEdicao = null; }
+function alternarEscoposUsuario() { var nivel = Number(document.getElementById("usuario-nivel").value || 0); document.getElementById("grupo-usuario-escopos").style.display = nivel === 1 ? "" : "none"; }
+function obterEscoposSelecionadosUsuario() { return Array.from(document.getElementById("usuario-escopos").selectedOptions).map(function(opcao) { var partes = opcao.value.split(":"); return { tipo: partes[0], id: partes.slice(1).join(":") }; }); }
+
+function salvarUsuarioModal() {
+  var email = String(document.getElementById("usuario-email").value || "").trim(); var nome = String(document.getElementById("usuario-nome").value || "").trim(); var nivel = Number(document.getElementById("usuario-nivel").value || 0); var ativo = document.getElementById("usuario-ativo").checked === true; var escopos = obterEscoposSelecionadosUsuario();
+  if (nivel === 1 && !escopos.length) { mostrarToast("Selecione ao menos um escopo para o Gestor de Conteúdo.", "warning"); return; }
+  var botao = document.getElementById("btn-salvar-usuario"); botao.disabled = true;
+  var dados = { nome: nome, nivel: nivel, ativo: ativo, escopos: escopos };
+  var editando = !!usuarioEmEdicao;
+  var concluir = function(resp) { botao.disabled = false; if (resp && resp.sucesso === true) { fecharModalUsuario(); mostrarToast(editando ? "Usuário atualizado." : "Usuário criado.", "success"); carregarUsuarios(); } else mostrarToast((resp && resp.erro) || "Falha ao salvar usuário.", "error"); };
+  var falhar = function(erro) { botao.disabled = false; mostrarToast((erro && erro.message) || "Falha de comunicação.", "error"); };
+  if (editando) API.atualizarUsuario(usuarioEmEdicao.email, dados, concluir, falhar); else { dados.email = email; API.criarUsuario(dados, concluir, falhar); }
 }
-function imprimirUsuarios(){window.print();}
+
+function excluirUsuarioAtual() {
+  if (!usuarioEmEdicao || !confirm("Excluir o acesso de " + usuarioEmEdicao.email + "?")) return;
+  var botao = document.getElementById("btn-excluir-usuario"); botao.disabled = true;
+  API.excluirUsuario(usuarioEmEdicao.email, function(resp) { botao.disabled = false; if (resp && resp.sucesso === true) { fecharModalUsuario(); mostrarToast("Usuário excluído.", "success"); carregarUsuarios(); } else mostrarToast((resp && resp.erro) || "Falha ao excluir.", "error"); }, function(erro) { botao.disabled = false; mostrarToast((erro && erro.message) || "Falha de comunicação.", "error"); });
+}
 </script>

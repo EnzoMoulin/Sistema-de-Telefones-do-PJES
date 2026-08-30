@@ -174,6 +174,7 @@ function criarAbaSolicitacoesAcesso(
         "COMARCA",
         "NIVEL_SOLICITADO",
         "UNIDADE_ID",
+        "ESCOPO_ACESSOS",
         "JUSTIFICATIVA",
         "STATUS",
         "DATA_SOLICITACAO",
@@ -187,7 +188,19 @@ function criarAbaSolicitacoesAcesso(
     spreadsheet,
     sheet
   );
+  garantirColunaEscopoAcessos(sheet);
 
+  return sheet;
+}
+
+/** Preserva pedidos legados por Unidade e acrescenta o instantâneo estruturado dos escopos. */
+function garantirColunaEscopoAcessos(sheet) {
+  const headers = DB.headers(sheet);
+  if (headers.some(header => normalizarChave(header) === "ESCOPOACESSOS")) return sheet;
+  const indiceUnidade = headers.findIndex(header => normalizarChave(header) === "UNIDADEID");
+  const posicao = indiceUnidade >= 0 ? indiceUnidade + 2 : headers.length + 1;
+  sheet.insertColumns(posicao, 1);
+  sheet.getRange(1, posicao).setValue("ESCOPO_ACESSOS");
   return sheet;
 }
 
@@ -231,8 +244,7 @@ function garantirColunaComarca(
 }
 
 /**
- * Executa apenas a migração da aba SOLICITACOES_ACESSO
- * (adiciona a coluna COMARCA em instalações antigas).
+ * Executa a atualização compatível da aba SOLICITACOES_ACESSO.
  */
 function atualizarAbaSolicitacoesAcesso() {
   new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);
@@ -253,10 +265,11 @@ function atualizarAbaSolicitacoesAcesso() {
     spreadsheet,
     sheet
   );
+  garantirColunaEscopoAcessos(sheet);
 
   SpreadsheetApp.flush();
 
-  return "Coluna COMARCA garantida na aba SOLICITACOES_ACESSO.";
+  return "Colunas COMARCA e ESCOPO_ACESSOS garantidas na aba SOLICITACOES_ACESSO.";
 }
 
 /**
@@ -398,10 +411,52 @@ function criarAbaTelefonesUteis(spreadsheet) {
 }
 
 /**
- * v3.34 — Cria aba ACESSOS_UNIDADES (N:N USUARIOS x UNIDADES).
+ * Cria a tabela de vínculos N:N entre usuários e escopos administrativos.
  */
 function criarAbaAcessosUnidades(spreadsheet) {
-  return garantirAbaComCabecalho(spreadsheet, CONFIG.SHEETS.ACESSOS_UNIDADES, ["ID","USUARIO_ID","UNIDADE_ID","ATIVO"]);
+  const sheet = garantirAbaComCabecalho(spreadsheet, CONFIG.SHEETS.ACESSOS_UNIDADES, ["ID","USUARIO_ID","TIPO_ESCOPO","ESCOPO_ID","ATIVO"]);
+  return garantirEstruturaAcessosUnidades(sheet);
+}
+
+/** Migra o vínculo legado por Unidade para o escopo canônico, preservando os dados. */
+function garantirEstruturaAcessosUnidades(sheet) {
+  let mapa = DB.map(sheet);
+  if (mapa.ESCOPOID === undefined && mapa.UNIDADEID !== undefined) {
+    sheet.getRange(1, mapa.UNIDADEID).setValue("ESCOPO_ID");
+  }
+  mapa = DB.map(sheet);
+  if (mapa.UNIDADEID !== undefined && mapa.ESCOPOID !== undefined) {
+    const dados = DB.read(sheet);
+    let alterou = false;
+    const atualizados = dados.map(function(linha) {
+      const nova = linha.slice();
+      if (!textoSeguro(nova[mapa.ESCOPOID - 1])) {
+        nova[mapa.ESCOPOID - 1] = nova[mapa.UNIDADEID - 1];
+        alterou = true;
+      }
+      if (mapa.TIPOESCOPO !== undefined && !textoSeguro(nova[mapa.TIPOESCOPO - 1])) {
+        nova[mapa.TIPOESCOPO - 1] = CONFIG.ACESSOS.UNIDADE;
+        alterou = true;
+      }
+      return nova;
+    });
+    if (alterou && atualizados.length) {
+      sheet.getRange(2, 1, atualizados.length, sheet.getLastColumn()).setValues(atualizados);
+    }
+  }
+  mapa = DB.map(sheet);
+  if (mapa.TIPOESCOPO === undefined) {
+    const posicao = mapa.ESCOPOID || sheet.getLastColumn();
+    sheet.insertColumnsBefore(posicao, 1);
+    sheet.getRange(1, posicao).setValue("TIPO_ESCOPO");
+    const ultimaLinha = sheet.getLastRow();
+    if (ultimaLinha > 1) {
+      sheet.getRange(2, posicao, ultimaLinha - 1, 1).setValues(
+        Array.from({ length: ultimaLinha - 1 }, () => [CONFIG.ACESSOS.UNIDADE])
+      );
+    }
+  }
+  return sheet;
 }
 
 /**

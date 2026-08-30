@@ -12,7 +12,7 @@ function renderizarSolicitacoes(lista){
   lista.forEach(function(sol){
     var tr=document.createElement("tr");tr.appendChild(celulaSolicitacao(sol.email));tr.appendChild(celulaSolicitacao(sol.nome));
     tr.appendChild(celulaSolicitacao(sol.nivelSolicitado+" — "+(sol.nivelSolicitado===1?"Gestor de Conteúdo":"Gestor do Sistema")));
-    tr.appendChild(celulaSolicitacao((sol.unidadesSolicitadas||sol.unidadeIds||[]).join(", ")));tr.appendChild(celulaSolicitacao(sol.justificativa));tr.appendChild(celulaSolicitacao(sol.status));
+    tr.appendChild(celulaSolicitacao((sol.acessosSolicitados||[]).join(", ")));tr.appendChild(celulaSolicitacao(sol.justificativa));tr.appendChild(celulaSolicitacao(sol.status));
     var acoes=document.createElement("td");var aprovar=document.createElement("button");aprovar.type="button";aprovar.className="btn btn-primary";aprovar.textContent="Aprovar";aprovar.onclick=function(){aprovarSolicitacao(sol.id,sol.nivelSolicitado);};var rejeitar=document.createElement("button");rejeitar.type="button";rejeitar.className="btn btn-danger";rejeitar.textContent="Rejeitar";rejeitar.style.marginLeft="6px";rejeitar.onclick=function(){rejeitarSolicitacao(sol.id);};acoes.appendChild(aprovar);acoes.appendChild(rejeitar);tr.appendChild(acoes);tbody.appendChild(tr);
   });
 }
