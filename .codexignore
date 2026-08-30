@@ -1,0 +1,7 @@
+# Dados locais protegidos: não ler ou editar sem solicitação explícita do usuário.
+data/
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+*.tsv

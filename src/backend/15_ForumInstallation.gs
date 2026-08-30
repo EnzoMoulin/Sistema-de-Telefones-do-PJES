@@ -25,9 +25,9 @@ function instalarSistemaForum(segredo) {
 
     // Demais abas operacionais permanecem, mas TELEFONES não é criada.
     garantirAbaForumV4(ss, CONFIG.SHEETS.TELEFONES_UTEIS, ["ID","NOME","TIPO","VALOR","ATIVO"]);
-    garantirAbaForumV4(ss, CONFIG.SHEETS.ACESSOS_UNIDADES, ["ID","USUARIO_ID","UNIDADE_ID","ATIVO"]);
+    garantirEstruturaAcessosUnidades(garantirAbaForumV4(ss, CONFIG.SHEETS.ACESSOS_UNIDADES, ["ID","USUARIO_ID","TIPO_ESCOPO","ESCOPO_ID","ATIVO"]));
     garantirAbaForumV4(ss, CONFIG.SHEETS.USUARIOS, ["ID","NOME","EMAIL","NIVEL","ATIVO"]);
-    garantirAbaForumV4(ss, CONFIG.SHEETS.SOLICITACOES_ACESSO, ["ID","EMAIL","NOME","COMARCA","NIVEL_SOLICITADO","UNIDADE_ID","JUSTIFICATIVA","STATUS","DATA_SOLICITACAO","APROVADOR","DATA_APROVACAO"]);
+    garantirColunaEscopoAcessos(garantirAbaForumV4(ss, CONFIG.SHEETS.SOLICITACOES_ACESSO, ["ID","EMAIL","NOME","COMARCA","NIVEL_SOLICITADO","UNIDADE_ID","ESCOPO_ACESSOS","JUSTIFICATIVA","STATUS","DATA_SOLICITACAO","APROVADOR","DATA_APROVACAO"]));
     garantirAbaForumV4(ss, CONFIG.SHEETS.CONFIGURACAO, ["CHAVE","VALOR"]);
     garantirAbaForumV4(ss, CONFIG.SHEETS.HISTORICO, ["ID","CONTATO_ID","ACAO","ANTES","DEPOIS","USUARIO","DATA"]);
     garantirAbaForumV4(ss, CONFIG.SHEETS.LOG, ["ID","DATA","USUARIO","TIPO","ACAO","MENSAGEM"]);
@@ -203,14 +203,14 @@ function validarSegurancaAutenticacao() {
   const sheetA = ss.getSheetByName(CONFIG.SHEETS.ACESSOS_UNIDADES);
   const sheetS = ss.getSheetByName(CONFIG.SHEETS.SOLICITACOES_ACESSO);
   const esperadosU = ["ID", "NOME", "EMAIL", "NIVEL", "ATIVO"];
-  const esperadosA = ["ID", "USUARIO_ID", "UNIDADE_ID", "ATIVO"];
-  const esperadosS = ["ID", "EMAIL", "NOME", "NIVEL_SOLICITADO", "UNIDADE_ID", "STATUS"];
+  const esperadosA = ["ID", "USUARIO_ID", "TIPO_ESCOPO", "ESCOPO_ID", "ATIVO"];
+  const esperadosS = ["ID", "EMAIL", "NOME", "NIVEL_SOLICITADO", "ESCOPO_ACESSOS", "STATUS"];
 
   function checar(sheet, nome, headers) {
     if (!sheet) { problemas.push("Aba ausente: " + nome); return null; }
     const mapa = DB.map(sheet);
     headers.forEach(function(header) {
-      if (mapa[header] === undefined) problemas.push(nome + " sem " + header);
+      if (mapa[normalizarChave(header)] === undefined) problemas.push(nome + " sem " + header);
     });
     return mapa;
   }

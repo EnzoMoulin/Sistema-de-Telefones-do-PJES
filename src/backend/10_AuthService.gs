@@ -76,6 +76,7 @@ class AuthService {
       podeSolicitarAcesso: false,
       unidadeIds: [],
       unidades: [],
+      acessos: [],
       comarcas: []
     };
   }
@@ -164,66 +165,16 @@ class AuthService {
       podeSolicitarAcesso: nivel === CONFIG.NIVEIS.GESTOR_CONTEUDO,
       unidadeIds: escopo.ids,
       unidades: escopo.unidades,
+      acessos: escopo.acessos,
       comarcas: Array.from(new Set(escopo.unidades.map(item => item.municipio).filter(Boolean)))
     };
   }
 
   obterEscopoUnidades(usuarioId) {
-    const sheetAcessos = DB.acessosUnidadesOuNulo();
-    if (!sheetAcessos) return { ids: [], unidades: [] };
-    const mapaA = DB.map(sheetAcessos);
-    if (mapaA.USUARIOID === undefined || mapaA.UNIDADEID === undefined || mapaA.ATIVO === undefined) {
-      throw new Error("Aba ACESSOS_UNIDADES inválida.");
-    }
+    const acessos = lerAcessosAtivosUsuario(usuarioId);
+    if (!acessos.length) return { ids: [], unidades: [], acessos: [] };
 
-    const ids = DB.read(sheetAcessos)
-      .filter(linha =>
-        textoSeguro(linha[mapaA.USUARIOID - 1]) === textoSeguro(usuarioId) &&
-        paraBoolean(linha[mapaA.ATIVO - 1])
-      )
-      .map(linha => textoSeguro(linha[mapaA.UNIDADEID - 1]))
-      .filter(Boolean);
-    const unicos = Array.from(new Set(ids));
-
-    const sheetUnidades = DB.unidadesOrganizacionaisOuNulo();
-    if (!sheetUnidades) return { ids: unicos, unidades: unicos.map(id => ({ id: id, nome: id })) };
-    const mapaU = DB.map(sheetUnidades);
-    const sheetForuns = DB.forumOuNulo();
-    const mapaF = sheetForuns ? DB.map(sheetForuns) : null;
-    const foruns = {};
-    if (sheetForuns) DB.read(sheetForuns).forEach(function(linha) {
-      const id = textoSeguro(linha[mapaF.ID - 1]);
-      foruns[id] = {
-        nome: mapaF.NOME ? textoSeguro(linha[mapaF.NOME - 1]) : "",
-        municipioId: mapaF.MUNICIPIOID ? textoSeguro(linha[mapaF.MUNICIPIOID - 1]) : ""
-      };
-    });
-    const sheetMunicipios = DB.municipiosOuNulo();
-    const mapaM = sheetMunicipios ? DB.map(sheetMunicipios) : null;
-    const municipios = {};
-    if (sheetMunicipios) DB.read(sheetMunicipios).forEach(function(linha) {
-      municipios[textoSeguro(linha[mapaM.ID - 1])] = textoSeguro(linha[mapaM.NOME - 1]);
-    });
-
-    const nos = _fcIndiceOrganizacional();
-    const unidades = DB.read(sheetUnidades)
-      .filter(linha => unicos.includes(textoSeguro(linha[mapaU.ID - 1])))
-      .map(function(linha) {
-        const id = textoSeguro(linha[mapaU.ID - 1]);
-        const forumId = mapaU.FORUMID ? textoSeguro(linha[mapaU.FORUMID - 1]) : "";
-        const forum = foruns[forumId] || {};
-        const caminho = id && nos[id] ? _fcResolverAncestros(nos, id) : [];
-        return {
-          id: id,
-          nome: textoSeguro(linha[mapaU.NOME - 1]) || id,
-          caminho: caminho.map(function(no) { return no.nome; }),
-          caminhoTexto: caminho.map(function(no) { return no.nome; }).join(" › "),
-          forumId: forumId,
-          forum: forum.nome || "",
-          municipio: municipios[forum.municipioId] || ""
-        };
-      });
-    return { ids: unicos, unidades: unidades };
+    return resolverEscopoAcessos(acessos, montarCatalogoEscoposAcesso());
   }
 
   perfilAtual() {

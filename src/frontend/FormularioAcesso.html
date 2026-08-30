@@ -27,8 +27,8 @@
           </select>
         </div>
         <div id="grupo-acesso-unidades" class="fa-field fa-full">
-          <label>Unidades desejadas *</label>
-          <div id="acesso-unidades" class="fa-unidades" aria-live="polite">Carregando Unidades...</div>
+          <label>Escopos desejados *</label>
+          <div id="acesso-unidades" class="fa-unidades" aria-live="polite">Carregando Municípios, Fóruns e Unidades...</div>
         </div>
         <div class="fa-field fa-full">
           <label for="acesso-justificativa">Justificativa</label>
@@ -42,7 +42,7 @@
 </div>
 
 <script>
-var unidadesDisponiveisAcesso = [];
+var escoposDisponiveisAcesso = [];
 
 function atualizarIdentidadeFormularioAcesso(){
   var email = document.getElementById("acesso-email");
@@ -59,29 +59,29 @@ function atualizarIdentidadeFormularioAcesso(){
 
 function carregarUnidadesFormularioAcesso(){
   var holder = document.getElementById("acesso-unidades");
-  if(!holder || !API || typeof API.listarUnidadesParaAcesso !== "function") return;
-  API.listarUnidadesParaAcesso(function(resp){
-    unidadesDisponiveisAcesso = resp && resp.sucesso === true && Array.isArray(resp.dados) ? resp.dados : [];
+  if(!holder || !API || typeof API.listarEscoposParaAcesso !== "function") return;
+  API.listarEscoposParaAcesso(function(resp){
+    escoposDisponiveisAcesso = resp && resp.sucesso === true && Array.isArray(resp.dados) ? resp.dados : [];
     holder.textContent = "";
-    if(!unidadesDisponiveisAcesso.length){ holder.textContent = (resp && resp.erro) || "Nenhuma Unidade disponível."; return; }
-    unidadesDisponiveisAcesso.forEach(function(unidade){
+    if(!escoposDisponiveisAcesso.length){ holder.textContent = (resp && resp.erro) || "Nenhum escopo disponível."; return; }
+    escoposDisponiveisAcesso.forEach(function(escopo){
       var label = document.createElement("label"); label.className = "fa-unidade";
-      var check = document.createElement("input"); check.type = "checkbox"; check.value = unidade.id; check.name = "acesso-unidade";
-      var atuais = (typeof usuarioAtual !== "undefined" && Array.isArray(usuarioAtual.unidadeIds)) ? usuarioAtual.unidadeIds : [];
-      if(atuais.indexOf(unidade.id) !== -1){ check.disabled = true; label.style.opacity = ".58"; }
-      var texto = document.createElement("span"); texto.textContent = unidade.caminhoTexto || unidade.nome;
-      var detalhe = document.createElement("small"); detalhe.textContent = [unidade.municipio, unidade.forum].filter(Boolean).join(" — ");
+      var check = document.createElement("input"); check.type = "checkbox"; check.value = escopo.tipo + ":" + escopo.id; check.name = "acesso-escopo";
+      var atuais = (typeof usuarioAtual !== "undefined" && Array.isArray(usuarioAtual.acessos)) ? usuarioAtual.acessos : [];
+      if(atuais.some(function(atual){ return atual.tipo === escopo.tipo && atual.id === escopo.id; })){ check.disabled = true; label.style.opacity = ".58"; }
+      var texto = document.createElement("span"); texto.textContent = ({MUNICIPIO:"Município",FORUM:"Fórum",UNIDADE:"Unidade"}[escopo.tipo] || escopo.tipo) + ": " + (escopo.caminhoTexto || escopo.nome);
+      var detalhe = document.createElement("small"); detalhe.textContent = [escopo.municipio, escopo.forum].filter(Boolean).join(" — ");
       if(check.disabled) detalhe.textContent += (detalhe.textContent ? " — " : "") + "já vinculada";
       texto.appendChild(detalhe); label.appendChild(check); label.appendChild(texto); holder.appendChild(label);
     });
-  }, function(erro){ holder.textContent = (erro && erro.message) || "Falha ao carregar Unidades."; });
+  }, function(erro){ holder.textContent = (erro && erro.message) || "Falha ao carregar escopos."; });
 }
 
 function alternarUnidadesSolicitacao(){
   var nivel = Number(document.getElementById("acesso-nivel")?.value || 0);
   var grupo = document.getElementById("grupo-acesso-unidades");
   if(grupo) grupo.style.display = nivel === 1 ? "" : "none";
-  if(nivel === 2) document.querySelectorAll('input[name="acesso-unidade"]').forEach(function(el){ el.checked = false; });
+  if(nivel === 2) document.querySelectorAll('input[name="acesso-escopo"]').forEach(function(el){ el.checked = false; });
 }
 
 function mensagemFormularioAcesso(texto, sucesso){
@@ -94,15 +94,15 @@ function mensagemFormularioAcesso(texto, sucesso){
 function enviarFormularioAcesso(){
   var nome = String(document.getElementById("acesso-nome")?.value || "").trim();
   var nivel = Number(document.getElementById("acesso-nivel")?.value || 0);
-  var unidadeIds = Array.from(document.querySelectorAll('input[name="acesso-unidade"]:checked')).map(function(el){ return el.value; });
+  var escopos = Array.from(document.querySelectorAll('input[name="acesso-escopo"]:checked')).map(function(el){ var partes=el.value.split(":"); return {tipo:partes[0],id:partes.slice(1).join(":")}; });
   var justificativa = String(document.getElementById("acesso-justificativa")?.value || "").trim();
   if(nome.length < 3){ mensagemFormularioAcesso("Informe seu nome completo.", false); return; }
-  if(nivel === 1 && !unidadeIds.length){ mensagemFormularioAcesso("Selecione ao menos uma Unidade.", false); return; }
+  if(nivel === 1 && !escopos.length){ mensagemFormularioAcesso("Selecione ao menos um Município, Fórum ou Unidade.", false); return; }
   var botao = document.getElementById("btn-enviar-formulario-acesso"); if(botao) botao.disabled = true;
-  API.enviarFormularioAcesso({nome:nome,nivel:nivel,unidadeIds:unidadeIds,justificativa:justificativa}, function(resp){
+  API.enviarFormularioAcesso({nome:nome,nivel:nivel,escopos:escopos,justificativa:justificativa}, function(resp){
     if(botao) botao.disabled = false;
     if(resp && resp.sucesso === true){
-      mensagemFormularioAcesso("Solicitação enviada e registrada como PENDENTE. As Unidades já vinculadas serão preservadas.", true);
+      mensagemFormularioAcesso("Solicitação enviada e registrada como PENDENTE. Os acessos atuais serão preservados.", true);
       if(typeof mostrarToast === "function") mostrarToast("Solicitação enviada.", "success");
     } else mensagemFormularioAcesso((resp && resp.erro) || "Não foi possível enviar.", false);
   }, function(erro){ if(botao) botao.disabled = false; mensagemFormularioAcesso((erro && erro.message) || "Falha de comunicação.", false); });
