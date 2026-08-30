@@ -25,7 +25,8 @@ jobs:
 
     - name: Create clasprc.json
       env:
-        CLASPRC_CONTENT: ${{ secrets[format('CLASPRC_{0}', matrix.target)] }}
+        # Adicionado o upper() aqui para encontrar os Secrets CLASPRC_INTERNO e CLASPRC_EXTERNO
+        CLASPRC_CONTENT: ${{ secrets[format('CLASPRC_{0}', upper(matrix.target))] }}
       run: printf '%s' "$CLASPRC_CONTENT" > ~/.clasprc.json
 
     - name: Select Clasp project
@@ -33,3 +34,4 @@ jobs:
 
     - name: Push code to Apps Script (${{ matrix.target }})
       run: clasp push -f
+
