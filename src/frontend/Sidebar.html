@@ -8,90 +8,77 @@ Arquivo: Sidebar.html
 <div class="sidebar <?= ehContextoAdmin ? 'sidebar--admin' : '' ?>">
   <div class="sidebar-main">
     <div class="sidebar-header">
-      <h2>PJES</h2>
-      <span>Poder Judiciário do ES</span>
+      <div class="sidebar-brand-mark" aria-hidden="true">PJ</div>
+      <div class="sidebar-brand-copy">
+        <h2>PJES</h2>
+        <span>Diretório institucional de contatos</span>
+      </div>
     </div>
 
-    <nav class="sidebar-menu">
+    <nav class="sidebar-menu" aria-label="Navegação principal">
       <button type="button" id="menu-dashboard" class="menu-item" onclick="mostrarView('dashboard-view')">
-        <span class="icon">🏠</span>
+        <span class="icon" aria-hidden="true">⌂</span>
         <span>Dashboard</span>
       </button>
 
       <button type="button" id="menu-telefones" class="menu-item active" onclick="navegarParaTelefones()">
-        <span class="icon">☎</span>
+        <span class="icon" aria-hidden="true">☎</span>
         <span>Contatos</span>
       </button>
 
       <button type="button" id="menu-login" class="menu-item <?= ehContextoAdmin ? '' : 'hidden' ?>" onclick="entrarAreaAdministrativa()">
-        <span class="icon">🔐</span>
+        <span class="icon" aria-hidden="true">🔐</span>
         <span>Entrar na Área Administrativa</span>
       </button>
 
       <button type="button" id="menu-formulario" class="menu-item hidden" onclick="mostrarView('formulario-acesso-view')">
-        <span class="icon">📝</span>
+        <span class="icon" aria-hidden="true">✎</span>
         <span>Formulário de Acesso</span>
       </button>
 
       <button type="button" id="menu-solicitacoes" class="menu-item hidden" onclick="mostrarView('solicitacoes-view')">
-        <span class="icon">👥</span>
+        <span class="icon" aria-hidden="true">◎</span>
         <span>Solicitações de Acesso</span>
         <span id="badge-solicitacoes" class="badge hidden">0</span>
       </button>
 
-      <button type="button" id="menu-notificacoes" class="menu-item hidden" onclick="mostrarView('notificacoes-view')"><span class="icon">🔔</span><span>Notificações</span><span id="badge-notificacoes" class="badge hidden">0</span></button>
+      <button type="button" id="menu-notificacoes" class="menu-item hidden" onclick="mostrarView('notificacoes-view')">
+        <span class="icon" aria-hidden="true">🔔</span>
+        <span>Notificações</span>
+        <span id="badge-notificacoes" class="badge hidden">0</span>
+      </button>
 
       <button type="button" id="menu-usuarios" class="menu-item hidden" onclick="mostrarView('usuarios-view')">
-        <span class="icon">🧑‍💼</span>
+        <span class="icon" aria-hidden="true">♙</span>
         <span>Usuários</span>
       </button>
 
       <button type="button" id="menu-alteracoes" class="menu-item" onclick="mostrarView('registro-alteracoes-view')">
-        <span class="icon">📋</span>
+        <span class="icon" aria-hidden="true">≡</span>
         <span>Registro de Alterações</span>
       </button>
 
       <button type="button" id="menu-configuracoes" class="menu-item" onclick="mostrarView('configuracoes-view')">
-        <span class="icon">⚙</span>
+        <span class="icon" aria-hidden="true">⚙</span>
         <span>Configurações</span>
       </button>
 
       <button type="button" id="menu-manual" class="menu-item" onclick="mostrarView('manual-view')">
-        <span class="icon">📖</span>
+        <span class="icon" aria-hidden="true">?</span>
         <span>Manual do Usuário</span>
       </button>
     </nav>
   </div>
 
   <div class="sidebar-footer">
-    <button type="button" id="btn-status-acesso" class="<?= ehContextoAdmin ? '' : 'hidden' ?>" onclick="entrarAreaAdministrativa()"
-      style="
-        width: 100%;
-        padding: 10px 12px;
-        border-radius: 8px;
-        font-weight: 700;
-        font-size: 13px;
-        display: <?= ehContextoAdmin ? 'flex' : 'none' ?>;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        background: #fef3c7;
-        border: 2px solid #f59e0b;
-        color: #92400e;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      "
-    >
-      <span id="icone-status-acesso">🔑</span>
+    <button type="button" id="btn-status-acesso" class="sidebar-status-btn <?= ehContextoAdmin ? '' : 'hidden' ?>" onclick="entrarAreaAdministrativa()">
+      <span id="icone-status-acesso" aria-hidden="true">🔑</span>
       <span id="texto-status-acesso"><?= ehContextoAdmin ? 'Entrar na Área Administrativa' : 'Acesso Administrativo' ?></span>
     </button>
 
-    <div id="sidebar-user" style=" margin-top: 10px; font-size: 11px; color: #94a3b8; text-align: center;">
-      Perfil: Usuário de Consulta
-    </div>
+    <div id="sidebar-user" class="sidebar-user">Perfil: Usuário de Consulta</div>
 
-    <div id="sidebar-version" style="margin-top: 4px; font-size: 10px; color: #cbd5e1; text-align: center;">
+    <div id="sidebar-version" class="sidebar-version">
       v<span id="sidebar-version-num">5.0</span>
     </div>
   </div>
