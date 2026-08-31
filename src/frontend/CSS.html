@@ -121,8 +121,11 @@ body{min-width:0}
 
 .system-title h1{
   margin:0;
-  font-size:24px;
-  line-height:1.25
+  font-family:"Aptos Display","Segoe UI",Arial,sans-serif;
+  font-size:clamp(13px,1.3vw,21px);
+  font-weight:700;
+  line-height:1.15;
+  letter-spacing:.01em
 }
 
 .user-info{
@@ -1210,9 +1213,8 @@ body{
   display:grid;
   grid-template-columns:minmax(0,1fr) minmax(0,1fr);
   gap:clamp(16px,2vw,24px);
-  height:calc(100vh - 116px);
-  height:calc(100dvh - 116px);
-  min-height:520px;
+  height:100%;
+  min-height:0;
   align-items:stretch
 }
 
@@ -2266,4 +2268,53 @@ body.dark-mode ::-webkit-scrollbar-thumb { background:#334155 !important; }
 
 .dark-mode .fc-panel,.dark-mode .fc-card,.dark-mode .fc-search,.dark-mode .fc-select,.dark-mode .fc-pill,.dark-mode .fc-table{background:#1e293b!important;color:#e2e8f0!important;border-color:#334155!important;}
 .dark-mode #consulta-mapa,.dark-mode .consulta-detalhes{background:#1e293b;color:#e2e8f0;}
+
+/* A aba Contatos ocupa apenas o espaço restante abaixo do cabeçalho. */
+.main-container:has(#consulta-telefones-view:not(.hidden)),
+.main-content:has(#consulta-telefones-view:not(.hidden)){
+  display:flex;
+  flex-direction:column;
+  overflow:hidden
+}
+
+.main-container:has(#consulta-telefones-view:not(.hidden)) .topbar,
+.main-content:has(#consulta-telefones-view:not(.hidden)) .topbar{
+  flex:0 0 auto
+}
+
+#consulta-telefones-view:not(.hidden){
+  display:flex;
+  flex:1 1 auto;
+  min-height:0
+}
+
+#consulta-telefones-view:not(.hidden) .telefones-container,
+#consulta-telefones-view:not(.hidden) .consulta-layout,
+#consulta-telefones-view:not(.hidden) #consulta-mapa,
+#consulta-telefones-view:not(.hidden) .consulta-detalhes{
+  min-height:0
+}
+
+#consulta-telefones-view:not(.hidden) .telefones-container{
+  display:flex;
+  height:100%
+}
+
+#consulta-telefones-view:not(.hidden) .consulta-layout{
+  flex:1 1 auto
+}
+
+@media(max-width:1000px){
+  #consulta-telefones-view:not(.hidden) .consulta-layout{
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:minmax(0,1fr) minmax(0,1fr);
+    height:100%
+  }
+
+  #consulta-telefones-view:not(.hidden) #consulta-mapa,
+  #consulta-telefones-view:not(.hidden) .consulta-detalhes{
+    height:auto;
+    min-height:0
+  }
+}
 </style>

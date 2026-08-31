@@ -829,7 +829,7 @@ function initMapaLeaflet(containerId, isOverlay){
     }
     return null;
   }
-  var mapa = L.map(containerId, { zoomControl:true, attributionControl:true }).setView([-19.5, -40.3], 9);
+  var mapa = L.map(containerId, { zoomControl:true, attributionControl:true, scrollWheelZoom:true }).setView([-19.5, -40.3], 9);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(mapa);
 
   function carregar(){
