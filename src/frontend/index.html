@@ -11,6 +11,7 @@ Arquivo: index.html
     <base target="_top">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#182235">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -18,9 +19,10 @@ Arquivo: index.html
     <title><?= sistemaNome ?></title>
 
     <?!= include("CSS"); ?>
+    <?!= include("PolishCSS"); ?>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9coqIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   </head>
 
   <body>
@@ -46,51 +48,28 @@ Arquivo: index.html
       window.MODO_APLICACAO = MODO_APLICACAO;
     </script>
 
+    <a class="skip-link" href="#app">Ir para o conteúdo principal</a>
     <div id="app"><?!= include("Layout"); ?></div>
 
     <!-- Modal de confirmação de exclusão -->
-    <div id="modal-confirmar-exclusao" class="modal" style="display: none;z-index: 9999;" role="dialog" aria-modal="true"
-      aria-labelledby="titulo-confirmar-exclusao"
-    >
-      <div class="panel"
-        style="
-          width: 100%;
-          max-width: 440px;
-          padding: 24px;
-          background: #ffffff;
-          border-radius: 12px;
-          box-shadow: 0 20px 25px -5px rgba(15,23,42,.1), 0 10px 15px -5px rgba(15,23,42,.04);"
-      >
-        <div style="text-align: center;">
-          <div
-            style="
-              width: 48px;
-              height: 48px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              margin: 0 auto 16px;
-              background: #fee2e2;
-              border-radius: 50%;"
-            aria-hidden="true"
-          >
-            <span style="font-size: 24px;">🗑️</span>
-          </div>
+    <div id="modal-confirmar-exclusao" class="modal confirm-dialog" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="titulo-confirmar-exclusao">
+      <div class="panel confirm-dialog__panel">
+        <div class="confirm-dialog__body">
+          <div class="confirm-dialog__icon" aria-hidden="true">🗑</div>
 
-          <h3 id="titulo-confirmar-exclusao"
-            style="margin: 0 0 8px; color: #0f172a; font-size: 18px; font-weight: 700;">Excluir contato</h3>
+          <h3 id="titulo-confirmar-exclusao" class="confirm-dialog__title">Excluir contato</h3>
 
-          <p id="msg-confirmar-exclusao" style="margin: 0 0 20px; color: #64748b; font-size: 14px; line-height: 1.5;">
+          <p id="msg-confirmar-exclusao" class="confirm-dialog__message">
             Tem certeza de que deseja excluir este registro? Esta ação não poderá ser desfeita.
           </p>
         </div>
 
-        <div style="display: flex; gap: 12px; justify-content: flex-end;">
-          <button type="button" class="btn btn-secondary" onclick="fecharModalExclusao()" style="flex: 1;">
+        <div class="confirm-dialog__actions">
+          <button type="button" class="btn btn-secondary" onclick="fecharModalExclusao()">
             Cancelar
           </button>
 
-          <button type="button" id="btn-confirmar-exclusao-submit" class="btn btn-danger" style="flex: 1;">
+          <button type="button" id="btn-confirmar-exclusao-submit" class="btn btn-danger">
             Sim, excluir
           </button>
         </div>
@@ -112,5 +91,6 @@ Arquivo: index.html
     <?!= include("UsuariosJS"); ?>
     <?!= include("AppJS"); ?>
     <?!= include("ContatoGestaoJS"); ?>
-</body>
+    <?!= include("PolishJS"); ?>
+  </body>
 </html>
