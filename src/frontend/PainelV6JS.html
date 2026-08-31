@@ -1,0 +1,170 @@
+<script>
+(function () {
+  "use strict";
+
+  function normalizar(valor) {
+    return String(valor == null ? "" : valor)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .toUpperCase();
+  }
+
+  function campo(item, nomes) {
+    if (!item) return "";
+    if (typeof window.campoTelefone === "function") {
+      try { return window.campoTelefone(item, nomes); } catch (erro) {}
+    }
+    var chaves = Object.keys(item);
+    for (var i = 0; i < nomes.length; i++) {
+      var nome = nomes[i];
+      if (Object.prototype.hasOwnProperty.call(item, nome)) return item[nome];
+      var alvo = normalizar(nome);
+      var chave = chaves.find(function (c) { return normalizar(c) === alvo; });
+      if (chave !== undefined) return item[chave];
+    }
+    return "";
+  }
+
+  function tipoContato(tipo) {
+    var chave = normalizar(tipo);
+    if (chave === "TELEFONE" || chave === "CELULAR") return "Telefone";
+    if (chave === "RAMAL") return "Ramal";
+    if (chave === "WHATSAPP") return "WhatsApp";
+    if (chave === "EMAIL") return "E-mail";
+    return "";
+  }
+
+  function atualizarTexto(id, valor) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = String(valor);
+  }
+
+  window.atualizarDashboardPublico = function (dadosRaw) {
+    var dados = Array.isArray(dadosRaw) ? dadosRaw : [];
+    var porTipo = { "Telefone": 0, "Ramal": 0, "WhatsApp": 0, "E-mail": 0 };
+    var porMunicipio = {};
+    var municipios = new Set();
+    var foruns = new Set();
+    var unidades = new Set();
+    var setores = new Set();
+
+    dados.forEach(function (item) {
+      var tipo = tipoContato(campo(item, ["tipo", "TIPO"]));
+      if (tipo) porTipo[tipo] += 1;
+
+      var municipio = String(campo(item, ["municipio", "MUNICIPIO", "comarca", "COMARCA"]) || "Não informado").trim();
+      var municipioId = String(campo(item, ["municipioId", "MUNICIPIO_ID"]) || municipio).trim();
+      if (municipioId) municipios.add(municipioId);
+      porMunicipio[municipio] = (porMunicipio[municipio] || 0) + 1;
+
+      var forumId = String(campo(item, ["forumId", "FORUM_ID", "forum", "FORUM"]) || "").trim();
+      var unidadeId = String(campo(item, ["unidadeId", "UNIDADE_ID"]) || "").trim();
+      var setorId = String(campo(item, ["setorId", "SETOR_ID"]) || "").trim();
+      if (forumId) foruns.add(forumId);
+      if (unidadeId) unidades.add(unidadeId);
+      if (setorId) setores.add(setorId);
+    });
+
+    atualizarTexto("total-telefones", dados.length);
+    atualizarTexto("total-municipios", municipios.size);
+    atualizarTexto("total-foruns", foruns.size);
+    atualizarTexto("total-unidades", unidades.size);
+    atualizarTexto("total-setores", setores.size);
+    atualizarTexto("total-tipos", 4);
+
+    if (typeof window.renderizarResumoDashboard === "function") {
+      window.renderizarResumoDashboard(document.getElementById("grafico-tipos"), porTipo);
+      window.renderizarResumoDashboard(document.getElementById("grafico-comarcas"), porMunicipio);
+    }
+  };
+
+  function trocarTextoPainel() {
+    var painel = document.getElementById("fc-content");
+    if (!painel) return;
+
+    painel.querySelectorAll(".fc-section h3").forEach(function (titulo) {
+      var texto = String(titulo.textContent || "").trim();
+      if (/^Unidades\s+e\s+Setores$/i.test(texto)) titulo.textContent = "Unidades";
+      if (/^Setores\s*\/\s*Sublocalidades$/i.test(texto)) titulo.textContent = "Setores";
+    });
+
+    painel.querySelectorAll(".fc-pill").forEach(function (badge) {
+      var texto = String(badge.textContent || "").trim();
+      var match = texto.match(/^(\d+)\s+sublocalidade\(s\)$/i);
+      if (!match) return;
+      var quantidade = Number(match[1]);
+      if (!quantidade) {
+        badge.remove();
+        return;
+      }
+      badge.textContent = quantidade + (quantidade === 1 ? " setor" : " setores");
+    });
+  }
+
+  function trocarBuscaPorMunicipio() {
+    var busca = document.getElementById("fc-search");
+    if (!busca || String(busca.tagName || "").toUpperCase() === "SELECT") return;
+
+    var cards = Array.prototype.slice.call(document.querySelectorAll('#fc-content .fc-card[data-mun]'));
+    if (!cards.length) return;
+
+    var vistos = {};
+    var opcoes = [];
+    cards.forEach(function (card) {
+      var id = String(card.getAttribute("data-mun") || "").trim();
+      if (!id || vistos[id]) return;
+      vistos[id] = true;
+      var titulo = card.querySelector("h4");
+      opcoes.push({ id: id, nome: String(titulo ? titulo.textContent : id).trim() });
+    });
+    opcoes.sort(function (a, b) { return a.nome.localeCompare(b.nome, "pt-BR"); });
+
+    var select = document.createElement("select");
+    select.id = "fc-search";
+    select.className = "fc-select fc-municipio-select";
+    select.setAttribute("aria-label", "Selecionar município");
+
+    var inicial = document.createElement("option");
+    inicial.value = "";
+    inicial.textContent = "Selecione um município";
+    select.appendChild(inicial);
+
+    opcoes.forEach(function (opcao) {
+      var el = document.createElement("option");
+      el.value = opcao.id;
+      el.textContent = opcao.nome;
+      select.appendChild(el);
+    });
+
+    select.onchange = function () {
+      var id = select.value;
+      if (!id) return;
+      var destino = Array.prototype.slice.call(document.querySelectorAll('#fc-content .fc-card[data-mun]')).find(function (card) {
+        return String(card.getAttribute("data-mun") || "") === id;
+      });
+      if (destino) destino.click();
+    };
+
+    busca.replaceWith(select);
+  }
+
+  function aplicarAjustesContatos() {
+    trocarTextoPainel();
+    trocarBuscaPorMunicipio();
+  }
+
+  function observarPainel() {
+    var painel = document.getElementById("fc-content");
+    if (!painel || painel.__pjesV6Observer) return;
+    painel.__pjesV6Observer = true;
+    aplicarAjustesContatos();
+    new MutationObserver(function () {
+      aplicarAjustesContatos();
+    }).observe(painel, { childList: true, subtree: true });
+  }
+
+  observarPainel();
+  document.addEventListener("DOMContentLoaded", observarPainel);
+})();
+</script>
