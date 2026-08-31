@@ -1,0 +1,124 @@
+<script>
+/**
+ * Integração leve entre o dashboard, autenticação e a navegação hierárquica.
+ * Mantém os módulos desacoplados e evita colisões de nomes globais.
+ */
+(function () {
+  "use strict";
+
+  function texto(item, nomes) {
+    if (!item) return "";
+    var chaves = Object.keys(item);
+    for (var i = 0; i < nomes.length; i++) {
+      var nome = nomes[i];
+      if (Object.prototype.hasOwnProperty.call(item, nome) && item[nome] != null) {
+        return String(item[nome]).trim();
+      }
+      var alvo = String(nome).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+      var chave = chaves.find(function (c) {
+        return String(c).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase() === alvo;
+      });
+      if (chave !== undefined && item[chave] != null) return String(item[chave]).trim();
+    }
+    return "";
+  }
+
+  function atualizarTextoSeguro(id, valor) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = String(valor == null ? 0 : valor);
+  }
+
+  function renderResumo(id, dados) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (typeof renderizarResumoDashboard === "function") {
+      renderizarResumoDashboard(el, dados);
+      return;
+    }
+    el.innerHTML = Object.keys(dados || {}).sort(function (a, b) {
+      return Number(dados[b] || 0) - Number(dados[a] || 0);
+    }).slice(0, 15).map(function (nome) {
+      return '<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #e2e8f0"><span>' +
+        nome + '</span><strong>' + Number(dados[nome] || 0) + '</strong></div>';
+    }).join("") || '<p style="color:#94a3b8;margin:0;">Nenhum contato cadastrado.</p>';
+  }
+
+  window.atualizarDashboardPublico = function (telefonesRaw) {
+    var contatos = Array.isArray(telefonesRaw) ? telefonesRaw : [];
+    var municipios = new Set();
+    var foruns = new Set();
+    var unidades = new Set();
+    var setores = new Set();
+    var tipos = new Set();
+    var porTipo = {};
+    var porMunicipio = {};
+
+    contatos.forEach(function (item) {
+      var municipio = texto(item, ["municipio", "comarca", "MUNICIPIO", "COMARCA"]) || "Não informado";
+      var forumId = texto(item, ["forumId", "FORUM_ID"]);
+      var forum = texto(item, ["forum", "FORUM"]);
+      var unidadeId = texto(item, ["unidadeId", "UNIDADE_ID"]);
+      var setorId = texto(item, ["setorId", "SETOR_ID"]);
+      var noId = texto(item, ["noId", "unidadeOrganizacionalId", "UNIDADE_ORGANIZACIONAL_ID"]);
+      var tipoNo = texto(item, ["tipoNo"]);
+      var tipo = texto(item, ["tipo", "TIPO"]) || "Não informado";
+
+      if (municipio !== "Não informado") municipios.add(municipio);
+      if (forumId || forum) foruns.add(forumId || forum);
+      if (unidadeId) unidades.add(unidadeId);
+      if (setorId || String(tipoNo).toUpperCase() === "SETOR") setores.add(setorId || noId);
+      tipos.add(tipo);
+      porTipo[tipo] = (porTipo[tipo] || 0) + 1;
+      porMunicipio[municipio] = (porMunicipio[municipio] || 0) + 1;
+    });
+
+    atualizarTextoSeguro("total-telefones", contatos.length);
+    atualizarTextoSeguro("total-municipios", municipios.size);
+    atualizarTextoSeguro("total-foruns", foruns.size);
+    atualizarTextoSeguro("total-unidades", unidades.size);
+    atualizarTextoSeguro("total-setores", setores.size);
+    atualizarTextoSeguro("total-tipos", tipos.size);
+    renderResumo("grafico-tipos", porTipo);
+    renderResumo("grafico-comarcas", porMunicipio);
+  };
+
+  window.fcAtualizarDashboardHierarquia = function (dados) {
+    var municipios = dados && Array.isArray(dados.municipios) ? dados.municipios : [];
+    var totalForuns = 0;
+    var totalUnidades = 0;
+    municipios.forEach(function (m) {
+      totalForuns += Number(m.qtdForuns || (m.foruns || []).length || 0);
+      totalUnidades += Number(m.qtdUnidades || 0);
+    });
+    atualizarTextoSeguro("total-municipios", municipios.length);
+    atualizarTextoSeguro("total-foruns", totalForuns);
+    atualizarTextoSeguro("total-unidades", totalUnidades);
+  };
+
+  function recarregarHierarquiaDepoisDaSessao() {
+    setTimeout(function () {
+      try {
+        if (typeof window.iniciarNavegacaoForum === "function") window.iniciarNavegacaoForum(true);
+      } catch (erro) { console.error(erro); }
+    }, 40);
+  }
+
+  if (typeof window.aplicarUsuarioServidor === "function") {
+    var aplicarOriginal = window.aplicarUsuarioServidor;
+    window.aplicarUsuarioServidor = function () {
+      var resultado = aplicarOriginal.apply(this, arguments);
+      recarregarHierarquiaDepoisDaSessao();
+      return resultado;
+    };
+  }
+
+  if (typeof window.tratarCliqueAcesso === "function") {
+    var logoutOriginal = window.tratarCliqueAcesso;
+    window.tratarCliqueAcesso = function () {
+      var resultado = logoutOriginal.apply(this, arguments);
+      recarregarHierarquiaDepoisDaSessao();
+      return resultado;
+    };
+  }
+})();
+</script>
