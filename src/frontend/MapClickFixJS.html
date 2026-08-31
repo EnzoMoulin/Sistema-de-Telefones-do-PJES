@@ -1,0 +1,125 @@
+<script>
+(function () {
+  "use strict";
+
+  function normalizarNome(valor) {
+    return String(valor == null ? "" : valor)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .toUpperCase();
+  }
+
+  function nomeFeature(feature) {
+    var p = feature && feature.properties || {};
+    return String(p.name || p.NOME || p.NM_MUN || p.description || "").trim();
+  }
+
+  function localizarCardMunicipio(nome) {
+    var alvo = normalizarNome(nome);
+    if (!alvo) return null;
+    return Array.prototype.slice.call(
+      document.querySelectorAll('#fc-content .fc-card[data-mun]')
+    ).find(function (card) {
+      var titulo = card.querySelector("h4");
+      return normalizarNome(titulo ? titulo.textContent : "") === alvo;
+    }) || null;
+  }
+
+  function localizarOpcaoMunicipio(nome) {
+    var select = document.getElementById("fc-search");
+    if (!select || String(select.tagName || "").toUpperCase() !== "SELECT") return null;
+    var alvo = normalizarNome(nome);
+    var opcao = Array.prototype.slice.call(select.options || []).find(function (item) {
+      return normalizarNome(item.textContent || "") === alvo;
+    });
+    return opcao ? { select: select, option: opcao } : null;
+  }
+
+  function abrirMunicipioPorNome(nome) {
+    var card = localizarCardMunicipio(nome);
+    if (card) {
+      card.click();
+      return true;
+    }
+
+    var opcao = localizarOpcaoMunicipio(nome);
+    if (opcao) {
+      opcao.select.value = opcao.option.value;
+      opcao.select.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    }
+
+    if (typeof window.fcInicio === "function") {
+      window.fcInicio();
+      setTimeout(function () {
+        var cardDepois = localizarCardMunicipio(nome);
+        if (cardDepois) {
+          cardDepois.click();
+          return;
+        }
+        var opcaoDepois = localizarOpcaoMunicipio(nome);
+        if (opcaoDepois) {
+          opcaoDepois.select.value = opcaoDepois.option.value;
+          opcaoDepois.select.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      }, 30);
+      return true;
+    }
+
+    return false;
+  }
+
+  function instalarFallbackCliqueMapa() {
+    if (!window.L || typeof window.L.geoJSON !== "function") return false;
+    if (window.L.geoJSON.__pjesMapClickFix) return true;
+
+    var geoJsonOriginal = window.L.geoJSON;
+
+    function geoJsonComFallback(data, options) {
+      var opcoesOriginais = options || {};
+      var onEachOriginal = opcoesOriginais.onEachFeature;
+      var opcoes = Object.assign({}, opcoesOriginais, {
+        onEachFeature: function (feature, layer) {
+          if (typeof onEachOriginal === "function") {
+            onEachOriginal(feature, layer);
+          }
+
+          var eventosClick = layer && layer._events ? layer._events.click : null;
+          var jaPossuiClique = Array.isArray(eventosClick)
+            ? eventosClick.length > 0
+            : Boolean(eventosClick);
+
+          if (jaPossuiClique || !layer || typeof layer.on !== "function") return;
+
+          var nome = nomeFeature(feature);
+          if (!nome) return;
+
+          layer.on("click", function () {
+            abrirMunicipioPorNome(nome);
+          });
+        }
+      });
+
+      return geoJsonOriginal.call(this, data, opcoes);
+    }
+
+    Object.keys(geoJsonOriginal).forEach(function (chave) {
+      try { geoJsonComFallback[chave] = geoJsonOriginal[chave]; } catch (e) {}
+    });
+    geoJsonComFallback.__pjesMapClickFix = true;
+    window.L.geoJSON = geoJsonComFallback;
+    return true;
+  }
+
+  if (!instalarFallbackCliqueMapa()) {
+    var tentativas = 0;
+    var timer = setInterval(function () {
+      tentativas += 1;
+      if (instalarFallbackCliqueMapa() || tentativas >= 40) {
+        clearInterval(timer);
+      }
+    }, 50);
+  }
+})();
+</script>
