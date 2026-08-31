@@ -10,8 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Coloque o 'interno' de volta na lista para o GitHub rodar ambos
-        target: [interno, externo]
+        include:
+          # Adicione outro item com target: interno e secret_name: CLASPRC_INTERNO
+          # quando o deploy interno voltar a ser habilitado.
+          - target: externo
+            secret_name: CLASPRC_EXTERNO
     steps:
     - name: Checkout repo
       uses: actions/checkout@v4
@@ -26,13 +29,17 @@ jobs:
 
     - name: Create clasprc.json
       env:
-        # Adicionado o upper() aqui para encontrar os Secrets CLASPRC_INTERNO e CLASPRC_EXTERNO
-        CLASPRC_CONTENT: ${{ secrets[format('CLASPRC_{0}', upper(matrix.target))] }}
-      run: printf '%s' "$CLASPRC_CONTENT" > ~/.clasprc.json
+        CLASPRC_CONTENT: ${{ secrets[matrix.secret_name] }}
+      run: |
+        test -n "$CLASPRC_CONTENT" || { echo "Secret ${SECRET_NAME} não configurado." >&2; exit 1; }
+        printf '%s' "$CLASPRC_CONTENT" > ~/.clasprc.json
+      shell: bash
+      env:
+        CLASPRC_CONTENT: ${{ secrets[matrix.secret_name] }}
+        SECRET_NAME: ${{ matrix.secret_name }}
 
     - name: Select Clasp project
       run: cp ".clasp.${{ matrix.target }}.json.example" .clasp.json
 
     - name: Push code to Apps Script (${{ matrix.target }})
       run: clasp push -f
-
