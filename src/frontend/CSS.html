@@ -108,6 +108,43 @@ body{min-width:0}
   border-top:1px solid rgba(255,255,255,.1)
 }
 
+/* A área interna mantém todos os atalhos visíveis, sem rolagem. */
+.sidebar--admin{
+  overflow:hidden
+}
+
+.sidebar--admin .sidebar-header{
+  padding:clamp(12px,2vh,18px)
+}
+
+.sidebar--admin .sidebar-header h2{font-size:24px}
+.sidebar--admin .sidebar-header span{font-size:13px}
+
+.sidebar--admin .sidebar-menu{
+  padding:clamp(8px,1.4vh,12px)
+}
+
+.sidebar--admin .menu-item{
+  min-height:0;
+  padding:clamp(6px,1.1vh,10px) 12px;
+  margin-bottom:clamp(1px,.4vh,4px);
+  font-size:14px
+}
+
+.sidebar--admin .sidebar-footer{
+  padding:clamp(8px,1.3vh,12px)
+}
+
+.sidebar--admin #btn-status-acesso{
+  padding:7px 10px!important;
+  font-size:12px!important
+}
+
+.sidebar--admin #sidebar-user{
+  margin-top:6px!important;
+  font-size:10px!important
+}
+
 .topbar{
   display:flex;
   justify-content:space-between;
