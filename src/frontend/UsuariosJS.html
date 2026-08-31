@@ -80,7 +80,7 @@ function abrirModalAdicionarUsuario() {
   document.getElementById("titulo-modal-usuario").textContent = "Adicionar usuário";
   document.getElementById("usuario-email").value = ""; document.getElementById("usuario-email").disabled = false;
   document.getElementById("usuario-nome").value = ""; document.getElementById("usuario-nivel").value = "1"; document.getElementById("usuario-ativo").checked = true;
-  document.getElementById("btn-excluir-usuario").classList.add("hidden"); document.getElementById("btn-salvar-usuario").textContent = "Adicionar";
+  document.getElementById("btn-excluir-usuario").classList.add("hidden"); document.getElementById("btn-salvar-usuario").textContent = "Selecionar localidades";
   prepararSeletorLocalidadesUsuario([]); alternarEscoposUsuario(); document.getElementById("modal-usuario").classList.remove("hidden");
 }
 
@@ -89,18 +89,21 @@ function abrirModalEditarUsuario(usuario) {
   document.getElementById("titulo-modal-usuario").textContent = "Gerenciar usuário";
   document.getElementById("usuario-email").value = usuario.email || ""; document.getElementById("usuario-email").disabled = true;
   document.getElementById("usuario-nome").value = usuario.nome || ""; document.getElementById("usuario-nivel").value = String(usuario.nivel || 1); document.getElementById("usuario-ativo").checked = usuario.ativo === true;
-  document.getElementById("btn-excluir-usuario").classList.remove("hidden"); document.getElementById("btn-salvar-usuario").textContent = "Salvar";
+  document.getElementById("btn-excluir-usuario").classList.remove("hidden"); document.getElementById("btn-salvar-usuario").textContent = "Gerenciar localidades";
   prepararSeletorLocalidadesUsuario(usuario.escopos || []); alternarEscoposUsuario(); document.getElementById("modal-usuario").classList.remove("hidden");
 }
 
-function fecharModalUsuario() { document.getElementById("modal-usuario").classList.add("hidden"); usuarioEmEdicao = null; }
-function alternarEscoposUsuario() { var nivel = Number(document.getElementById("usuario-nivel").value || 0); document.getElementById("grupo-usuario-escopos").style.display = nivel === 1 ? "" : "none"; }
+function fecharModalUsuario() { document.getElementById("modal-usuario").classList.add("hidden"); document.getElementById("modal-localidades-usuario").classList.add("hidden"); usuarioEmEdicao = null; }
+function alternarEscoposUsuario() { var nivel = Number(document.getElementById("usuario-nivel").value || 0); var botao = document.getElementById("btn-salvar-usuario"); if (botao) botao.textContent = nivel === 1 ? (usuarioEmEdicao ? "Gerenciar localidades" : "Selecionar localidades") : (usuarioEmEdicao ? "Salvar" : "Adicionar"); }
 function obterEscoposSelecionadosUsuario() { return Array.from(escoposUsuarioSelecionados).map(function(chave) { var partes = chave.split(":"); return { tipo: partes[0], id: partes.slice(1).join(":") }; }); }
+function acaoPrincipalUsuario() { if (Number(document.getElementById("usuario-nivel").value || 0) === 1) abrirEtapaLocalidadesUsuario(); else salvarUsuarioModal(); }
+function abrirEtapaLocalidadesUsuario() { document.getElementById("modal-usuario").classList.add("hidden"); document.getElementById("btn-confirmar-localidades-usuario").textContent = usuarioEmEdicao ? "Salvar" : "Concluir cadastro"; document.getElementById("modal-localidades-usuario").classList.remove("hidden"); }
+function voltarParaDadosUsuario() { document.getElementById("modal-localidades-usuario").classList.add("hidden"); document.getElementById("modal-usuario").classList.remove("hidden"); }
 
 function salvarUsuarioModal() {
   var email = String(document.getElementById("usuario-email").value || "").trim(); var nome = String(document.getElementById("usuario-nome").value || "").trim(); var nivel = Number(document.getElementById("usuario-nivel").value || 0); var ativo = document.getElementById("usuario-ativo").checked === true; var escopos = obterEscoposSelecionadosUsuario();
   if (nivel === 1 && !escopos.length) { mostrarToast("Selecione ao menos um escopo para o Gestor de Conteúdo.", "warning"); return; }
-  var botao = document.getElementById("btn-salvar-usuario"); botao.disabled = true;
+  var botao = document.getElementById("btn-confirmar-localidades-usuario"); if (Number(document.getElementById("usuario-nivel").value || 0) !== 1) botao = document.getElementById("btn-salvar-usuario"); botao.disabled = true;
   var dados = { nome: nome, nivel: nivel, ativo: ativo, escopos: escopos };
   var editando = !!usuarioEmEdicao;
   var concluir = function(resp) { botao.disabled = false; if (resp && resp.sucesso === true) { fecharModalUsuario(); mostrarToast(editando ? "Usuário atualizado." : "Usuário criado.", "success"); carregarUsuarios(); } else mostrarToast((resp && resp.erro) || "Falha ao salvar usuário.", "error"); };
