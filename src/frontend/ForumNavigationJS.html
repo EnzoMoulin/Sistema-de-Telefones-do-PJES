@@ -1,95 +1,987 @@
 <script>
-/** Navegação V5 — MUNICÍPIO -> FÓRUM -> árvore organizacional -> CONTATO. */
+/**
+ * ==========================================================
+ * NAVEGAÇÃO DE CONTATOS — MUNICÍPIO > FÓRUM > UNIDADE > SETOR
+ * ==========================================================
+ *
+ * Este módulo é deliberadamente isolado: ele NÃO redefine
+ * iniciarConsultaTelefones/carregarTelefones, que pertencem ao dashboard.
+ */
 (function () {
   "use strict";
 
   var estado = {
-    dados: null,
-    municipio: null,
-    forum: null,
-    no: null,
+    dados: { municipios: [] },
+    municipioId: "",
+    forumId: "",
+    noId: "",
     mapa: null,
     geojson: null,
     resizeObserver: null,
-    inicializado: false
+    carregando: false,
+    inicializado: false,
+    buscaTimer: null
   };
 
   function esc(v) {
-    return String(v == null ? "" : v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+    return String(v == null ? "" : v)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   }
 
+  function host() { return document.getElementById("fc-content"); }
+  function usuario() { return (typeof window.usuarioAtual !== "undefined" && window.usuarioAtual) || {}; }
+  function perfil() { return String(usuario().perfil || "").toUpperCase(); }
+  function ehGC() { return usuario().logado === true && usuario().ativo === true && perfil() === "GESTOR_CONTEUDO"; }
+  function ehGS() { return usuario().logado === true && usuario().ativo === true && perfil() === "GESTOR_SISTEMA"; }
+  function ehGestor() { return ehGC() || ehGS(); }
+
   function fmtTipoContato(tipo) {
-    var t=String(tipo||"").trim().toUpperCase();
-    if(t==="E_MAIL"||t==="EMAIL"||t==="E-MAIL")return "E-mail";
-    if(t==="WHATSAPP")return "WhatsApp";
-    if(t==="RAMAL")return "Ramal";
-    if(t==="FAX")return "Fax";
-    return tipo||"Contato";
+    var t = String(tipo || "").trim().toUpperCase();
+    if (t === "E_MAIL" || t === "EMAIL" || t === "E-MAIL") return "E-mail";
+    if (t === "WHATSAPP") return "WhatsApp";
+    if (t === "RAMAL") return "Ramal";
+    if (t === "FAX") return "Fax";
+    if (t === "TELEFONE") return "Telefone";
+    return tipo || "Contato";
   }
 
   function fmtTipoNo(tipo) {
-    var mapa={UNIDADE:"Unidade",SECRETARIA:"Secretaria",VARA:"Vara",JUIZADO:"Juizado",SETOR:"Setor",GABINETE:"Gabinete",ASSESSORIA:"Assessoria",SALAAUDIENCIA:"Sala de audiência",GENERICO:"Unidade organizacional"};
-    return mapa[String(tipo||"").replace(/[^A-Za-z0-9]/g,"").toUpperCase()]||String(tipo||"Unidade organizacional");
+    var mapa = {
+      UNIDADE: "Unidade",
+      SECRETARIA: "Secretaria",
+      VARA: "Vara",
+      JUIZADO: "Juizado",
+      SETOR: "Setor",
+      GABINETE: "Gabinete",
+      ASSESSORIA: "Assessoria",
+      SALAAUDIENCIA: "Sala de audiência",
+      GENERICO: "Unidade organizacional"
+    };
+    return mapa[String(tipo || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase()] ||
+      String(tipo || "Unidade organizacional");
   }
 
-  function fmtValor(tipo,valor){var t=String(tipo||"").toUpperCase(),s=String(valor||"").trim(),n=s.replace(/\D/g,"");if(!s)return"";if((t.indexOf("TELEFONE")>=0||t.indexOf("WHATSAPP")>=0||t==="CELULAR")&&n.indexOf("27")===0){if(n.length===10)return"("+n.slice(0,2)+") "+n.slice(2,6)+"-"+n.slice(6);if(n.length===11)return"("+n.slice(0,2)+") "+n.slice(2,7)+"-"+n.slice(7);}return s;}
-  function hrefContato(tipo,valor){var t=String(tipo||"").toUpperCase(),s=String(valor||"").trim(),n=s.replace(/\D/g,"");if(!s)return"";if(t.indexOf("ENDERE")===0)return"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(s);if(t==="WHATSAPP"&&n)return"https://wa.me/"+(n.indexOf("55")===0?n:"55"+n);if((t==="TELEFONE"||t==="CELULAR")&&n)return"tel:+55"+(n.indexOf("55")===0?n.slice(2):n);if(t==="E-MAIL"||t==="EMAIL"||t==="E_MAIL")return"mailto:"+encodeURIComponent(s);return"";}
-  function linkEndereco(endereco){var texto=String(endereco||"").trim();return texto?'<a class="fc-endereco" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(texto)+'" target="_blank" rel="noopener noreferrer">📍 '+esc(texto)+'</a>':'<p class="fc-endereco fc-endereco--vazio">Endereço não informado</p>';}
-  function tipoNoExibicao(no){return String(no&&no.tipo||"").toUpperCase()==="SETOR"?"Setor":"Unidade";}
-  function contatosCards(contatos){
-    if(!contatos||!contatos.length)return'<div class="fc-empty">Nenhum contato cadastrado.</div>';
-    return'<div class="fc-contatos">'+contatos.map(function(c){var tipo=fmtTipoContato(c.tipo),valor=fmtValor(c.tipo,c.valor),href=hrefContato(c.tipo,c.valor),externo=/^(https?:|mailto:)/.test(href),v=href?'<a class="fc-contato-valor" href="'+esc(href)+'" '+(externo?'target="_blank" rel="noopener noreferrer"':'')+'>'+esc(valor)+'</a>':'<span class="fc-contato-valor">'+esc(valor)+'</span>';return'<article class="fc-contato"><div><span class="fc-contato-tipo">'+esc(tipo)+'</span><h4>'+esc(c.descricao||tipo)+'</h4></div>'+v+'</article>';}).join("")+'</div>';
+  function fmtValor(tipo, valor) {
+    var t = String(tipo || "").toUpperCase();
+    var s = String(valor || "").trim();
+    var n = s.replace(/\D/g, "");
+    if (!s) return "";
+    if ((t.indexOf("TELEFONE") >= 0 || t.indexOf("WHATSAPP") >= 0 || t === "CELULAR") && n.indexOf("27") === 0) {
+      if (n.length === 10) return "(" + n.slice(0, 2) + ") " + n.slice(2, 6) + "-" + n.slice(6);
+      if (n.length === 11) return "(" + n.slice(0, 2) + ") " + n.slice(2, 7) + "-" + n.slice(7);
+    }
+    return s;
   }
 
-  function injectStyle(){
-    if(document.getElementById("fc-navigation-style"))return;
-    var style=document.createElement("style");style.id="fc-navigation-style";style.textContent=`
-      .fc-map{width:100%;height:100%;min-height:0;border-radius:10px;overflow:hidden;background:#e2e8f0;border:1px solid #cbd5e1;box-shadow:0 4px 12px rgba(15,23,42,.10)}
-      .fc-panel{width:100%;height:100%;min-height:0;overflow-y:auto;background:#fff;border:1px solid #cbd5e1;border-radius:14px;padding:clamp(16px,2vw,24px);box-shadow:0 6px 18px rgba(15,23,42,.11)}
-      .fc-title{font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px}.fc-subtitle{color:#64748b;font-size:13px;margin:0 0 14px;line-height:1.45}
-      .fc-search{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #cbd5e1;border-radius:10px;margin-bottom:10px;font-size:14px}.fc-select{width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;margin-bottom:12px}
-      .fc-card{border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-top:10px;cursor:pointer;background:#fff;transition:.15s}.fc-card:hover{box-shadow:0 8px 22px rgba(15,23,42,.08);transform:translateY(-1px)}.fc-card h4{margin:0 0 6px;font-size:15px;color:#0f172a}.fc-card p{margin:3px 0;color:#475569;font-size:13px;line-height:1.45}
-      .fc-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.fc-pill{font-size:11px;background:#f1f5f9;color:#334155;border-radius:999px;padding:4px 8px}.fc-pill-type{background:#dbeafe;color:#1e40af}
-      .fc-back{border:0;background:transparent;color:#1d4ed8;font-weight:700;padding:0;margin-bottom:12px;cursor:pointer}.fc-section{margin-top:16px}.fc-section h3{font-size:15px;margin:0 0 8px;color:#0f172a}
-      .fc-contatos{display:grid;gap:9px}.fc-contato{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:#f8fafc;border:1px solid #dbe3ed;border-radius:10px}.fc-contato h4{margin:4px 0 0;font-size:14px;color:#0f172a}.fc-contato-tipo{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#475569}.fc-contato-valor{flex:none;color:#1d4ed8;font-size:14px;font-weight:700;text-align:right;text-decoration:none;overflow-wrap:anywhere}.fc-contato a.fc-contato-valor:hover,.fc-endereco:hover{text-decoration:underline}.fc-endereco{display:block;margin:5px 0 0;color:#1d4ed8;font-size:13px;line-height:1.45;text-decoration:none}.fc-endereco--vazio{color:#64748b}.fc-map-legenda{padding:7px 9px;background:rgba(255,255,255,.92);border:1px solid #cbd5e1;border-radius:7px;box-shadow:0 2px 8px rgba(15,23,42,.12);font-size:11px;color:#334155}.fc-map-legenda span{display:block;margin:2px 0}.fc-map-legenda .tem-contato{color:#2563eb}.fc-map-legenda .sem-contato{color:#94a3b8}
-      .fc-inherit{margin-top:10px;padding:10px 12px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;color:#475569;font-size:12px}.fc-empty{padding:20px;border:1px dashed #cbd5e1;border-radius:12px;color:#64748b;text-align:center}
+  function hrefContato(tipo, valor) {
+    var t = String(tipo || "").toUpperCase();
+    var s = String(valor || "").trim();
+    var n = s.replace(/\D/g, "");
+    if (!s) return "";
+    if (t === "WHATSAPP" && n) return "https://wa.me/" + (n.indexOf("55") === 0 ? n : "55" + n);
+    if ((t === "TELEFONE" || t === "CELULAR") && n) return "tel:+55" + (n.indexOf("55") === 0 ? n.slice(2) : n);
+    if (t === "E-MAIL" || t === "EMAIL" || t === "E_MAIL") return "mailto:" + encodeURIComponent(s);
+    return "";
+  }
+
+  function linkEndereco(endereco) {
+    var texto = String(endereco || "").trim();
+    if (!texto) return '<span class="fc-muted">Endereço não informado</span>';
+    return '<a class="fc-endereco" href="https://www.google.com/maps/search/?api=1&query=' +
+      encodeURIComponent(texto) + '" target="_blank" rel="noopener noreferrer">📍 ' + esc(texto) + "</a>";
+  }
+
+  function todosNos(lista, saida) {
+    saida = saida || [];
+    (lista || []).forEach(function (no) {
+      saida.push(no);
+      todosNos(no.filhos || [], saida);
+    });
+    return saida;
+  }
+
+  function encontrarMunicipio(id) {
+    return (estado.dados.municipios || []).find(function (m) { return m.id === id; }) || null;
+  }
+
+  function encontrarForum(id) {
+    var achado = null;
+    (estado.dados.municipios || []).some(function (m) {
+      var f = (m.foruns || []).find(function (item) { return item.id === id; });
+      if (f) { achado = f; return true; }
+      return false;
+    });
+    return achado;
+  }
+
+  function encontrarNo(lista, id) {
+    for (var i = 0; i < (lista || []).length; i++) {
+      if (lista[i].id === id) return lista[i];
+      var filho = encontrarNo(lista[i].filhos || [], id);
+      if (filho) return filho;
+    }
+    return null;
+  }
+
+  function municipioAtual() { return encontrarMunicipio(estado.municipioId); }
+  function forumAtual() { return encontrarForum(estado.forumId); }
+  function noAtual() {
+    var f = forumAtual();
+    return f ? encontrarNo(f.nos || [], estado.noId) : null;
+  }
+
+  function acessosExplicitos() {
+    return Array.isArray(usuario().acessos) ? usuario().acessos : [];
+  }
+
+  function idsGerenciaveis() {
+    return Array.isArray(usuario().unidadeIds) ? usuario().unidadeIds.map(String) : [];
+  }
+
+  function possuiAcessoForumExplicito(id) {
+    if (ehGS()) return true;
+    if (!ehGC()) return false;
+    return acessosExplicitos().some(function (a) {
+      return String(a.tipo || "").toUpperCase() === "FORUM" && String(a.id || "") === String(id || "");
+    });
+  }
+
+  function possuiAcessoNo(id) {
+    if (ehGS()) return true;
+    if (!ehGC()) return false;
+    return idsGerenciaveis().indexOf(String(id || "")) !== -1;
+  }
+
+  function forumTemAlgumAcesso(forum) {
+    if (ehGS()) return true;
+    if (!ehGC()) return false;
+    if (possuiAcessoForumExplicito(forum.id)) return true;
+    return todosNos(forum.nos || [], []).some(function (no) { return possuiAcessoNo(no.id); });
+  }
+
+  function municipioTemAcesso(municipio) {
+    if (ehGS()) return true;
+    if (!ehGC()) return false;
+    return (municipio.foruns || []).some(forumTemAlgumAcesso);
+  }
+
+  function podeGerenciarForum(forum) {
+    return ehGS() || (ehGC() && forum && possuiAcessoForumExplicito(forum.id));
+  }
+
+  function podeGerenciarNo(no) {
+    return ehGS() || (ehGC() && no && possuiAcessoNo(no.id));
+  }
+
+  function mostrarToastSeguro(msg, tipo) {
+    if (typeof window.mostrarToast === "function") window.mostrarToast(msg, tipo || "info");
+    else if (tipo === "error") console.error(msg);
+    else console.log(msg);
+  }
+
+  function injectStyle() {
+    if (document.getElementById("fc-navigation-style")) return;
+    var style = document.createElement("style");
+    style.id = "fc-navigation-style";
+    style.textContent = `
+      .fc-map{width:100%;height:100%;min-height:0;border-radius:12px;overflow:hidden;background:#e2e8f0;border:1px solid #cbd5e1;box-shadow:0 4px 12px rgba(15,23,42,.10)}
+      .fc-panel{width:100%;height:100%;min-height:0;overflow-y:auto;background:#fff;border:1px solid #cbd5e1;border-radius:16px;padding:clamp(16px,2vw,24px);box-shadow:0 6px 18px rgba(15,23,42,.11)}
+      .fc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+      .fc-title{font-size:21px;font-weight:800;color:#0f172a;margin:0 0 5px}.fc-subtitle{color:#64748b;font-size:13px;margin:0;line-height:1.5}
+      .fc-toolbar{display:flex;gap:8px;flex-wrap:wrap}.fc-btn{appearance:none;border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:9px;padding:8px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+      .fc-btn:hover{background:#f8fafc}.fc-btn--primary{background:#1d4ed8;border-color:#1d4ed8;color:#fff}.fc-btn--primary:hover{background:#1e40af}
+      .fc-btn--danger{border-color:#fecaca;color:#b91c1c;background:#fff}.fc-btn--danger:hover{background:#fef2f2}.fc-btn:disabled{opacity:.55;cursor:not-allowed}
+      .fc-search{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #cbd5e1;border-radius:10px;margin:8px 0 10px;font-size:14px}.fc-select{width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;margin-bottom:12px}
+      .fc-section{margin-top:18px}.fc-section-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.fc-section h3{font-size:15px;margin:0;color:#0f172a}
+      .fc-card{border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-top:10px;background:#fff;transition:.15s}
+      .fc-card[data-nav]{cursor:pointer}.fc-card[data-nav]:hover{box-shadow:0 8px 22px rgba(15,23,42,.08);transform:translateY(-1px)}
+      .fc-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.fc-card h4{margin:0 0 6px;font-size:15px;color:#0f172a}.fc-card p{margin:3px 0;color:#475569;font-size:13px;line-height:1.45}
+      .fc-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.fc-pill{font-size:11px;background:#f1f5f9;color:#334155;border-radius:999px;padding:4px 8px}.fc-pill--ok{background:#dcfce7;color:#166534}.fc-pill--locked{background:#fff7ed;color:#9a3412}.fc-pill-type{background:#dbeafe;color:#1e40af}
+      .fc-back{border:0;background:transparent;color:#1d4ed8;font-weight:700;padding:0;margin-bottom:12px;cursor:pointer}
+      .fc-contatos{display:grid;gap:9px}.fc-contato{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:#f8fafc;border:1px solid #dbe3ed;border-radius:10px}
+      .fc-contato-main{min-width:0}.fc-contato h4{margin:4px 0 0;font-size:14px;color:#0f172a}.fc-contato-tipo{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#475569}
+      .fc-contato-side{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}.fc-contato-valor{color:#1d4ed8;font-size:14px;font-weight:700;text-decoration:none;overflow-wrap:anywhere}.fc-contato-actions{display:flex;gap:5px}
+      .fc-icon-btn{border:1px solid #dbe3ed;background:#fff;border-radius:8px;padding:5px 7px;cursor:pointer;font-size:12px}.fc-icon-btn:hover{background:#f1f5f9}.fc-icon-btn--danger{color:#b91c1c;border-color:#fecaca}
+      .fc-endereco{display:inline-block;color:#1d4ed8;font-size:13px;line-height:1.45;text-decoration:none}.fc-endereco:hover{text-decoration:underline}.fc-muted{color:#64748b;font-size:13px}
+      .fc-inherit{margin-top:10px;padding:10px 12px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;color:#475569;font-size:12px}
+      .fc-empty{padding:20px;border:1px dashed #cbd5e1;border-radius:12px;color:#64748b;text-align:center}.fc-error{padding:16px;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:12px;line-height:1.5}
       .fc-access{margin-top:10px;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:8px;padding:7px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
-    `;document.head.appendChild(style);
+      .fc-map-legenda{padding:7px 9px;background:rgba(255,255,255,.94);border:1px solid #cbd5e1;border-radius:7px;box-shadow:0 2px 8px rgba(15,23,42,.12);font-size:11px;color:#334155}.fc-map-legenda span{display:block;margin:2px 0}.fc-map-legenda .tem-contato{color:#2563eb}.fc-map-legenda .sem-contato{color:#94a3b8}
+      .fc-dialog-backdrop{position:fixed;inset:0;z-index:10050;background:rgba(15,23,42,.52);display:flex;align-items:center;justify-content:center;padding:18px}
+      .fc-dialog{width:min(560px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:16px;padding:20px;box-shadow:0 24px 64px rgba(15,23,42,.28)}
+      .fc-dialog h3{margin:0 0 4px;color:#0f172a}.fc-dialog p{margin:0 0 16px;color:#64748b;font-size:13px}.fc-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.fc-field{display:grid;gap:5px}.fc-field--full{grid-column:1/-1}.fc-field label{font-size:12px;font-weight:700;color:#334155}.fc-field input,.fc-field select,.fc-field textarea{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:9px;padding:9px 10px;font:inherit}.fc-field textarea{min-height:86px;resize:vertical}
+      .fc-dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap}
+      @media(max-width:680px){.fc-form-grid{grid-template-columns:1fr}.fc-field--full{grid-column:auto}.fc-contato{align-items:flex-start;flex-direction:column}.fc-contato-side{justify-content:flex-start}}
+    `;
+    document.head.appendChild(style);
   }
 
-  function callServer(termo,cb){try{google.script.run.withSuccessHandler(function(resp){if(resp&&resp.sucesso&&resp.dados)cb(resp.dados);else cb({municipios:[]});}).withFailureHandler(function(erro){console.error("Falha ao carregar hierarquia:",erro);cb({municipios:[]});}).obterHierarquiaPublicaForum(termo||"");}catch(e){console.error(e);cb({municipios:[]});}}
-  function host(){return document.getElementById("fc-content");}
-  function findNo(lista,id){for(var i=0;i<(lista||[]).length;i++){if(lista[i].id===id)return lista[i];var filho=findNo(lista[i].filhos,id);if(filho)return filho;}return null;}
-  function findPai(lista,id,pai){for(var i=0;i<(lista||[]).length;i++){if(lista[i].id===id)return pai||null;var achado=findPai(lista[i].filhos,id,lista[i]);if(achado)return achado;}return null;}
-  function gestorConteudo(){return window.usuarioAtual&&usuarioAtual.logado===true&&usuarioAtual.ativo===true&&usuarioAtual.perfil==="GESTOR_CONTEUDO";}
-  function possuiAcessoEscopo(tipo,id){if(!gestorConteudo())return true;var acessos=Array.isArray(usuarioAtual.acessos)?usuarioAtual.acessos:[];if(tipo==="FORUM")return acessos.some(function(a){return a.tipo==="FORUM"&&a.id===id;});return(Array.isArray(usuarioAtual.unidadeIds)?usuarioAtual.unidadeIds:[]).indexOf(id)!==-1;}
-  function botaoSolicitarEscopo(tipo,id){return gestorConteudo()&&!possuiAcessoEscopo(tipo,id)?'<button type="button" class="fc-access" data-solicitar-tipo="'+esc(tipo)+'" data-solicitar-id="'+esc(id)+'">Solicitar acesso</button>':'';}
-  function vincularBotoesSolicitacao(){document.querySelectorAll("[data-solicitar-tipo]").forEach(function(botao){botao.onclick=function(evento){evento.stopPropagation();var atual=botao,tipo=atual.getAttribute("data-solicitar-tipo"),id=atual.getAttribute("data-solicitar-id"),usuario=window.usuarioAtual||{},nome=usuario.nome||String(usuario.email||"").split("@")[0];atual.disabled=true;API.enviarFormularioAcesso({nome:nome,nivel:1,escopos:[{tipo:tipo,id:id}],justificativa:"Solicitação enviada pelo painel de contatos."},function(resp){if(resp&&resp.sucesso===true){atual.textContent="Solicitação enviada";if(typeof mostrarToast==="function")mostrarToast("Solicitação enviada.","success");}else{atual.disabled=false;if(typeof mostrarToast==="function")mostrarToast((resp&&resp.erro)||"Não foi possível enviar a solicitação.","error");}},function(erro){atual.disabled=false;if(typeof mostrarToast==="function")mostrarToast((erro&&erro.message)||"Falha ao enviar solicitação.","error");});};});}
-
-  function renderInicio(){
-    estado.municipio=null;estado.forum=null;estado.no=null;var c=host();if(!c)return;var municipios=(estado.dados&&estado.dados.municipios)||[],options=municipios.map(function(m){return'<option value="'+esc(m.id)+'">'+esc(m.nome)+'</option>';}).join("");
-    c.innerHTML='<h2 class="fc-title">Contatos do PJES</h2><p class="fc-subtitle">Selecione um município no mapa ou pesquise por unidade, setor ou contato.</p><input id="fc-search" class="fc-search" type="search" placeholder="Buscar unidade, setor, telefone ou e-mail"><select id="fc-municipio" class="fc-select"><option value="">Selecione o município</option>'+options+'</select><div class="fc-section"><h3>Municípios</h3>'+(municipios.length?municipios.map(function(m){return'<div class="fc-card" data-mun="'+esc(m.id)+'"><h4>'+esc(m.nome)+'</h4><div class="fc-meta"><span class="fc-pill">'+esc(m.qtdForuns)+' fórum(ns)</span><span class="fc-pill">'+esc(m.qtdUnidades)+' unidades</span><span class="fc-pill">'+esc(m.qtdContatos)+' contato(s)</span></div></div>';}).join(""):'<div class="fc-empty">Nenhum município encontrado.</div>')+'</div>';
-    document.getElementById("fc-municipio").onchange=function(){if(this.value)abrirMunicipio(this.value);};document.querySelectorAll("[data-mun]").forEach(function(el){el.onclick=function(){abrirMunicipio(this.getAttribute("data-mun"));};});vincularBotoesSolicitacao();document.getElementById("fc-search").oninput=function(){var v=this.value.trim();if(v.length>=2)callServer(v,function(d){estado.dados=d;renderInicio();});};
+  function chamadaHierarquia(termo, sucesso, falha) {
+    if (typeof API === "undefined" || typeof API.hierarquiaForum !== "function") {
+      falha(new Error("API de hierarquia não disponível."));
+      return;
+    }
+    API.hierarquiaForum(
+      termo || "",
+      function (resp) {
+        if (resp && resp.sucesso === true && resp.dados) sucesso(resp.dados);
+        else falha(new Error((resp && resp.erro) || "Não foi possível carregar os contatos."));
+      },
+      falha
+    );
   }
 
-  function abrirMunicipio(id){var m=((estado.dados&&estado.dados.municipios)||[]).find(function(x){return x.id===id;});if(!m)return;estado.municipio=m;estado.forum=null;estado.no=null;if((m.foruns||[]).length===1)abrirForum(m.foruns[0].id);else renderForuns();if(estado.mapa&&estado.geojson)destacarMunicipio(m.codigoIbge);}
-  function renderForuns(){var c=host();if(!c||!estado.municipio)return;var m=estado.municipio;c.innerHTML='<button class="fc-back" onclick="window.fcInicio()">← Municípios</button><h2 class="fc-title">'+esc(m.nome)+'</h2><p class="fc-subtitle">'+esc(m.qtdForuns)+' fórum(ns) • '+esc(m.qtdUnidades)+' unidades • '+esc(m.qtdContatos)+' contato(s)</p><div class="fc-section"><h3>Fóruns</h3>'+(m.foruns||[]).map(function(f){return'<div class="fc-card" data-forum="'+esc(f.id)+'"><h4>'+esc(f.nome)+'</h4>'+linkEndereco(f.endereco)+'<div class="fc-meta"><span class="fc-pill">'+esc(f.qtdUnidades)+' unidades</span><span class="fc-pill">'+esc(f.qtdContatos)+' contato(s)</span></div>'+botaoSolicitarEscopo("FORUM",f.id)+'</div>';}).join("")+'</div>';document.querySelectorAll("[data-forum]").forEach(function(el){el.onclick=function(){abrirForum(this.getAttribute("data-forum"));};});vincularBotoesSolicitacao();}
-  function abrirForum(id){var f=(estado.municipio&&estado.municipio.foruns||[]).find(function(x){return x.id===id;});if(!f)return;estado.forum=f;estado.no=null;renderForum();}
-  function cardNo(no){var tipo=tipoNoExibicao(no),badges=tipo==="Setor"?'<span class="fc-pill">'+esc(no.qtdContatos)+' contato(s)</span>':'<span class="fc-pill fc-pill-type">'+esc(tipo)+'</span><span class="fc-pill">'+esc(no.qtdFilhos)+' setores</span><span class="fc-pill">'+esc(no.qtdContatos)+' contato(s)</span>';return'<div class="fc-card" data-no="'+esc(no.id)+'"><h4>'+esc(no.nome)+'</h4><div class="fc-meta">'+badges+'</div>'+botaoSolicitarEscopo("UNIDADE",no.id)+'</div>';}
-  function renderForum(){var c=host();if(!c||!estado.forum)return;var f=estado.forum;c.innerHTML='<button class="fc-back" onclick="window.fcMunicipio()">← '+esc(estado.municipio.nome)+'</button><h2 class="fc-title">'+esc(f.nome)+'</h2>'+linkEndereco(f.endereco)+botaoSolicitarEscopo("FORUM",f.id)+'<input id="fc-search" class="fc-search" type="search" placeholder="Buscar neste Fórum"><div class="fc-section"><h3>Contatos gerais</h3>'+contatosCards(f.contatos||[])+'</div><div class="fc-section"><h3>Unidades</h3>'+((f.nos||[]).length?(f.nos||[]).map(cardNo).join(""):'<div class="fc-empty">Nenhuma Unidade cadastrada.</div>')+'</div>';document.querySelectorAll("[data-no]").forEach(function(el){el.onclick=function(){abrirNo(this.getAttribute("data-no"));};});vincularBotoesSolicitacao();document.getElementById("fc-search").oninput=function(){var v=this.value.trim();if(v.length<2)return;var idForum=f.id,idMunicipio=estado.municipio.id;callServer(v,function(d){var m=(d.municipios||[]).find(function(x){return x.id===idMunicipio;});if(!m)return;var novo=(m.foruns||[]).find(function(x){return x.id===idForum;});if(novo){estado.municipio=m;estado.forum=novo;renderForum();}});};}
-  function abrirNo(id){var no=findNo(estado.forum&&estado.forum.nos,id);if(!no)return;estado.no=no;renderNo();}
-  function renderNo(){var c=host();if(!c||!estado.no)return;var no=estado.no,pai=findPai(estado.forum.nos,no.id,null),tipo=tipoNoExibicao(no),badgeTipo=tipo==="Setor"?"":'<div class="fc-meta"><span class="fc-pill fc-pill-type">'+esc(tipo)+'</span></div>',voltar=pai?'<button class="fc-back" onclick="window.fcNo(\''+esc(pai.id)+'\')">← '+esc(pai.nome)+'</button>':'<button class="fc-back" onclick="window.fcForum()">← '+esc(estado.forum.nome)+'</button>',caminho=[estado.municipio.nome,estado.forum.nome].concat(no.caminhoNomes||[]).join(' › '),setores=(no.filhos||[]);c.innerHTML=voltar+'<h2 class="fc-title">'+esc(no.nome)+'</h2><p class="fc-subtitle">'+esc(caminho)+'</p>'+botaoSolicitarEscopo("UNIDADE",no.id)+badgeTipo+'<div class="fc-inherit"><strong>Endereço:</strong> '+linkEndereco(no.enderecoExibicao)+(no.endereco?'':' (herdado)')+'</div><div class="fc-section"><h3>Contatos '+(tipo==="Setor"?'deste setor':'desta Unidade')+'</h3>'+contatosCards(no.contatos||[])+'</div>'+(setores.length?'<div class="fc-section"><h3>Setores</h3>'+setores.map(cardNo).join("")+'</div>':'');document.querySelectorAll("[data-no]").forEach(function(el){el.onclick=function(){abrirNo(this.getAttribute("data-no"));};});vincularBotoesSolicitacao();}
+  function recarregar(opcoes) {
+    opcoes = opcoes || {};
+    if (estado.carregando) return;
+    estado.carregando = true;
+    if (opcoes.mostrarCarregando !== false && host()) {
+      host().innerHTML = '<div class="fc-empty">Carregando contatos...</div>';
+    }
+    chamadaHierarquia(opcoes.termo || "", function (dados) {
+      estado.carregando = false;
+      estado.dados = dados || { municipios: [] };
+      restaurarNavegacao();
+      atualizarMapaDados();
+    }, function (erro) {
+      estado.carregando = false;
+      console.error("Falha ao carregar hierarquia:", erro);
+      renderErro(erro && erro.message ? erro.message : "Falha ao carregar dados.");
+    });
+  }
 
-  function destacarMunicipio(codigo){if(!estado.mapa||!estado.geojson||!codigo)return;estado.geojson.eachLayer(function(layer){var p=layer.feature&&layer.feature.properties||{},cod=String(p.CD_MUN||p.codmun||p.id||p.code||""),ativo=cod===String(codigo)||cod.replace(/\D/g,"")===String(codigo).replace(/\D/g,"");layer.setStyle({weight:ativo?3:1,fillOpacity:ativo?.55:.18});});}
-  function codigoMunicipio(feature){var p=feature&&feature.properties||{};return String(p.CD_MUN||p.codmun||p.id||p.code||"").replace(/\D/g,"");}
-  function municipioComContatos(codigo){return((estado.dados&&estado.dados.municipios)||[]).some(function(m){return String(m.codigoIbge||"").replace(/\D/g,"")===codigo&&Number(m.qtdContatos||0)>0;});}
-  function estiloMunicipio(feature){var temContatos=municipioComContatos(codigoMunicipio(feature));return temContatos?{color:'#2563eb',weight:1.2,fillColor:'#60a5fa',fillOpacity:.42}:{color:'#94a3b8',weight:.8,fillColor:'#cbd5e1',fillOpacity:.24};}
-  function adicionarLegendaMapa(){var legenda=L.control({position:'bottomright'});legenda.onAdd=function(){var div=L.DomUtil.create('div','fc-map-legenda');div.innerHTML='<span class="tem-contato">● Municípios com contatos</span><span class="sem-contato">● Sem contatos cadastrados</span>';return div;};legenda.addTo(estado.mapa);}
-  function iniciarMapa(){if(!window.L){setTimeout(iniciarMapa,250);return;}var el=document.getElementById("fc-map");if(!el)return;try{if(estado.mapa)estado.mapa.remove();estado.mapa=L.map(el,{scrollWheelZoom:true}).setView([-19.7,-40.5],7.6);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap'}).addTo(estado.mapa);fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-32-mun.json').then(function(r){return r.json();}).then(function(data){estado.geojson=L.geoJSON(data,{style:estiloMunicipio,onEachFeature:function(feature,layer){var codigo=codigoMunicipio(feature),nome=String((feature.properties||{}).name||(feature.properties||{}).NOME||(feature.properties||{}).NM_MUN||"Município"),temContatos=municipioComContatos(codigo);layer.bindTooltip(esc(nome)+(temContatos?'<br><small>Possui contatos cadastrados</small>':'<br><small>Sem contatos cadastrados</small>'),{sticky:true});if(temContatos)layer.on('click',function(){var m=((estado.dados&&estado.dados.municipios)||[]).find(function(x){return String(x.codigoIbge||"").replace(/\D/g,"")===codigo;});if(m)abrirMunicipio(m.id);});}}).addTo(estado.mapa);adicionarLegendaMapa();estado.mapa.fitBounds(estado.geojson.getBounds(),{padding:[3,3]});}).catch(function(err){console.warn('GeoJSON não carregado',err);});if(window.ResizeObserver){estado.resizeObserver=new ResizeObserver(function(){try{estado.mapa.invalidateSize();}catch(e){}});estado.resizeObserver.observe(el);}}catch(e){console.warn('Mapa não inicializado',e);}}
-  function atualizarMapaIntegrado(){if(!estado.inicializado){window.iniciarConsultaTelefones();return false;}setTimeout(function(){try{estado.mapa.invalidateSize();if(estado.geojson)estado.mapa.fitBounds(estado.geojson.getBounds(),{padding:[3,3]});}catch(e){}},80);return true;}
+  function renderErro(mensagem) {
+    var c = host();
+    if (!c) return;
+    c.innerHTML =
+      '<div class="fc-error"><strong>Não foi possível carregar os contatos.</strong><br>' +
+      esc(mensagem) +
+      '<div style="margin-top:12px"><button type="button" class="fc-btn" id="fc-retry">Tentar novamente</button></div></div>';
+    var retry = document.getElementById("fc-retry");
+    if (retry) retry.onclick = function () { recarregar({ mostrarCarregando: true }); };
+  }
 
-  window.fcInicio=renderInicio;window.fcMunicipio=renderForuns;window.fcForum=renderForum;window.fcNo=function(id){abrirNo(id);};
-  window.iniciarConsultaTelefones=function(){if(estado.inicializado)return;estado.inicializado=true;injectStyle();var c=host();if(!c){estado.inicializado=false;return;}c.innerHTML='<div class="fc-empty">Carregando contatos...</div>';callServer("",function(dados){estado.dados=dados||{municipios:[]};renderInicio();iniciarMapa();});};
-  window.carregarTelefones=window.iniciarConsultaTelefones;window.renderizarMapaConsulta=atualizarMapaIntegrado;window.tentarInicializarMapa=atualizarMapaIntegrado;
+  function restaurarNavegacao() {
+    if (estado.noId && noAtual()) return renderNo();
+    if (estado.forumId && forumAtual()) return renderForum();
+    if (estado.municipioId && municipioAtual()) return renderForuns();
+    estado.municipioId = "";
+    estado.forumId = "";
+    estado.noId = "";
+    renderInicio();
+  }
+
+  function botaoSolicitar(tipo, id) {
+    if (!ehGC()) return "";
+    var possui = tipo === "FORUM" ? possuiAcessoForumExplicito(id) : possuiAcessoNo(id);
+    if (possui) return "";
+    return '<button type="button" class="fc-access" data-access-type="' + esc(tipo) +
+      '" data-access-id="' + esc(id) + '">Solicitar acesso</button>';
+  }
+
+  function vincularSolicitacoes() {
+    document.querySelectorAll("[data-access-type]").forEach(function (botao) {
+      botao.onclick = function (evento) {
+        evento.preventDefault();
+        evento.stopPropagation();
+        var tipo = botao.getAttribute("data-access-type");
+        var id = botao.getAttribute("data-access-id");
+        var u = usuario();
+        var nome = u.nome || String(u.email || "").split("@")[0];
+        botao.disabled = true;
+        botao.textContent = "Enviando...";
+        API.enviarFormularioAcesso(
+          {
+            nome: nome,
+            nivel: 1,
+            escopos: [{ tipo: tipo, id: id }],
+            justificativa: "Solicitação enviada pela aba Contatos."
+          },
+          function (resp) {
+            if (resp && resp.sucesso === true) {
+              botao.textContent = "Solicitação enviada";
+              mostrarToastSeguro("Solicitação de acesso enviada.", "success");
+            } else {
+              botao.disabled = false;
+              botao.textContent = "Solicitar acesso";
+              mostrarToastSeguro((resp && resp.erro) || "Não foi possível enviar a solicitação.", "error");
+            }
+          },
+          function (erro) {
+            botao.disabled = false;
+            botao.textContent = "Solicitar acesso";
+            mostrarToastSeguro((erro && erro.message) || "Falha ao enviar a solicitação.", "error");
+          }
+        );
+      };
+    });
+  }
+
+  function acoesLocalidade(tipo, item, pode) {
+    if (!ehGestor() || !pode) return "";
+    return '<div class="fc-toolbar">' +
+      '<button type="button" class="fc-btn fc-btn--primary" data-add-contact="' + esc(tipo) + '" data-local-id="' + esc(item.id) + '">＋ Contato</button>' +
+      '<button type="button" class="fc-btn" data-edit-address="' + esc(tipo) + '" data-local-id="' + esc(item.id) + '">✎ Endereço</button>' +
+      "</div>";
+  }
+
+  function contatosCards(contatos, contexto) {
+    if (!contatos || !contatos.length) return '<div class="fc-empty">Nenhum contato cadastrado.</div>';
+    var pode = contexto.tipo === "FORUM" ? podeGerenciarForum(contexto.item) : podeGerenciarNo(contexto.item);
+    return '<div class="fc-contatos">' + contatos.map(function (c) {
+      var tipo = fmtTipoContato(c.tipo);
+      var valor = fmtValor(c.tipo, c.valor);
+      var href = hrefContato(c.tipo, c.valor);
+      var externo = /^(https?:|mailto:)/.test(href);
+      var valorHtml = href
+        ? '<a class="fc-contato-valor" href="' + esc(href) + '" ' +
+          (externo ? 'target="_blank" rel="noopener noreferrer"' : "") + ">" + esc(valor) + "</a>"
+        : '<span class="fc-contato-valor">' + esc(valor) + "</span>";
+      var acoes = pode
+        ? '<div class="fc-contato-actions">' +
+          '<button type="button" class="fc-icon-btn" data-edit-contact="' + esc(c.id) + '" title="Editar contato">✎</button>' +
+          '<button type="button" class="fc-icon-btn fc-icon-btn--danger" data-delete-contact="' + esc(c.id) + '" title="Excluir contato">🗑</button>' +
+          "</div>"
+        : "";
+      return '<article class="fc-contato">' +
+        '<div class="fc-contato-main"><span class="fc-contato-tipo">' + esc(tipo) + "</span><h4>" +
+        esc(c.descricao || tipo) + "</h4></div>" +
+        '<div class="fc-contato-side">' + valorHtml + acoes + "</div></article>";
+    }).join("") + "</div>";
+  }
+
+  function bindAcoesContexto(contexto) {
+    vincularSolicitacoes();
+
+    document.querySelectorAll("[data-add-contact]").forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        abrirContatoDialog(contexto, null);
+      };
+    });
+
+    document.querySelectorAll("[data-edit-address]").forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        abrirEnderecoDialog(contexto);
+      };
+    });
+
+    document.querySelectorAll("[data-edit-contact]").forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        var id = btn.getAttribute("data-edit-contact");
+        var contato = (contexto.item.contatos || []).find(function (c) { return c.id === id; });
+        if (contato) abrirContatoDialog(contexto, contato);
+      };
+    });
+
+    document.querySelectorAll("[data-delete-contact]").forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        excluirContato(btn.getAttribute("data-delete-contact"));
+      };
+    });
+  }
+
+  function cardMunicipio(m) {
+    var tem = municipioTemAcesso(m);
+    var badge = ehGC()
+      ? (tem ? '<span class="fc-pill fc-pill--ok">Com acesso</span>' : '<span class="fc-pill fc-pill--locked">Sem acesso</span>')
+      : "";
+    return '<div class="fc-card" data-nav="municipio" data-mun="' + esc(m.id) + '">' +
+      '<div class="fc-card-head"><div><h4>' + esc(m.nome) + "</h4></div>" + badge + "</div>" +
+      '<div class="fc-meta"><span class="fc-pill">' + esc(m.qtdForuns) + ' fórum(ns)</span>' +
+      '<span class="fc-pill">' + esc(m.qtdUnidades) + ' unidades</span>' +
+      '<span class="fc-pill">' + esc(m.qtdContatos) + " contato(s)</span></div></div>";
+  }
+
+  function renderInicio() {
+    var c = host();
+    if (!c) return;
+    estado.municipioId = "";
+    estado.forumId = "";
+    estado.noId = "";
+
+    var municipios = (estado.dados && estado.dados.municipios) || [];
+    var minhas = ehGC() ? municipios.filter(municipioTemAcesso) : municipios;
+    var outras = ehGC() ? municipios.filter(function (m) { return !municipioTemAcesso(m); }) : [];
+
+    var conteudo = '<div class="fc-head"><div><h2 class="fc-title">Contatos do PJES</h2>' +
+      '<p class="fc-subtitle">' +
+      (ehGC()
+        ? "Suas localidades aparecem primeiro. Nas demais, abra o Fórum ou a Unidade para solicitar acesso."
+        : "Consulte a estrutura completa por Município, Fórum, Unidade e Setor.") +
+      '</p></div><div class="fc-toolbar"><button type="button" class="fc-btn" id="fc-print-all">🖨 Imprimir todos</button></div></div>' +
+      '<input id="fc-search" class="fc-search" type="search" placeholder="Buscar Fórum, Unidade, Setor, telefone ou e-mail">';
+
+    if (ehGC()) {
+      conteudo += '<div class="fc-section"><div class="fc-section-title"><h3>Minhas localidades</h3><span class="fc-pill">' +
+        minhas.length + " município(s)</span></div>" +
+        (minhas.length ? minhas.map(cardMunicipio).join("") : '<div class="fc-empty">Você ainda não possui localidades vinculadas.</div>') +
+        '</div><div class="fc-section"><div class="fc-section-title"><h3>Outras localidades</h3></div>' +
+        (outras.length ? outras.map(cardMunicipio).join("") : '<div class="fc-empty">Nenhuma outra localidade.</div>') +
+        "</div>";
+    } else {
+      conteudo += '<div class="fc-section"><div class="fc-section-title"><h3>Municípios</h3></div>' +
+        (municipios.length ? municipios.map(cardMunicipio).join("") : '<div class="fc-empty">Nenhum município encontrado.</div>') +
+        "</div>";
+    }
+
+    c.innerHTML = conteudo;
+
+    document.querySelectorAll("[data-mun]").forEach(function (el) {
+      el.onclick = function () { abrirMunicipio(el.getAttribute("data-mun")); };
+    });
+
+    var busca = document.getElementById("fc-search");
+    if (busca) {
+      busca.oninput = function () {
+        var v = busca.value.trim();
+        clearTimeout(estado.buscaTimer);
+        estado.buscaTimer = setTimeout(function () {
+          if (!v) return recarregar({ termo: "", mostrarCarregando: false });
+          if (v.length < 2) return;
+          recarregar({ termo: v, mostrarCarregando: false });
+        }, 280);
+      };
+    }
+
+    var imprimir = document.getElementById("fc-print-all");
+    if (imprimir) imprimir.onclick = imprimirTudo;
+  }
+
+  function abrirMunicipio(id) {
+    estado.municipioId = id;
+    estado.forumId = "";
+    estado.noId = "";
+    var m = municipioAtual();
+    if (!m) return;
+    renderForuns();
+    if (estado.mapa && estado.geojson) destacarMunicipio(m.codigoIbge);
+  }
+
+  function renderForuns() {
+    var c = host();
+    var m = municipioAtual();
+    if (!c || !m) return;
+
+    c.innerHTML = '<button class="fc-back" id="fc-back-home">← Municípios</button>' +
+      '<div class="fc-head"><div><h2 class="fc-title">' + esc(m.nome) + "</h2>" +
+      '<p class="fc-subtitle">' + esc(m.qtdForuns) + " fórum(ns) • " + esc(m.qtdUnidades) +
+      " unidades • " + esc(m.qtdContatos) + " contato(s)</p></div></div>" +
+      '<div class="fc-section"><h3>Fóruns</h3>' +
+      (m.foruns || []).map(function (f) {
+        var acesso = forumTemAlgumAcesso(f);
+        var podeForum = podeGerenciarForum(f);
+        var badge = ehGC()
+          ? (acesso ? '<span class="fc-pill fc-pill--ok">Com acesso</span>' : '<span class="fc-pill fc-pill--locked">Sem acesso</span>')
+          : "";
+        return '<div class="fc-card" data-nav="forum" data-forum="' + esc(f.id) + '">' +
+          '<div class="fc-card-head"><div><h4>' + esc(f.nome) + "</h4>" + linkEndereco(f.endereco) +
+          '</div>' + badge + "</div>" +
+          '<div class="fc-meta"><span class="fc-pill">' + esc(f.qtdUnidades) + ' unidades</span>' +
+          '<span class="fc-pill">' + esc(f.qtdContatos) + " contato(s)</span></div>" +
+          (podeForum ? "" : botaoSolicitar("FORUM", f.id)) +
+          "</div>";
+      }).join("") + "</div>";
+
+    document.getElementById("fc-back-home").onclick = renderInicio;
+    document.querySelectorAll("[data-forum]").forEach(function (el) {
+      el.onclick = function () { abrirForum(el.getAttribute("data-forum")); };
+    });
+    vincularSolicitacoes();
+  }
+
+  function abrirForum(id) {
+    estado.forumId = id;
+    estado.noId = "";
+    renderForum();
+  }
+
+  function cardNo(no) {
+    var tipo = fmtTipoNo(no.tipo);
+    var pode = podeGerenciarNo(no);
+    var acesso = possuiAcessoNo(no.id);
+    var badgeAcesso = ehGC()
+      ? (acesso ? '<span class="fc-pill fc-pill--ok">Com acesso</span>' : '<span class="fc-pill fc-pill--locked">Sem acesso</span>')
+      : "";
+    return '<div class="fc-card" data-nav="no" data-no="' + esc(no.id) + '">' +
+      '<div class="fc-card-head"><div><h4>' + esc(no.nome) + "</h4></div>" + badgeAcesso + "</div>" +
+      '<div class="fc-meta"><span class="fc-pill fc-pill-type">' + esc(tipo) + "</span>" +
+      '<span class="fc-pill">' + esc(no.qtdFilhos) + ' sublocalidade(s)</span>' +
+      '<span class="fc-pill">' + esc(no.qtdContatos) + " contato(s)</span></div>" +
+      (pode ? "" : botaoSolicitar("UNIDADE", no.id)) + "</div>";
+  }
+
+  function renderForum() {
+    var c = host();
+    var f = forumAtual();
+    var m = municipioAtual();
+    if (!c || !f || !m) return;
+
+    var pode = podeGerenciarForum(f);
+    var contexto = { tipo: "FORUM", item: f, forumId: f.id, noId: "" };
+
+    c.innerHTML = '<button class="fc-back" id="fc-back-municipio">← ' + esc(m.nome) + "</button>" +
+      '<div class="fc-head"><div><h2 class="fc-title">' + esc(f.nome) + "</h2>" +
+      '<p class="fc-subtitle">' + esc(m.nome) + " • " + esc(f.qtdContatos) + " contato(s)</p></div>" +
+      '<div class="fc-toolbar"><button type="button" class="fc-btn" id="fc-print-forum">🖨 Imprimir Fórum</button>' +
+      acoesLocalidade("FORUM", f, pode) + "</div></div>" +
+      '<div class="fc-inherit"><strong>Endereço do Fórum:</strong> ' + linkEndereco(f.endereco) +
+      (f.cep ? " • CEP " + esc(f.cep) : "") + "</div>" +
+      (pode ? "" : botaoSolicitar("FORUM", f.id)) +
+      '<div class="fc-section"><div class="fc-section-title"><h3>Contatos gerais</h3></div>' +
+      contatosCards(f.contatos || [], contexto) + "</div>" +
+      '<div class="fc-section"><div class="fc-section-title"><h3>Unidades e Setores</h3></div>' +
+      ((f.nos || []).length ? (f.nos || []).map(cardNo).join("") : '<div class="fc-empty">Nenhuma Unidade cadastrada.</div>') +
+      "</div>";
+
+    document.getElementById("fc-back-municipio").onclick = renderForuns;
+    document.getElementById("fc-print-forum").onclick = imprimirForum;
+    document.querySelectorAll("[data-no]").forEach(function (el) {
+      el.onclick = function () { abrirNo(el.getAttribute("data-no")); };
+    });
+    bindAcoesContexto(contexto);
+  }
+
+  function abrirNo(id) {
+    estado.noId = id;
+    renderNo();
+  }
+
+  function encontrarPai(lista, id, pai) {
+    for (var i = 0; i < (lista || []).length; i++) {
+      if (lista[i].id === id) return pai || null;
+      var achado = encontrarPai(lista[i].filhos || [], id, lista[i]);
+      if (achado) return achado;
+    }
+    return null;
+  }
+
+  function renderNo() {
+    var c = host();
+    var f = forumAtual();
+    var m = municipioAtual();
+    var no = noAtual();
+    if (!c || !f || !m || !no) return;
+
+    var pai = encontrarPai(f.nos || [], no.id, null);
+    var tipo = fmtTipoNo(no.tipo);
+    var pode = podeGerenciarNo(no);
+    var contexto = { tipo: "UNIDADE", item: no, forumId: f.id, noId: no.id };
+    var caminho = [m.nome, f.nome].concat(no.caminhoNomes || []).join(" › ");
+
+    c.innerHTML =
+      '<button class="fc-back" id="fc-back-no">← ' + esc(pai ? pai.nome : f.nome) + "</button>" +
+      '<div class="fc-head"><div><h2 class="fc-title">' + esc(no.nome) + "</h2>" +
+      '<p class="fc-subtitle">' + esc(caminho) + "</p></div>" +
+      '<div class="fc-toolbar"><button type="button" class="fc-btn" id="fc-print-unit">🖨 Imprimir Unidade</button>' +
+      acoesLocalidade("UNIDADE", no, pode) + "</div></div>" +
+      '<div class="fc-meta"><span class="fc-pill fc-pill-type">' + esc(tipo) + "</span>" +
+      '<span class="fc-pill">' + esc(no.qtdContatos) + " contato(s) no total</span></div>" +
+      '<div class="fc-inherit"><strong>Endereço:</strong> ' + linkEndereco(no.enderecoExibicao) +
+      (no.cepExibicao ? " • CEP " + esc(no.cepExibicao) : "") +
+      (no.endereco ? "" : " <span class=\"fc-muted\">(herdado)</span>") + "</div>" +
+      (pode ? "" : botaoSolicitar("UNIDADE", no.id)) +
+      '<div class="fc-section"><div class="fc-section-title"><h3>Contatos desta localidade</h3></div>' +
+      contatosCards(no.contatos || [], contexto) + "</div>" +
+      ((no.filhos || []).length
+        ? '<div class="fc-section"><div class="fc-section-title"><h3>Setores / Sublocalidades</h3></div>' +
+          no.filhos.map(cardNo).join("") + "</div>"
+        : "");
+
+    document.getElementById("fc-back-no").onclick = function () {
+      if (pai) abrirNo(pai.id);
+      else { estado.noId = ""; renderForum(); }
+    };
+    document.getElementById("fc-print-unit").onclick = imprimirUnidade;
+    document.querySelectorAll("[data-no]").forEach(function (el) {
+      el.onclick = function () { abrirNo(el.getAttribute("data-no")); };
+    });
+    bindAcoesContexto(contexto);
+  }
+
+  function dialogBase(titulo, subtitulo, corpo, botoes) {
+    fecharDialog();
+    var backdrop = document.createElement("div");
+    backdrop.className = "fc-dialog-backdrop";
+    backdrop.id = "fc-dialog-backdrop";
+    backdrop.innerHTML = '<div class="fc-dialog" role="dialog" aria-modal="true">' +
+      "<h3>" + esc(titulo) + "</h3><p>" + esc(subtitulo || "") + "</p>" +
+      corpo + '<div class="fc-dialog-actions">' + botoes + "</div></div>";
+    backdrop.onclick = function (e) { if (e.target === backdrop) fecharDialog(); };
+    document.body.appendChild(backdrop);
+    var cancelar = document.getElementById("fc-dialog-cancel");
+    if (cancelar) cancelar.onclick = fecharDialog;
+  }
+
+  function fecharDialog() {
+    var antigo = document.getElementById("fc-dialog-backdrop");
+    if (antigo) antigo.remove();
+  }
+
+  function contextoPayload(contexto) {
+    return {
+      forumId: contexto.forumId || "",
+      unidadeOrganizacionalId: contexto.noId || ""
+    };
+  }
+
+  function abrirContatoDialog(contexto, contato) {
+    var editando = !!contato;
+    var tipos = ["Telefone", "Ramal", "WhatsApp", "E-mail", "Fax"];
+    var corpo = '<div class="fc-form-grid">' +
+      '<div class="fc-field"><label for="fc-form-type">Tipo</label><select id="fc-form-type">' +
+      tipos.map(function (t) {
+        return '<option value="' + esc(t) + '"' +
+          (fmtTipoContato(contato && contato.tipo) === t ? " selected" : "") + ">" + esc(t) + "</option>";
+      }).join("") + "</select></div>" +
+      '<div class="fc-field"><label for="fc-form-desc">Descrição</label><input id="fc-form-desc" maxlength="150" value="' +
+      esc(contato && contato.descricao || "") + '" placeholder="Ex.: Balcão, Gabinete, Secretaria"></div>' +
+      '<div class="fc-field fc-field--full"><label for="fc-form-value">Valor</label><input id="fc-form-value" value="' +
+      esc(contato && contato.valor || "") + '" placeholder="Telefone, ramal, WhatsApp ou e-mail"></div>' +
+      '<div class="fc-field fc-field--full"><label for="fc-form-obs">Observação</label><textarea id="fc-form-obs" maxlength="2000">' +
+      esc(contato && contato.observacao || "") + "</textarea></div></div>";
+
+    dialogBase(
+      editando ? "Editar contato" : "Adicionar contato",
+      contexto.item.nome || "Localidade",
+      corpo,
+      '<button type="button" class="fc-btn" id="fc-dialog-cancel">Cancelar</button>' +
+      '<button type="button" class="fc-btn fc-btn--primary" id="fc-dialog-save">Salvar</button>'
+    );
+
+    document.getElementById("fc-dialog-save").onclick = function () {
+      var btn = this;
+      var dados = Object.assign(contextoPayload(contexto), {
+        tipo: document.getElementById("fc-form-type").value,
+        descricao: document.getElementById("fc-form-desc").value.trim(),
+        valor: document.getElementById("fc-form-value").value.trim(),
+        observacao: document.getElementById("fc-form-obs").value.trim()
+      });
+      if (!dados.tipo || !dados.valor) {
+        mostrarToastSeguro("Informe o tipo e o valor do contato.", "warning");
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = "Salvando...";
+      var callback = function (resp) {
+        if (resp && resp.sucesso === true) {
+          fecharDialog();
+          mostrarToastSeguro(editando ? "Contato atualizado." : "Contato adicionado.", "success");
+          recarregar({ mostrarCarregando: false });
+        } else {
+          btn.disabled = false;
+          btn.textContent = "Salvar";
+          mostrarToastSeguro((resp && resp.erro) || "Não foi possível salvar o contato.", "error");
+        }
+      };
+      var falha = function (erro) {
+        btn.disabled = false;
+        btn.textContent = "Salvar";
+        mostrarToastSeguro((erro && erro.message) || "Falha ao salvar o contato.", "error");
+      };
+      if (editando) API.atualizarContato(contato.id, dados, callback, falha);
+      else API.criarContato(dados, callback, falha);
+    };
+  }
+
+  function excluirContato(id) {
+    if (!id || !window.confirm("Excluir este contato? Esta ação não poderá ser desfeita.")) return;
+    API.excluirContato(id, function (resp) {
+      if (resp && resp.sucesso === true) {
+        mostrarToastSeguro("Contato excluído.", "success");
+        recarregar({ mostrarCarregando: false });
+      } else {
+        mostrarToastSeguro((resp && resp.erro) || "Não foi possível excluir o contato.", "error");
+      }
+    }, function (erro) {
+      mostrarToastSeguro((erro && erro.message) || "Falha ao excluir o contato.", "error");
+    });
+  }
+
+  function abrirEnderecoDialog(contexto) {
+    var item = contexto.item;
+    var enderecoAtual = item.endereco || "";
+    var cepAtual = item.cep || "";
+    var corpo = '<div class="fc-form-grid">' +
+      '<div class="fc-field fc-field--full"><label for="fc-address">Endereço</label><input id="fc-address" value="' +
+      esc(enderecoAtual) + '" placeholder="Logradouro, número, bairro, cidade"></div>' +
+      '<div class="fc-field"><label for="fc-cep">CEP</label><input id="fc-cep" value="' + esc(cepAtual) + '" placeholder="00000-000"></div>' +
+      '</div><p style="margin-top:10px">Para remover o endereço próprio e voltar à herança da localidade superior, deixe Endereço e CEP vazios.</p>';
+
+    dialogBase(
+      enderecoAtual ? "Editar endereço" : "Adicionar endereço",
+      item.nome || "Localidade",
+      corpo,
+      '<button type="button" class="fc-btn fc-btn--danger" id="fc-address-clear">Limpar endereço</button>' +
+      '<button type="button" class="fc-btn" id="fc-dialog-cancel">Cancelar</button>' +
+      '<button type="button" class="fc-btn fc-btn--primary" id="fc-dialog-save">Salvar</button>'
+    );
+
+    document.getElementById("fc-address-clear").onclick = function () {
+      document.getElementById("fc-address").value = "";
+      document.getElementById("fc-cep").value = "";
+    };
+
+    document.getElementById("fc-dialog-save").onclick = function () {
+      var btn = this;
+      btn.disabled = true;
+      btn.textContent = "Salvando...";
+      API.atualizarEnderecoLocalidade(
+        contexto.tipo,
+        item.id,
+        {
+          endereco: document.getElementById("fc-address").value.trim(),
+          cep: document.getElementById("fc-cep").value.trim()
+        },
+        function (resp) {
+          if (resp && resp.sucesso === true) {
+            fecharDialog();
+            mostrarToastSeguro("Endereço atualizado.", "success");
+            recarregar({ mostrarCarregando: false });
+          } else {
+            btn.disabled = false;
+            btn.textContent = "Salvar";
+            mostrarToastSeguro((resp && resp.erro) || "Não foi possível atualizar o endereço.", "error");
+          }
+        },
+        function (erro) {
+          btn.disabled = false;
+          btn.textContent = "Salvar";
+          mostrarToastSeguro((erro && erro.message) || "Falha ao atualizar o endereço.", "error");
+        }
+      );
+    };
+  }
+
+  function printEsc(v) { return esc(v); }
+
+  function contatoPrint(c) {
+    return '<li><strong>' + printEsc(fmtTipoContato(c.tipo)) + ":</strong> " +
+      printEsc(c.valor || "") + (c.descricao ? " — " + printEsc(c.descricao) : "") + "</li>";
+  }
+
+  function noPrint(no, nivel) {
+    nivel = nivel || 0;
+    var titulo = Math.min(6, nivel + 3);
+    var contatos = (no.contatos || []).length
+      ? "<ul>" + (no.contatos || []).map(contatoPrint).join("") + "</ul>"
+      : '<p class="muted">Sem contatos diretos.</p>';
+    return '<section class="unit"><h' + titulo + ">" + printEsc(no.nome) + "</h" + titulo + ">" +
+      '<p class="meta">' + printEsc(fmtTipoNo(no.tipo)) + " • " +
+      printEsc(no.enderecoExibicao || "Endereço não informado") +
+      (no.cepExibicao ? " • CEP " + printEsc(no.cepExibicao) : "") + "</p>" +
+      contatos + (no.filhos || []).map(function (filho) { return noPrint(filho, nivel + 1); }).join("") +
+      "</section>";
+  }
+
+  function forumPrint(f, municipioNome) {
+    var contatos = (f.contatos || []).length
+      ? "<ul>" + (f.contatos || []).map(contatoPrint).join("") + "</ul>"
+      : '<p class="muted">Sem contatos gerais.</p>';
+    return '<section class="forum"><h2>' + printEsc(f.nome) + "</h2>" +
+      '<p class="meta">' + printEsc(municipioNome || "") + " • " +
+      printEsc(f.endereco || "Endereço não informado") +
+      (f.cep ? " • CEP " + printEsc(f.cep) : "") + "</p>" +
+      contatos + (f.nos || []).map(function (no) { return noPrint(no, 0); }).join("") + "</section>";
+  }
+
+  function abrirImpressao(titulo, corpo) {
+    var w = window.open("", "_blank");
+    if (!w) {
+      mostrarToastSeguro("Desbloqueie pop-ups para imprimir.", "warning");
+      return;
+    }
+    var css =
+      "body{font-family:Arial,Helvetica,sans-serif;color:#0f172a;margin:24px;line-height:1.45}" +
+      "h1{font-size:22px;margin:0 0 4px}h2{font-size:18px;border-bottom:2px solid #0f172a;padding-bottom:5px;margin-top:24px}" +
+      "h3,h4,h5,h6{font-size:15px;margin:16px 0 4px}.meta{color:#64748b;font-size:11px;margin:0 0 8px}.muted{color:#94a3b8;font-style:italic;font-size:12px}" +
+      "ul{margin:5px 0 10px;padding-left:20px}li{font-size:12px;margin:2px 0}.forum{break-before:auto}.unit{break-inside:avoid-page;border-left:2px solid #e2e8f0;padding-left:10px;margin:9px 0}" +
+      "@media print{@page{size:A4 portrait;margin:12mm}body{margin:0}.forum{page-break-inside:auto}}";
+    var html = '<!doctype html><html><head><meta charset="utf-8"><title>' + printEsc(titulo) +
+      "</title><style>" + css + "</style></head><body><h1>" + printEsc(titulo) +
+      '<p class="meta">Gerado em ' + printEsc(new Date().toLocaleString("pt-BR")) +
+      "</p>" + corpo + "<script>window.onload=function(){setTimeout(function(){window.print();},250)}<\/script></body></html>";
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  }
+
+  function imprimirTudo() {
+    var municipios = estado.dados.municipios || [];
+    var corpo = municipios.map(function (m) {
+      return '<section><h2>' + printEsc(m.nome) + "</h2>" +
+        (m.foruns || []).map(function (f) { return forumPrint(f, m.nome); }).join("") + "</section>";
+    }).join("");
+    abrirImpressao("Todos os contatos do PJES", corpo || '<p class="muted">Nenhum contato cadastrado.</p>');
+  }
+
+  function imprimirForum() {
+    var f = forumAtual();
+    var m = municipioAtual();
+    if (!f || !m) return;
+    abrirImpressao("Contatos — " + f.nome, forumPrint(f, m.nome));
+  }
+
+  function imprimirUnidade() {
+    var no = noAtual();
+    var f = forumAtual();
+    if (!no || !f) return;
+    abrirImpressao("Contatos — " + no.nome, noPrint(no, 0));
+  }
+
+  function codigoMunicipio(feature) {
+    var p = feature && feature.properties || {};
+    return String(p.CD_MUN || p.codmun || p.id || p.code || "").replace(/\D/g, "");
+  }
+
+  function municipioComContatos(codigo) {
+    return (estado.dados.municipios || []).some(function (m) {
+      return String(m.codigoIbge || "").replace(/\D/g, "") === codigo && Number(m.qtdContatos || 0) > 0;
+    });
+  }
+
+  function estiloMunicipio(feature) {
+    var tem = municipioComContatos(codigoMunicipio(feature));
+    return tem
+      ? { color: "#2563eb", weight: 1.2, fillColor: "#60a5fa", fillOpacity: .42 }
+      : { color: "#94a3b8", weight: .8, fillColor: "#cbd5e1", fillOpacity: .24 };
+  }
+
+  function destacarMunicipio(codigo) {
+    if (!estado.mapa || !estado.geojson || !codigo) return;
+    estado.geojson.eachLayer(function (layer) {
+      var cod = codigoMunicipio(layer.feature);
+      var alvo = String(codigo).replace(/\D/g, "");
+      var ativo = cod === alvo;
+      layer.setStyle(Object.assign({}, estiloMunicipio(layer.feature), {
+        weight: ativo ? 3 : estiloMunicipio(layer.feature).weight,
+        fillOpacity: ativo ? .58 : estiloMunicipio(layer.feature).fillOpacity
+      }));
+    });
+  }
+
+  function adicionarLegendaMapa() {
+    if (!window.L || !estado.mapa) return;
+    var legenda = L.control({ position: "bottomright" });
+    legenda.onAdd = function () {
+      var div = L.DomUtil.create("div", "fc-map-legenda");
+      div.innerHTML = '<span class="tem-contato">● Municípios com contatos</span><span class="sem-contato">● Sem contatos cadastrados</span>';
+      return div;
+    };
+    legenda.addTo(estado.mapa);
+  }
+
+  function iniciarMapa() {
+    if (!window.L) { setTimeout(iniciarMapa, 250); return; }
+    var el = document.getElementById("fc-map");
+    if (!el) return;
+
+    try {
+      if (estado.mapa) estado.mapa.remove();
+      estado.mapa = L.map(el, { scrollWheelZoom: true }).setView([-19.7, -40.5], 7.6);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap"
+      }).addTo(estado.mapa);
+
+      fetch("https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-32-mun.json")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          estado.geojson = L.geoJSON(data, {
+            style: estiloMunicipio,
+            onEachFeature: function (feature, layer) {
+              var codigo = codigoMunicipio(feature);
+              var p = feature.properties || {};
+              var nome = String(p.name || p.NOME || p.NM_MUN || "Município");
+              var tem = municipioComContatos(codigo);
+              layer.bindTooltip(
+                esc(nome) + (tem ? "<br><small>Possui contatos cadastrados</small>" : "<br><small>Sem contatos cadastrados</small>"),
+                { sticky: true }
+              );
+              if (tem) {
+                layer.on("click", function () {
+                  var m = (estado.dados.municipios || []).find(function (x) {
+                    return String(x.codigoIbge || "").replace(/\D/g, "") === codigo;
+                  });
+                  if (m) abrirMunicipio(m.id);
+                });
+              }
+            }
+          }).addTo(estado.mapa);
+          adicionarLegendaMapa();
+          estado.mapa.fitBounds(estado.geojson.getBounds(), { padding: [3, 3] });
+        })
+        .catch(function (err) { console.warn("GeoJSON não carregado", err); });
+
+      if (window.ResizeObserver) {
+        estado.resizeObserver = new ResizeObserver(function () {
+          try { estado.mapa.invalidateSize(); } catch (e) {}
+        });
+        estado.resizeObserver.observe(el);
+      }
+    } catch (e) {
+      console.warn("Mapa não inicializado", e);
+    }
+  }
+
+  function atualizarMapaDados() {
+    if (!estado.mapa) return;
+    try {
+      if (estado.geojson) {
+        estado.geojson.eachLayer(function (layer) {
+          layer.setStyle(estiloMunicipio(layer.feature));
+        });
+      }
+      estado.mapa.invalidateSize();
+    } catch (e) {}
+  }
+
+  function atualizarMapaIntegrado() {
+    if (!estado.inicializado) {
+      iniciarNavegacaoForum(true);
+      return false;
+    }
+    setTimeout(function () {
+      try {
+        estado.mapa.invalidateSize();
+        if (estado.geojson) estado.mapa.fitBounds(estado.geojson.getBounds(), { padding: [3, 3] });
+      } catch (e) {}
+    }, 80);
+    return true;
+  }
+
+  function iniciarNavegacaoForum(forcar) {
+    injectStyle();
+    if (estado.inicializado && !forcar) {
+      restaurarNavegacao();
+      atualizarMapaIntegrado();
+      return;
+    }
+    estado.inicializado = true;
+    recarregar({ mostrarCarregando: true });
+    if (!estado.mapa) setTimeout(iniciarMapa, 0);
+  }
+
+  window.iniciarNavegacaoForum = iniciarNavegacaoForum;
+  window.recarregarNavegacaoForum = function () { recarregar({ mostrarCarregando: false }); };
+  window.renderizarMapaConsulta = atualizarMapaIntegrado;
+  window.tentarInicializarMapa = atualizarMapaIntegrado;
+  window.fcInicio = renderInicio;
+  window.fcMunicipio = renderForuns;
+  window.fcForum = renderForum;
+  window.fcNo = abrirNo;
+  window.fcImprimirTudo = imprimirTudo;
+  window.fcImprimirForum = imprimirForum;
+  window.fcImprimirUnidade = imprimirUnidade;
+
+  document.addEventListener("DOMContentLoaded", function () {
+    setTimeout(function () { iniciarNavegacaoForum(true); }, 120);
+  });
 })();
 </script>
