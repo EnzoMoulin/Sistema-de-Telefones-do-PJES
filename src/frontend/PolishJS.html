@@ -4,12 +4,48 @@
 
   var MOBILE_BREAKPOINT = 900;
   var observer = null;
+  var ultimaViewId = "";
 
   function qs(selector) { return document.querySelector(selector); }
   function qsa(selector) { return Array.prototype.slice.call(document.querySelectorAll(selector)); }
 
   function emModoMovel() {
     return window.matchMedia && window.matchMedia("(max-width: " + MOBILE_BREAKPOINT + "px)").matches;
+  }
+
+  function prepararTopbar() {
+    var topbar = qs(".topbar");
+    if (!topbar) return;
+
+    var titulo = topbar.querySelector(".system-title");
+    if (titulo && !titulo.querySelector(".topbar__eyebrow")) {
+      var eyebrow = document.createElement("span");
+      eyebrow.className = "topbar__eyebrow";
+      eyebrow.textContent = "Diretório institucional";
+      titulo.insertBefore(eyebrow, titulo.firstChild);
+    }
+
+    var actions = null;
+    Array.prototype.slice.call(topbar.children).forEach(function (filho) {
+      if (filho !== titulo && filho.tagName === "DIV" && !filho.classList.contains("topbar__mobile-menu")) actions = filho;
+    });
+    if (actions) actions.classList.add("topbar__actions");
+
+    var printBtn = document.getElementById("btn-imprimir-dashboard");
+    if (printBtn) printBtn.classList.add("topbar__print");
+
+    var btn = document.getElementById("btn-mobile-menu");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.type = "button";
+      btn.id = "btn-mobile-menu";
+      btn.className = "topbar__mobile-menu";
+      btn.textContent = "☰";
+      btn.setAttribute("aria-label", "Abrir menu de navegação");
+      btn.setAttribute("aria-controls", "sidebar-container");
+      btn.setAttribute("aria-expanded", "false");
+      topbar.insertBefore(btn, titulo || topbar.firstChild);
+    }
   }
 
   function garantirBackdrop() {
@@ -78,6 +114,12 @@
     if (rotulo && typeof window.SISTEMA_NOME !== "undefined") {
       document.title = rotulo + " · " + String(window.SISTEMA_NOME || "PJES");
     }
+
+    if (ultimaViewId && ultimaViewId !== viewVisivel.id) {
+      var main = qs(".main-container");
+      if (main) main.scrollTop = 0;
+    }
+    ultimaViewId = viewVisivel.id || ultimaViewId;
   }
 
   function observarNavegacao() {
@@ -105,8 +147,13 @@
 
   function melhorarBotoes() {
     qsa("button").forEach(function (botao) {
-      if (!botao.type) botao.type = "button";
+      if (!botao.getAttribute("type")) botao.setAttribute("type", "button");
     });
+  }
+
+  function melhorarDestinoSkipLink() {
+    var app = document.getElementById("app");
+    if (app && !app.getAttribute("tabindex")) app.setAttribute("tabindex", "-1");
   }
 
   function registrarAtalhos() {
@@ -120,14 +167,11 @@
   }
 
   function inicializar() {
+    prepararTopbar();
     garantirBackdrop();
 
     var btn = document.getElementById("btn-mobile-menu");
-    if (btn) {
-      btn.setAttribute("aria-controls", "sidebar-container");
-      btn.setAttribute("aria-expanded", "false");
-      btn.addEventListener("click", alternarMenuMovel);
-    }
+    if (btn) btn.addEventListener("click", alternarMenuMovel);
 
     qsa(".menu-item").forEach(function (botao) {
       botao.addEventListener("click", function () {
@@ -140,6 +184,7 @@
     });
 
     registrarAtalhos();
+    melhorarDestinoSkipLink();
     melhorarTabelas();
     melhorarBotoes();
     sincronizarMenuAcessivel();
