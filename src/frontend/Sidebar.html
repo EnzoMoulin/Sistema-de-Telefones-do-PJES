@@ -17,7 +17,7 @@ Arquivo: Sidebar.html
 
     <nav class="sidebar-menu" aria-label="Navegação principal">
       <button type="button" id="menu-dashboard" class="menu-item" onclick="mostrarView('dashboard-view')">
-        <span class="icon" aria-hidden="true">⌂</span>
+        <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="4" rx="1.5"></rect><rect x="14" y="11" width="7" height="10" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect></svg></span>
         <span>Dashboard</span>
       </button>
 
@@ -28,7 +28,7 @@ Arquivo: Sidebar.html
 
       <button type="button" id="menu-login" class="menu-item <?= ehContextoAdmin ? '' : 'hidden' ?>" onclick="entrarAreaAdministrativa()">
         <span class="icon" aria-hidden="true">🔐</span>
-        <span>Entrar na Área Administrativa</span>
+        <span>Entrar na área administrativa</span>
       </button>
 
       <button type="button" id="menu-formulario" class="menu-item hidden" onclick="mostrarView('formulario-acesso-view')">
@@ -73,10 +73,11 @@ Arquivo: Sidebar.html
   <div class="sidebar-footer">
     <button type="button" id="btn-status-acesso" class="sidebar-status-btn <?= ehContextoAdmin ? '' : 'hidden' ?>" onclick="entrarAreaAdministrativa()">
       <span id="icone-status-acesso" aria-hidden="true">🔑</span>
-      <span id="texto-status-acesso"><?= ehContextoAdmin ? 'Entrar na Área Administrativa' : 'Acesso Administrativo' ?></span>
+      <span id="texto-status-acesso"><?= ehContextoAdmin ? 'Entrar na área administrativa' : 'Acesso Administrativo' ?></span>
     </button>
 
-    <div id="sidebar-user" class="sidebar-user">Perfil: Usuário de Consulta</div>
+    <div id="sidebar-user" class="sidebar-user"><?= ehContextoAdmin ? 'Sem acesso administrativo' : 'Acesso Público' ?></div>
+    <div id="sidebar-access-hint" class="sidebar-access-hint hidden">Solicite acesso administrativo na aba Formulário de Acesso.</div>
 
     <div id="sidebar-version" class="sidebar-version">
       v<span id="sidebar-version-num">5.0</span>

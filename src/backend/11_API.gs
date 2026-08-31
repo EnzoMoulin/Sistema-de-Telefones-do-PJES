@@ -2338,6 +2338,46 @@ function listarUsuarios() {
   }
 }
 
+function removerMeuAcesso(tipo, id) {
+  const tipoNormalizado = tipoEscopoAcesso(tipo);
+  const idNormalizado = textoSeguro(id);
+  if (!tipoNormalizado || !idNormalizado) {
+    return respostaErro(new Error("Localidade de acesso inválida."));
+  }
+
+  const lock = LockService.getScriptLock();
+  let bloqueado = false;
+  try {
+    lock.waitLock(30000);
+    bloqueado = true;
+    const auth = new AuthService();
+    auth.exigirPerfil(CONFIG.PERFIS.GESTOR_CONTEUDO);
+    const usuario = auth.usuarioAtual();
+    const sheet = DB.acessosUnidades();
+    const mapa = indicesAcessosUnidades(sheet);
+    const dados = DB.read(sheet);
+    const indice = dados.findIndex(function(linha) {
+      return textoSeguro(linha[mapa.usuarioId - 1]) === textoSeguro(usuario.id) &&
+        (mapa.tipo === undefined ? CONFIG.ACESSOS.UNIDADE : tipoEscopoAcesso(linha[mapa.tipo - 1])) === tipoNormalizado &&
+        textoSeguro(linha[mapa.escopoId - 1]) === idNormalizado &&
+        paraBoolean(linha[mapa.ativo - 1]);
+    });
+
+    if (indice >= 0) {
+      sheet.getRange(indice + 2, mapa.ativo).setValue("NÃO");
+      SpreadsheetApp.flush();
+      registrarInfoAPI("REMOVER_PROPRIO_ACESSO", usuario.email + " -> " + tipoNormalizado + ":" + idNormalizado);
+    }
+
+    return respostaSucesso(auth.usuarioAtual());
+  } catch (erro) {
+    registrarErroAPI("REMOVER_PROPRIO_ACESSO", erro);
+    return respostaErro(erro);
+  } finally {
+    if (bloqueado) lock.releaseLock();
+  }
+}
+
 function validarIdsUnidadesAdministrativas(unidadeIds) {
   const ids = idsUnidadesSolicitadas(unidadeIds);
   const sheet = DB.unidadesOrganizacionais();

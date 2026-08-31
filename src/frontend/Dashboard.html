@@ -12,8 +12,8 @@ Arquivo: Dashboard.html
       <p>Indicadores consolidados da estrutura de contatos do PJES.</p>
     </div>
     <div class="dashboard-header__actions">
-      <button type="button" class="btn btn-secondary" onclick="imprimirDashboardView()" title="Imprimir a tela atual do Dashboard">
-        <span aria-hidden="true">🖨</span> Imprimir Dashboard
+      <button type="button" class="btn btn-secondary" onclick="imprimirDashboardView()" title="Imprimir / Salvar PDF da tela Dashboard">
+        <span aria-hidden="true">🖨</span> Imprimir / Salvar PDF
       </button>
     </div>
   </div>
@@ -31,7 +31,7 @@ Arquivo: Dashboard.html
     <article class="card dashboard-card">
       <div class="dashboard-card__icon" aria-hidden="true">⌖</div>
       <div class="dashboard-card__content">
-        <div class="card-title">Municípios</div>
+        <div class="card-title">Comarcas</div>
         <div id="total-municipios" class="card-value" aria-live="polite">0</div>
         <div class="dashboard-card__meta">com dados cadastrados</div>
       </div>
@@ -88,11 +88,11 @@ Arquivo: Dashboard.html
     <section class="panel dashboard-panel" aria-labelledby="dashboard-municipios-title">
       <div class="dashboard-panel__header">
         <div>
-          <h3 id="dashboard-municipios-title">Contatos por município</h3>
-          <p>Municípios com maior volume de contatos</p>
+          <h3 id="dashboard-municipios-title">Contatos por Comarca</h3>
+          <p>Comarcas com maior volume de contatos</p>
         </div>
       </div>
-      <div id="grafico-comarcas" class="chart-container" aria-label="Gráfico de contatos por município"></div>
+      <div id="grafico-comarcas" class="chart-container" aria-label="Gráfico de contatos por Comarca"></div>
     </section>
   </div>
 

@@ -33,6 +33,55 @@ function mensagemErroFrontend(erro, fallback) {
   return fallback || "Ocorreu um erro inesperado.";
 }
 
+let resolverConfirmacaoSistema = null;
+let manipuladorTecladoConfirmacao = null;
+
+function finalizarConfirmacaoSistema(confirmado) {
+  const modal = document.getElementById("modal-confirmacao-sistema");
+  if (modal) modal.style.display = "none";
+  if (manipuladorTecladoConfirmacao) {
+    document.removeEventListener("keydown", manipuladorTecladoConfirmacao);
+    manipuladorTecladoConfirmacao = null;
+  }
+  const resolver = resolverConfirmacaoSistema;
+  resolverConfirmacaoSistema = null;
+  if (resolver) resolver(Boolean(confirmado));
+}
+
+function confirmarAcaoSistema(opcoes) {
+  const config = typeof opcoes === "string" ? { mensagem: opcoes } : (opcoes || {});
+  const modal = document.getElementById("modal-confirmacao-sistema");
+  if (!modal) return Promise.resolve(false);
+  if (resolverConfirmacaoSistema) finalizarConfirmacaoSistema(false);
+
+  document.getElementById("titulo-confirmacao-sistema").textContent = config.titulo || "Confirmar ação";
+  document.getElementById("mensagem-confirmacao-sistema").textContent = config.mensagem || "Deseja continuar?";
+  const icone = document.getElementById("icone-confirmacao-sistema");
+  icone.textContent = config.icone || (config.perigo ? "!" : "?");
+  icone.className = "confirm-dialog__icon " + (config.perigo ? "" : "confirm-dialog__icon--info");
+
+  const cancelar = document.getElementById("btn-cancelar-confirmacao-sistema");
+  const confirmar = document.getElementById("btn-confirmar-confirmacao-sistema");
+  cancelar.textContent = config.textoCancelar || "Cancelar";
+  confirmar.textContent = config.textoConfirmar || "Confirmar";
+  confirmar.className = "btn " + (config.perigo ? "btn-danger" : "btn-primary");
+
+  modal.style.display = "flex";
+  return new Promise(function(resolve) {
+    resolverConfirmacaoSistema = resolve;
+    cancelar.onclick = function() { finalizarConfirmacaoSistema(false); };
+    confirmar.onclick = function() { finalizarConfirmacaoSistema(true); };
+    modal.onclick = function(evento) {
+      if (evento.target === modal) finalizarConfirmacaoSistema(false);
+    };
+    manipuladorTecladoConfirmacao = function(evento) {
+      if (evento.key === "Escape") finalizarConfirmacaoSistema(false);
+    };
+    document.addEventListener("keydown", manipuladorTecladoConfirmacao);
+    setTimeout(function() { confirmar.focus(); }, 0);
+  });
+}
+
 function logoutFoiSolicitado() {
   try { return sessionStorage.getItem(CHAVE_LOGOUT_ADMIN) === "true"; }
   catch (erro) { return false; }
@@ -108,7 +157,7 @@ function iniciarSistema() {
   if (window.EH_CONTEXTO_ADMIN === true && !logoutFoiSolicitado()) {
     tentarLoginAutomatico(true);
   } else if (window.EH_CONTEXTO_ADMIN === true && logoutFoiSolicitado()) {
-    try { mostrarToast("Modo Consulta mantido após o último logout. Use Entrar na Área Administrativa para validar novamente.", "info"); } catch (erro) {}
+    try { mostrarToast("Modo Consulta mantido após o último logout. Use Entrar na área administrativa para validar novamente.", "info"); } catch (erro) {}
   }
 
   setTimeout(function() {
@@ -146,17 +195,25 @@ function atualizarInterfaceUsuario() {
     userInfo.textContent = logado
       ? nome
       : "Visitante";
+    const perfilClicavel = window.EH_CONTEXTO_ADMIN === true && logado;
+    userInfo.disabled = !perfilClicavel;
+    userInfo.title = perfilClicavel ? "Ver meus dados e acessos" : "";
   }
 
   const sidebarUser =
     document.getElementById("sidebar-user");
+
+  const sidebarAccessHint =
+    document.getElementById("sidebar-access-hint");
 
   if (sidebarUser) {
     var emailSessao = String(
       (typeof window.SESSAO_EMAIL !== "undefined" && window.SESSAO_EMAIL) || ""
     ).trim();
 
-    if (logado) {
+    if (window.EH_CONTEXTO_ADMIN !== true) {
+      sidebarUser.textContent = "Acesso Público";
+    } else if (logado) {
       sidebarUser.textContent =
         "👤 " +
         email +
@@ -166,11 +223,17 @@ function atualizarInterfaceUsuario() {
       sidebarUser.textContent =
         "👤 " +
         emailSessao +
-        "\nSem cargo administrativo";
+        "\nSem acesso administrativo";
     } else {
       sidebarUser.textContent =
-        "Perfil: Usuário de Consulta";
+        "Sem acesso administrativo";
     }
+  }
+
+  if (sidebarAccessHint) {
+    var exibirOrientacaoAcesso = window.EH_CONTEXTO_ADMIN === true &&
+      !logado && usuario.cadastrado !== true && usuario.podeSolicitarAcesso === true;
+    sidebarAccessHint.classList.toggle("hidden", !exibirOrientacaoAcesso);
   }
 
   const configConta =
@@ -181,32 +244,34 @@ function atualizarInterfaceUsuario() {
       (typeof window.SESSAO_EMAIL !== "undefined" && window.SESSAO_EMAIL) || ""
     ).trim();
 
-    configConta.textContent = logado
-      ? email
-      : emailSessao2
-        ? emailSessao2
-        : "Nenhuma (acesso an\u00f4nimo)";
+    configConta.textContent = window.EH_CONTEXTO_ADMIN === true
+      ? "E-mail: " + (logado ? email : (emailSessao2 || "Nenhum"))
+      : "E-mail: Nenhum (acesso an\u00f4nimo)\nConsulta liberada";
   }
 
   // --- Configuração de perfil, badge e escopo por Unidade ---
   try {
     var configPerfilEl = document.getElementById("config-conta-perfil");
     if (configPerfilEl) {
+      configPerfilEl.classList.remove("hidden");
       if (logado) {
         configPerfilEl.textContent = formatarPerfil(perfil);
+      } else if (window.EH_CONTEXTO_ADMIN !== true) {
+        configPerfilEl.textContent = "";
+        configPerfilEl.classList.add("hidden");
+      } else if (logoutFoiSolicitado()) {
+        configPerfilEl.textContent = "";
+        configPerfilEl.classList.add("hidden");
       } else {
-        var emailSessaoP = String(
-          (typeof window.SESSAO_EMAIL !== "undefined" && window.SESSAO_EMAIL) || ""
-        ).trim();
-        configPerfilEl.textContent = emailSessaoP
-          ? "Sem cargo administrativo"
-          : "Acesso an\u00f4nimo \u2014 consulta liberada";
+        configPerfilEl.textContent = usuario.cadastrado === false && usuario.identificado === true
+          ? "Sem acesso administrativo"
+          : "Consulta liberada";
       }
     }
 
     var configBadge = document.getElementById("config-conta-badge");
     if (configBadge) {
-      var badgeTexto = "visitante";
+      var badgeTexto = window.EH_CONTEXTO_ADMIN === true ? "consulta" : "acesso público";
       var badgeClasse = "config-conta-badge--visitante";
       if (logado && perfil === "GESTOR_SISTEMA") {
         badgeTexto = "Gestor do Sistema";
@@ -218,10 +283,7 @@ function atualizarInterfaceUsuario() {
         badgeTexto = formatarPerfil(perfil);
         badgeClasse = "config-conta-badge--visitante";
       } else {
-        var es = String(
-          (typeof window.SESSAO_EMAIL !== "undefined" && window.SESSAO_EMAIL) || ""
-        ).trim();
-        badgeTexto = es ? "sem cargo" : "visitante";
+        badgeTexto = "consulta";
         badgeClasse = "config-conta-badge--visitante";
       }
       configBadge.textContent = badgeTexto;
@@ -230,6 +292,7 @@ function atualizarInterfaceUsuario() {
 
     var comarcasWrap = document.getElementById("config-conta-comarcas-wrap");
     var comarcasList = document.getElementById("config-conta-comarcas");
+    var escopoHint = document.getElementById("config-conta-escopo-hint");
     if (comarcasWrap && comarcasList) {
       var unidadesUsuario = Array.isArray(usuario.unidades) ? usuario.unidades : [];
       comarcasList.innerHTML = "";
@@ -239,6 +302,7 @@ function atualizarInterfaceUsuario() {
         chipAll.textContent = "Escopo global";
         comarcasList.appendChild(chipAll);
         comarcasWrap.classList.remove("hidden");
+        if (escopoHint) escopoHint.textContent = "Gestor do Sistema — acesso e edição ilimitadas.";
       } else if (logado && perfil === "GESTOR_CONTEUDO" && unidadesUsuario.length) {
         unidadesUsuario.forEach(function(unidade){
           var chip = document.createElement("span");
@@ -247,12 +311,14 @@ function atualizarInterfaceUsuario() {
           comarcasList.appendChild(chip);
         });
         comarcasWrap.classList.remove("hidden");
+        if (escopoHint) escopoHint.textContent = "Gestor de Conteúdo — edição limitada às Unidades acima.";
       } else if (logado && perfil === "GESTOR_CONTEUDO") {
         var chipSemEscopo = document.createElement("span");
         chipSemEscopo.className = "config-comarca-chip";
         chipSemEscopo.textContent = "Nenhuma Unidade vinculada";
         comarcasList.appendChild(chipSemEscopo);
         comarcasWrap.classList.remove("hidden");
+        if (escopoHint) escopoHint.textContent = "Gestor de Conteúdo — sem localidades vinculadas.";
       } else {
         comarcasWrap.classList.add("hidden");
       }
@@ -285,14 +351,6 @@ function atualizarInterfaceUsuario() {
           cor: "#991b1b",
           acao: tratarCliqueAcesso
         });
-      } else if (usuario.podeSolicitarAcesso === true) {
-        configurarBotaoAcesso(btnAcesso, textoAcesso, {
-          texto: "Solicitar Acesso Administrativo",
-          fundo: "#dbeafe",
-          borda: "#93c5fd",
-          cor: "#1e40af",
-          acao: function() { mostrarView("formulario-acesso-view"); }
-        });
       } else if (usuario.estadoAcesso === "CONTA_DESATIVADA") {
         configurarBotaoAcesso(btnAcesso, textoAcesso, {
           texto: "Conta administrativa desativada",
@@ -303,7 +361,7 @@ function atualizarInterfaceUsuario() {
         });
       } else {
         configurarBotaoAcesso(btnAcesso, textoAcesso, {
-          texto: "Entrar na Área Administrativa",
+          texto: "Entrar na área administrativa",
           fundo: "#dbeafe",
           borda: "#93c5fd",
           cor: "#1e40af",
@@ -831,25 +889,129 @@ function aoEntrarConsultaTelefonesView(){
  * A conta Google do navegador permanece conectada; o servidor continua
  * revalidando identidade e permissões em cada mutação administrativa.
  */
-function tratarCliqueAcesso() {
-  if (!confirm("Deseja sair e permanecer no modo Consulta neste navegador?")) return;
-  try {
-    sessionStorage.setItem(CHAVE_LOGOUT_ADMIN, "true");
-  } catch (erro) {}
+function fecharPerfilUsuario() {
+  const modal = document.getElementById("modal-perfil-usuario");
+  if (modal) modal.classList.add("hidden");
+}
 
-  usuarioAtual = usuarioVisitante("LOGOUT_SOLICITADO");
-  window.PERFIL_ADMIN = "";
-  try { pararPollingNotificacoes(); } catch (erro) {}
-  try { pararPollingSolicitacoes(); } catch (erro) {}
-  atualizarInterfaceUsuario();
-  mostrarView("consulta-telefones-view");
-  try {
-    if (typeof carregarTelefones === "function") carregarTelefones();
-    else if (typeof iniciarConsultaTelefones === "function") iniciarConsultaTelefones();
-  } catch (erro) {
-    console.error("Falha ao recarregar a consulta após sair:", erro);
+function textoAcessoPerfil(acesso) {
+  return acesso.caminhoTexto || acesso.nome || acesso.id || "Localidade";
+}
+
+function abrirPerfilUsuario() {
+  const usuario = usuarioAtual || {};
+  if (window.EH_CONTEXTO_ADMIN !== true || usuario.logado !== true) return;
+  const modal = document.getElementById("modal-perfil-usuario");
+  const lista = document.getElementById("perfil-usuario-acessos");
+  if (!modal || !lista) return;
+  modal.onclick = function(evento) { if (evento.target === modal) fecharPerfilUsuario(); };
+
+  document.getElementById("perfil-usuario-nome").textContent = usuario.nome || "Usuário";
+  document.getElementById("perfil-usuario-email").textContent = usuario.email || "E-mail não identificado";
+  document.getElementById("perfil-usuario-nivel").textContent = formatarPerfil(usuario.perfil);
+  lista.textContent = "";
+
+  const ehGestorSistema = usuario.perfil === "GESTOR_SISTEMA";
+  const ajuda = document.getElementById("perfil-usuario-acessos-ajuda");
+  ajuda.textContent = ehGestorSistema
+    ? "Permissão global do sistema"
+    : "Você pode remover uma localidade quando não precisar mais dela";
+
+  if (ehGestorSistema) {
+    const total = document.createElement("div");
+    total.className = "profile-access-total";
+    total.textContent = "Acesso total";
+    lista.appendChild(total);
+  } else {
+    const acessos = Array.isArray(usuario.unidades) ? usuario.unidades : [];
+    if (!acessos.length) {
+      const vazio = document.createElement("div");
+      vazio.className = "profile-access-empty";
+      vazio.textContent = "Nenhum acesso por localidade vinculado.";
+      lista.appendChild(vazio);
+    } else {
+      acessos.forEach(function(acesso) {
+        const item = document.createElement("div");
+        item.className = "profile-access-item";
+        const texto = document.createElement("div");
+        texto.className = "profile-access-item__text";
+        const nome = document.createElement("strong");
+        nome.textContent = textoAcessoPerfil(acesso);
+        const tipo = document.createElement("span");
+        tipo.textContent = String(acesso.tipo || "UNIDADE").toUpperCase() === "FORUM" ? "Fórum" : "Unidade";
+        texto.appendChild(nome);
+        texto.appendChild(tipo);
+        const remover = document.createElement("button");
+        remover.type = "button";
+        remover.className = "btn btn-danger";
+        remover.textContent = "Remover";
+        remover.onclick = function() { confirmarRemocaoMeuAcesso(acesso, remover); };
+        item.appendChild(texto);
+        item.appendChild(remover);
+        lista.appendChild(item);
+      });
+    }
   }
-  try { mostrarToast("Modo Consulta ativado.", "info"); } catch (erro) {}
+  modal.classList.remove("hidden");
+}
+
+function confirmarRemocaoMeuAcesso(acesso, botao) {
+  confirmarAcaoSistema({
+    titulo: "Remover acesso",
+    mensagem: 'Você deixará de acessar e editar a localidade "' + textoAcessoPerfil(acesso) + '". Deseja continuar?',
+    textoConfirmar: "Remover acesso",
+    perigo: true,
+    icone: "−"
+  }).then(function(confirmado) {
+    if (!confirmado) return;
+    botao.disabled = true;
+    botao.textContent = "Removendo...";
+    API.removerMeuAcesso(acesso.tipo, acesso.id, function(resposta) {
+      botao.disabled = false;
+      botao.textContent = "Remover";
+      if (!resposta || resposta.sucesso !== true || !resposta.dados) {
+        mostrarToast((resposta && resposta.erro) || "Não foi possível remover o acesso.", "error");
+        return;
+      }
+      aplicarUsuarioServidor(resposta.dados, false);
+      abrirPerfilUsuario();
+      mostrarToast("Acesso removido.", "success");
+    }, function(erro) {
+      botao.disabled = false;
+      botao.textContent = "Remover";
+      mostrarToast(mensagemErroFrontend(erro, "Falha ao remover o acesso."), "error");
+    });
+  });
+}
+
+function tratarCliqueAcesso() {
+  confirmarAcaoSistema({
+    titulo: "Sair da área administrativa",
+    mensagem: "Deseja sair e permanecer no modo Consulta neste navegador?",
+    textoConfirmar: "Sair",
+    perigo: true,
+    icone: "↪"
+  }).then(function(confirmado) {
+    if (!confirmado) return;
+    try {
+      sessionStorage.setItem(CHAVE_LOGOUT_ADMIN, "true");
+    } catch (erro) {}
+
+    fecharPerfilUsuario();
+    usuarioAtual = usuarioVisitante("LOGOUT_SOLICITADO");
+    window.PERFIL_ADMIN = "";
+    try { pararPollingNotificacoes(); } catch (erro) {}
+    try { pararPollingSolicitacoes(); } catch (erro) {}
+    atualizarInterfaceUsuario();
+    mostrarView("consulta-telefones-view");
+    try {
+      if (typeof carregarTelefones === "function") carregarTelefones();
+      else if (typeof iniciarConsultaTelefones === "function") iniciarConsultaTelefones();
+    } catch (erro) {
+      console.error("Falha ao recarregar a consulta após sair:", erro);
+    }
+    try { mostrarToast("Modo Consulta ativado.", "info"); } catch (erro) {}
+  });
 }
 
 /**

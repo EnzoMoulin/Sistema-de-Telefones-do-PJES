@@ -41,7 +41,7 @@
   }
 
   function localizarOpcaoMunicipio(nome) {
-    var select = document.getElementById("fc-search");
+    var select = document.getElementById("fc-comarca") || document.getElementById("fc-search");
     if (!select || String(select.tagName || "").toUpperCase() !== "SELECT") return null;
     var alvo = normalizarNome(nome);
     var opcao = Array.prototype.slice.call(select.options || []).find(function (item) {
@@ -134,7 +134,7 @@
           });
 
           // O handler original depende do estado existente no instante em que o
-          // GeoJSON é criado. O clique é sempre registrado e resolve o município
+          // GeoJSON é criado. O clique é sempre registrado e resolve a Comarca
           // pelo nome, que permanece estável entre o GeoJSON e a tabela MUNICIPIOS.
           layer.off("click");
           layer.on("click", function (evento) {
@@ -146,7 +146,7 @@
 
             var abriu = abrirMunicipioPorNome(nome);
             if (!abriu) {
-              console.warn("Município do mapa não encontrado na navegação:", {
+              console.warn("Comarca do mapa não encontrada na navegação:", {
                 nome: nome,
                 codigoIbge: codigoFeature(feature)
               });

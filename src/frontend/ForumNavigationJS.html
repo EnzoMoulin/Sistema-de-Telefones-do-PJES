@@ -104,6 +104,26 @@
     return saida;
   }
 
+  function qtdSetores(lista) {
+    return todosNos(lista || [], []).filter(function (no) {
+      return String(no.tipo || "").toUpperCase() === "SETOR";
+    }).length;
+  }
+
+  function rotuloQuantidade(valor, singular, plural) {
+    var total = Number(valor || 0);
+    return total > 0 ? total + " " + (total === 1 ? singular : plural) : "";
+  }
+
+  function badgeQuantidade(valor, singular, plural) {
+    var texto = rotuloQuantidade(valor, singular, plural);
+    return texto ? '<span class="fc-pill">' + esc(texto) + "</span>" : "";
+  }
+
+  function resumoQuantidades(itens) {
+    return itens.filter(Boolean).join(" • ");
+  }
+
   function encontrarMunicipio(id) {
     return (estado.dados.municipios || []).find(function (m) { return m.id === id; }) || null;
   }
@@ -211,11 +231,13 @@
       .fc-empty{padding:20px;border:1px dashed #cbd5e1;border-radius:12px;color:#64748b;text-align:center}.fc-error{padding:16px;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:12px;line-height:1.5}
       .fc-access{margin-top:10px;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:8px;padding:7px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
       .fc-map-legenda{padding:7px 9px;background:rgba(255,255,255,.94);border:1px solid #cbd5e1;border-radius:7px;box-shadow:0 2px 8px rgba(15,23,42,.12);font-size:11px;color:#334155}.fc-map-legenda span{display:block;margin:2px 0}.fc-map-legenda .tem-contato{color:#2563eb}.fc-map-legenda .sem-contato{color:#94a3b8}
+      .fc-total-comarcas{display:inline-flex;margin:12px 0 8px;background:#dbeafe;color:#1e40af;font-weight:800}.fc-print-all{width:100%;justify-content:center;margin-bottom:12px}.fc-address-row{margin-top:10px}.fc-address-row .fc-inherit{margin-top:0}
       .fc-dialog-backdrop{position:fixed;inset:0;z-index:10050;background:rgba(15,23,42,.52);display:flex;align-items:center;justify-content:center;padding:18px}
       .fc-dialog{width:min(560px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:16px;padding:20px;box-shadow:0 24px 64px rgba(15,23,42,.28)}
       .fc-dialog h3{margin:0 0 4px;color:#0f172a}.fc-dialog p{margin:0 0 16px;color:#64748b;font-size:13px}.fc-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.fc-field{display:grid;gap:5px}.fc-field--full{grid-column:1/-1}.fc-field label{font-size:12px;font-weight:700;color:#334155}.fc-field input,.fc-field select,.fc-field textarea{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:9px;padding:9px 10px;font:inherit}.fc-field textarea{min-height:86px;resize:vertical}
       .fc-dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap}
       @media(max-width:680px){.fc-form-grid{grid-template-columns:1fr}.fc-field--full{grid-column:auto}.fc-contato{align-items:flex-start;flex-direction:column}.fc-contato-side{justify-content:flex-start}}
+      @media print{.fc-back,.fc-search,.fc-select,.fc-toolbar,.fc-access{display:none!important}.fc-panel{height:auto;overflow:visible;border:0;box-shadow:none}.fc-contato,.fc-card{break-inside:avoid}}
     `;
     document.head.appendChild(style);
   }
@@ -321,12 +343,21 @@
     });
   }
 
-  function acoesLocalidade(tipo, item, pode) {
-    if (!ehGestor() || !pode) return "";
-    return '<div class="fc-toolbar">' +
-      '<button type="button" class="fc-btn fc-btn--primary" data-add-contact="' + esc(tipo) + '" data-local-id="' + esc(item.id) + '">＋ Contato</button>' +
-      '<button type="button" class="fc-btn" data-edit-address="' + esc(tipo) + '" data-local-id="' + esc(item.id) + '">✎ Endereço</button>' +
-      "</div>";
+  function acoesLocalidade(tipo, item, pode, tipoNo) {
+    var rotuloImpressao = tipo === "FORUM" ? "Fórum" : (tipoNo === "Setor" ? "Setor" : "Unidade");
+    var idImpressao = tipo === "FORUM" ? "fc-print-forum" : "fc-print-unit";
+    var artigoImpressao = rotuloImpressao === "Unidade" ? "da" : "do";
+    var html = '<div class="fc-toolbar">';
+    if (ehGestor() && pode) {
+      html += '<button type="button" class="fc-btn" data-edit-address="' + esc(tipo) + '" data-local-id="' + esc(item.id) + '">✎ Endereço</button>';
+    }
+    html += '<button type="button" class="fc-btn" id="' + idImpressao + '" title="Imprimir / Salvar PDF dos contatos ' + artigoImpressao + " " + rotuloImpressao + '">🖨 Imprimir / Salvar PDF</button>';
+    if (ehGestor() && pode) {
+      html += '<button type="button" class="fc-btn" data-add-locality="' + (tipo === "FORUM" ? "UNIDADE" : "SETOR") + '">' +
+        (tipo === "FORUM" ? "＋ Unidade" : "＋ Setor") + "</button>" +
+        '<button type="button" class="fc-btn fc-btn--primary" data-add-contact="' + esc(tipo) + '" data-local-id="' + esc(item.id) + '">＋ Contato</button>';
+    }
+    return html + "</div>";
   }
 
   function contatosCards(contatos, contexto) {
@@ -347,9 +378,12 @@
           '<button type="button" class="fc-icon-btn fc-icon-btn--danger" data-delete-contact="' + esc(c.id) + '" title="Excluir contato">🗑</button>' +
           "</div>"
         : "";
+      var descricao = String(c.descricao || "").trim();
+      var descricaoHtml = descricao && descricao.toLocaleLowerCase("pt-BR") !== String(tipo).toLocaleLowerCase("pt-BR")
+        ? "<h4>" + esc(descricao) + "</h4>"
+        : "";
       return '<article class="fc-contato">' +
-        '<div class="fc-contato-main"><span class="fc-contato-tipo">' + esc(tipo) + "</span><h4>" +
-        esc(c.descricao || tipo) + "</h4></div>" +
+        '<div class="fc-contato-main"><span class="fc-contato-tipo">' + esc(tipo) + "</span>" + descricaoHtml + "</div>" +
         '<div class="fc-contato-side">' + valorHtml + acoes + "</div></article>";
     }).join("") + "</div>";
   }
@@ -371,6 +405,13 @@
       };
     });
 
+    document.querySelectorAll("[data-add-locality]").forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        abrirLocalidadeDialog(contexto, btn.getAttribute("data-add-locality"));
+      };
+    });
+
     document.querySelectorAll("[data-edit-contact]").forEach(function (btn) {
       btn.onclick = function (e) {
         e.stopPropagation();
@@ -388,16 +429,10 @@
     });
   }
 
-  function cardMunicipio(m) {
-    var tem = municipioTemAcesso(m);
-    var badge = ehGC()
-      ? (tem ? '<span class="fc-pill fc-pill--ok">Com acesso</span>' : '<span class="fc-pill fc-pill--locked">Sem acesso</span>')
-      : "";
-    return '<div class="fc-card" data-nav="municipio" data-mun="' + esc(m.id) + '">' +
-      '<div class="fc-card-head"><div><h4>' + esc(m.nome) + "</h4></div>" + badge + "</div>" +
-      '<div class="fc-meta"><span class="fc-pill">' + esc(m.qtdForuns) + ' fórum(ns)</span>' +
-      '<span class="fc-pill">' + esc(m.qtdUnidades) + ' unidades</span>' +
-      '<span class="fc-pill">' + esc(m.qtdContatos) + " contato(s)</span></div></div>";
+  function opcoesComarcas(municipios, selecionado) {
+    return '<option value="">Selecione a Comarca</option>' + (municipios || []).map(function (m) {
+      return '<option value="' + esc(m.id) + '"' + (m.id === selecionado ? " selected" : "") + ">" + esc(m.nome) + "</option>";
+    }).join("");
   }
 
   function renderInicio() {
@@ -408,35 +443,17 @@
     estado.noId = "";
 
     var municipios = (estado.dados && estado.dados.municipios) || [];
-    var minhas = ehGC() ? municipios.filter(municipioTemAcesso) : municipios;
-    var outras = ehGC() ? municipios.filter(function (m) { return !municipioTemAcesso(m); }) : [];
-
     var conteudo = '<div class="fc-head"><div><h2 class="fc-title">Contatos do PJES</h2>' +
-      '<p class="fc-subtitle">' +
-      (ehGC()
-        ? "Suas localidades aparecem primeiro. Nas demais, abra o Fórum ou a Unidade para solicitar acesso."
-        : "Consulte a estrutura completa por Município, Fórum, Unidade e Setor.") +
-      '</p></div><div class="fc-toolbar"><button type="button" class="fc-btn" id="fc-print-all">🖨 Imprimir todos</button></div></div>' +
-      '<input id="fc-search" class="fc-search" type="search" placeholder="Buscar Fórum, Unidade, Setor, telefone ou e-mail">';
-
-    if (ehGC()) {
-      conteudo += '<div class="fc-section"><div class="fc-section-title"><h3>Minhas localidades</h3><span class="fc-pill">' +
-        minhas.length + " município(s)</span></div>" +
-        (minhas.length ? minhas.map(cardMunicipio).join("") : '<div class="fc-empty">Você ainda não possui localidades vinculadas.</div>') +
-        '</div><div class="fc-section"><div class="fc-section-title"><h3>Outras localidades</h3></div>' +
-        (outras.length ? outras.map(cardMunicipio).join("") : '<div class="fc-empty">Nenhuma outra localidade.</div>') +
-        "</div>";
-    } else {
-      conteudo += '<div class="fc-section"><div class="fc-section-title"><h3>Municípios</h3></div>' +
-        (municipios.length ? municipios.map(cardMunicipio).join("") : '<div class="fc-empty">Nenhum município encontrado.</div>') +
-        "</div>";
-    }
+      '<p class="fc-subtitle">Consulte a estrutura completa por Comarca, Fórum, Unidade e Setor. Selecione uma Comarca no mapa ao lado ou no menu suspenso abaixo.</p></div></div>' +
+      (municipios.length ? '<span class="fc-pill fc-total-comarcas">' + esc(rotuloQuantidade(municipios.length, "Comarca", "Comarcas")) + "</span>" : "") +
+      '<input id="fc-search" class="fc-search" type="search" placeholder="Buscar Fórum, Unidade, Setor, telefone ou e-mail">' +
+      '<select id="fc-comarca" class="fc-select">' + opcoesComarcas(municipios, "") + "</select>" +
+      '<button type="button" class="fc-btn fc-print-all" id="fc-print-all" title="Imprimir / Salvar PDF de todos os contatos">🖨 Imprimir / Salvar PDF</button>';
 
     c.innerHTML = conteudo;
 
-    document.querySelectorAll("[data-mun]").forEach(function (el) {
-      el.onclick = function () { abrirMunicipio(el.getAttribute("data-mun")); };
-    });
+    var seletor = document.getElementById("fc-comarca");
+    if (seletor) seletor.onchange = function () { if (seletor.value) abrirMunicipio(seletor.value); };
 
     var busca = document.getElementById("fc-search");
     if (busca) {
@@ -470,10 +487,16 @@
     var m = municipioAtual();
     if (!c || !m) return;
 
-    c.innerHTML = '<button class="fc-back" id="fc-back-home">← Municípios</button>' +
+    var resumo = resumoQuantidades([
+      rotuloQuantidade(m.qtdForuns, "Fórum", "Fóruns"),
+      rotuloQuantidade(m.qtdUnidades, "Unidade", "Unidades"),
+      rotuloQuantidade((m.foruns || []).reduce(function (total, f) { return total + qtdSetores(f.nos || []); }, 0), "Setor", "Setores"),
+      rotuloQuantidade(m.qtdContatos, "Contato", "Contatos")
+    ]);
+    c.innerHTML = '<button class="fc-back" id="fc-back-home">← Comarcas</button>' +
       '<div class="fc-head"><div><h2 class="fc-title">' + esc(m.nome) + "</h2>" +
-      '<p class="fc-subtitle">' + esc(m.qtdForuns) + " fórum(ns) • " + esc(m.qtdUnidades) +
-      " unidades • " + esc(m.qtdContatos) + " contato(s)</p></div></div>" +
+      '<p class="fc-subtitle">' + esc(resumo) + "</p></div></div>" +
+      '<select id="fc-comarca" class="fc-select">' + opcoesComarcas(estado.dados.municipios || [], m.id) + "</select>" +
       '<div class="fc-section"><h3>Fóruns</h3>' +
       (m.foruns || []).map(function (f) {
         var acesso = forumTemAlgumAcesso(f);
@@ -484,13 +507,17 @@
         return '<div class="fc-card" data-nav="forum" data-forum="' + esc(f.id) + '">' +
           '<div class="fc-card-head"><div><h4>' + esc(f.nome) + "</h4>" + linkEndereco(f.endereco) +
           '</div>' + badge + "</div>" +
-          '<div class="fc-meta"><span class="fc-pill">' + esc(f.qtdUnidades) + ' unidades</span>' +
-          '<span class="fc-pill">' + esc(f.qtdContatos) + " contato(s)</span></div>" +
+          '<div class="fc-meta">' + badgeQuantidade(f.qtdUnidades, "Unidade", "Unidades") +
+          badgeQuantidade(qtdSetores(f.nos || []), "Setor", "Setores") +
+          badgeQuantidade(f.qtdContatos, "Contato", "Contatos") + "</div>" +
           (podeForum ? "" : botaoSolicitar("FORUM", f.id)) +
           "</div>";
       }).join("") + "</div>";
 
     document.getElementById("fc-back-home").onclick = renderInicio;
+    document.getElementById("fc-comarca").onchange = function () {
+      if (this.value && this.value !== estado.municipioId) abrirMunicipio(this.value);
+    };
     document.querySelectorAll("[data-forum]").forEach(function (el) {
       el.onclick = function () { abrirForum(el.getAttribute("data-forum")); };
     });
@@ -513,8 +540,8 @@
     return '<div class="fc-card" data-nav="no" data-no="' + esc(no.id) + '">' +
       '<div class="fc-card-head"><div><h4>' + esc(no.nome) + "</h4></div>" + badgeAcesso + "</div>" +
       '<div class="fc-meta"><span class="fc-pill fc-pill-type">' + esc(tipo) + "</span>" +
-      '<span class="fc-pill">' + esc(no.qtdFilhos) + ' sublocalidade(s)</span>' +
-      '<span class="fc-pill">' + esc(no.qtdContatos) + " contato(s)</span></div>" +
+      badgeQuantidade(qtdSetores(no.filhos || []), "Setor", "Setores") +
+      badgeQuantidade(no.qtdContatos, "Contato", "Contatos") + "</div>" +
       (pode ? "" : botaoSolicitar("UNIDADE", no.id)) + "</div>";
   }
 
@@ -529,11 +556,12 @@
 
     c.innerHTML = '<button class="fc-back" id="fc-back-municipio">← ' + esc(m.nome) + "</button>" +
       '<div class="fc-head"><div><h2 class="fc-title">' + esc(f.nome) + "</h2>" +
-      '<p class="fc-subtitle">' + esc(m.nome) + " • " + esc(f.qtdContatos) + " contato(s)</p></div>" +
-      '<div class="fc-toolbar"><button type="button" class="fc-btn" id="fc-print-forum">🖨 Imprimir Fórum</button>' +
-      acoesLocalidade("FORUM", f, pode) + "</div></div>" +
-      '<div class="fc-inherit"><strong>Endereço do Fórum:</strong> ' + linkEndereco(f.endereco) +
-      (f.cep ? " • CEP " + esc(f.cep) : "") + "</div>" +
+      '<p class="fc-subtitle">' + esc(m.nome) + "</p></div></div>" +
+      '<div class="fc-meta"><span class="fc-pill fc-pill-type">Fórum</span>' +
+      badgeQuantidade(f.qtdUnidades, "Unidade", "Unidades") + "</div>" +
+      '<div class="fc-address-row"><div class="fc-inherit"><strong>Endereço do Fórum:</strong> ' + linkEndereco(f.endereco) +
+      (f.cep ? " • CEP " + esc(f.cep) : "") + "</div></div>" +
+      acoesLocalidade("FORUM", f, pode) +
       (pode ? "" : botaoSolicitar("FORUM", f.id)) +
       '<div class="fc-section"><div class="fc-section-title"><h3>Contatos gerais</h3></div>' +
       contatosCards(f.contatos || [], contexto) + "</div>" +
@@ -572,6 +600,7 @@
 
     var pai = encontrarPai(f.nos || [], no.id, null);
     var tipo = fmtTipoNo(no.tipo);
+    var tipoTela = String(no.tipo || "").toUpperCase() === "SETOR" ? "Setor" : "Unidade";
     var pode = podeGerenciarNo(no);
     var contexto = { tipo: "UNIDADE", item: no, forumId: f.id, noId: no.id };
     var caminho = [m.nome, f.nome].concat(no.caminhoNomes || []).join(" › ");
@@ -579,19 +608,18 @@
     c.innerHTML =
       '<button class="fc-back" id="fc-back-no">← ' + esc(pai ? pai.nome : f.nome) + "</button>" +
       '<div class="fc-head"><div><h2 class="fc-title">' + esc(no.nome) + "</h2>" +
-      '<p class="fc-subtitle">' + esc(caminho) + "</p></div>" +
-      '<div class="fc-toolbar"><button type="button" class="fc-btn" id="fc-print-unit">🖨 Imprimir Unidade</button>' +
-      acoesLocalidade("UNIDADE", no, pode) + "</div></div>" +
+      '<p class="fc-subtitle">' + esc(caminho) + "</p></div></div>" +
       '<div class="fc-meta"><span class="fc-pill fc-pill-type">' + esc(tipo) + "</span>" +
-      '<span class="fc-pill">' + esc(no.qtdContatos) + " contato(s) no total</span></div>" +
-      '<div class="fc-inherit"><strong>Endereço:</strong> ' + linkEndereco(no.enderecoExibicao) +
+      badgeQuantidade(qtdSetores(no.filhos || []), "Setor", "Setores") + "</div>" +
+      '<div class="fc-address-row"><div class="fc-inherit"><strong>Endereço:</strong> ' + linkEndereco(no.enderecoExibicao) +
       (no.cepExibicao ? " • CEP " + esc(no.cepExibicao) : "") +
-      (no.endereco ? "" : " <span class=\"fc-muted\">(herdado)</span>") + "</div>" +
+      (no.endereco ? "" : " <span class=\"fc-muted\">(" + (pai ? "herdado da Unidade" : "herdado do Fórum") + ")</span>") + "</div></div>" +
+      acoesLocalidade("UNIDADE", no, pode, tipoTela) +
       (pode ? "" : botaoSolicitar("UNIDADE", no.id)) +
-      '<div class="fc-section"><div class="fc-section-title"><h3>Contatos desta localidade</h3></div>' +
+      '<div class="fc-section"><div class="fc-section-title"><h3>Contatos ' + (tipoTela === "Setor" ? "deste setor" : "desta Unidade") + "</h3></div>" +
       contatosCards(no.contatos || [], contexto) + "</div>" +
       ((no.filhos || []).length
-        ? '<div class="fc-section"><div class="fc-section-title"><h3>Setores / Sublocalidades</h3></div>' +
+        ? '<div class="fc-section"><div class="fc-section-title"><h3>Setores</h3></div>' +
           no.filhos.map(cardNo).join("") + "</div>"
         : "");
 
@@ -692,17 +720,75 @@
   }
 
   function excluirContato(id) {
-    if (!id || !window.confirm("Excluir este contato? Esta ação não poderá ser desfeita.")) return;
-    API.excluirContato(id, function (resp) {
-      if (resp && resp.sucesso === true) {
-        mostrarToastSeguro("Contato excluído.", "success");
-        recarregar({ mostrarCarregando: false });
-      } else {
-        mostrarToastSeguro((resp && resp.erro) || "Não foi possível excluir o contato.", "error");
-      }
-    }, function (erro) {
-      mostrarToastSeguro((erro && erro.message) || "Falha ao excluir o contato.", "error");
+    if (!id) return;
+    confirmarAcaoSistema({ titulo: "Excluir contato", mensagem: "Excluir este contato? Esta ação não poderá ser desfeita.", textoConfirmar: "Excluir contato", perigo: true, icone: "🗑" }).then(function (confirmado) {
+      if (!confirmado) return;
+      API.excluirContato(id, function (resp) {
+        if (resp && resp.sucesso === true) {
+          mostrarToastSeguro("Contato excluído.", "success");
+          recarregar({ mostrarCarregando: false });
+        } else {
+          mostrarToastSeguro((resp && resp.erro) || "Não foi possível excluir o contato.", "error");
+        }
+      }, function (erro) {
+        mostrarToastSeguro((erro && erro.message) || "Falha ao excluir o contato.", "error");
+      });
     });
+  }
+
+  function abrirLocalidadeDialog(contexto, tipoNovo) {
+    var ehSetor = tipoNovo === "SETOR";
+    var rotulo = ehSetor ? "Setor" : "Unidade";
+    var corpo = '<div class="fc-form-grid">' +
+      '<div class="fc-field fc-field--full"><label for="fc-locality-name">Nome</label><input id="fc-locality-name" maxlength="150" placeholder="Nome da nova ' + rotulo + '"></div>' +
+      '<div class="fc-field fc-field--full"><label for="fc-locality-address">Endereço</label><input id="fc-locality-address" maxlength="300" placeholder="Opcional; vazio para herdar"></div>' +
+      '<div class="fc-field"><label for="fc-locality-cep">CEP</label><input id="fc-locality-cep" maxlength="10" placeholder="00000-000"></div></div>';
+
+    dialogBase(
+      "Adicionar " + rotulo,
+      ehSetor ? "Novo Setor de " + contexto.item.nome : "Nova Unidade de " + contexto.item.nome,
+      corpo,
+      '<button type="button" class="fc-btn" id="fc-dialog-cancel">Cancelar</button>' +
+      '<button type="button" class="fc-btn fc-btn--primary" id="fc-dialog-save">Salvar</button>'
+    );
+
+    document.getElementById("fc-dialog-save").onclick = function () {
+      var btn = this;
+      var dados = {
+        forumId: contexto.forumId,
+        paiId: ehSetor ? contexto.noId : "",
+        tipo: tipoNovo,
+        nome: document.getElementById("fc-locality-name").value.trim(),
+        endereco: document.getElementById("fc-locality-address").value.trim(),
+        cep: document.getElementById("fc-locality-cep").value.trim()
+      };
+      if (!dados.nome) {
+        mostrarToastSeguro("Informe o nome da " + rotulo + ".", "warning");
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = "Salvando...";
+      API.criarLocalidade(dados, function (resp) {
+        if (resp && resp.sucesso === true) {
+          fecharDialog();
+          mostrarToastSeguro(
+            resp.dados && resp.dados.existente
+              ? rotulo + " já existente; nenhum registro duplicado foi criado."
+              : rotulo + " adicionad" + (ehSetor ? "o" : "a") + ".",
+            "success"
+          );
+          recarregar({ mostrarCarregando: false });
+        } else {
+          btn.disabled = false;
+          btn.textContent = "Salvar";
+          mostrarToastSeguro((resp && resp.erro) || "Não foi possível adicionar a localidade.", "error");
+        }
+      }, function (erro) {
+        btn.disabled = false;
+        btn.textContent = "Salvar";
+        mostrarToastSeguro((erro && erro.message) || "Falha ao adicionar a localidade.", "error");
+      });
+    };
   }
 
   function abrirEnderecoDialog(contexto) {
@@ -763,8 +849,12 @@
   function printEsc(v) { return esc(v); }
 
   function contatoPrint(c) {
-    return '<li><strong>' + printEsc(fmtTipoContato(c.tipo)) + ":</strong> " +
-      printEsc(c.valor || "") + (c.descricao ? " — " + printEsc(c.descricao) : "") + "</li>";
+    var tipo = fmtTipoContato(c.tipo);
+    var descricao = String(c.descricao || "").trim();
+    var complemento = descricao && descricao.toLocaleLowerCase("pt-BR") !== String(tipo).toLocaleLowerCase("pt-BR")
+      ? " — " + printEsc(descricao)
+      : "";
+    return '<li><strong>' + printEsc(tipo) + ":</strong> " + printEsc(c.valor || "") + complemento + "</li>";
   }
 
   function noPrint(no, nivel) {
@@ -802,8 +892,8 @@
       "body{font-family:Arial,Helvetica,sans-serif;color:#0f172a;margin:24px;line-height:1.45}" +
       "h1{font-size:22px;margin:0 0 4px}h2{font-size:18px;border-bottom:2px solid #0f172a;padding-bottom:5px;margin-top:24px}" +
       "h3,h4,h5,h6{font-size:15px;margin:16px 0 4px}.meta{color:#64748b;font-size:11px;margin:0 0 8px}.muted{color:#94a3b8;font-style:italic;font-size:12px}" +
-      "ul{margin:5px 0 10px;padding-left:20px}li{font-size:12px;margin:2px 0}.forum{break-before:auto}.unit{break-inside:avoid-page;border-left:2px solid #e2e8f0;padding-left:10px;margin:9px 0}" +
-      "@media print{@page{size:A4 portrait;margin:12mm}body{margin:0}.forum{page-break-inside:auto}}";
+      "ul{margin:5px 0 10px;padding-left:20px}li{font-size:12px;margin:2px 0}.forum{break-before:auto}.unit{break-inside:auto;page-break-inside:auto;border-left:2px solid #e2e8f0;padding-left:10px;margin:9px 0}.unit>h3,.unit>h4,.unit>h5,.unit>h6{break-after:avoid-page;page-break-after:avoid}.unit>ul{break-inside:avoid-page;page-break-inside:avoid}" +
+      "@media print{@page{size:A4 portrait;margin:12mm}html,body{margin:0;padding:0}.forum,.unit{break-before:auto;page-break-before:auto}}";
     var html = '<!doctype html><html><head><meta charset="utf-8"><title>' + printEsc(titulo) +
       "</title><style>" + css + "</style></head><body><h1>" + printEsc(titulo) +
       '<p class="meta">Gerado em ' + printEsc(new Date().toLocaleString("pt-BR")) +
@@ -872,7 +962,7 @@
     var legenda = L.control({ position: "bottomright" });
     legenda.onAdd = function () {
       var div = L.DomUtil.create("div", "fc-map-legenda");
-      div.innerHTML = '<span class="tem-contato">● Municípios com contatos</span><span class="sem-contato">● Sem contatos cadastrados</span>';
+      div.innerHTML = '<span class="tem-contato">● Comarcas com contatos</span><span class="sem-contato">● Sem contatos cadastrados</span>';
       return div;
     };
     legenda.addTo(estado.mapa);
@@ -898,7 +988,7 @@
             onEachFeature: function (feature, layer) {
               var codigo = codigoMunicipio(feature);
               var p = feature.properties || {};
-              var nome = String(p.name || p.NOME || p.NM_MUN || "Município");
+              var nome = String(p.name || p.NOME || p.NM_MUN || "Comarca");
               var tem = municipioComContatos(codigo);
               layer.bindTooltip(
                 esc(nome) + (tem ? "<br><small>Possui contatos cadastrados</small>" : "<br><small>Sem contatos cadastrados</small>"),

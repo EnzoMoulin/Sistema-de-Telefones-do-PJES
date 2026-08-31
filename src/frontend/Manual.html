@@ -91,6 +91,77 @@ Arquivo: Manual.html
 .dark-mode .manual-faq details p{color:#cbd5e1}
 </style>
 
+<? if (!ehContextoAdmin) { ?>
+<div class="manual-container">
+  <div class="page-header" style="margin-bottom:2px">
+    <div>
+      <h2 style="display:flex;align-items:center;gap:10px;margin:0 0 6px;font-size:22px">📖 Manual do Usuário</h2>
+      <p style="margin:0;color:#475569;font-size:13.5px;line-height:1.5">Guia rápido para consultar e salvar os contatos públicos do PJES.</p>
+    </div>
+    <button type="button" class="btn btn-secondary" onclick="window.print()" title="Imprimir / Salvar PDF do Manual do Usuário">🖨️ Imprimir / Salvar PDF</button>
+  </div>
+
+  <div class="panel manual-hero">
+    <h2>Consulta pública de contatos</h2>
+    <p>Encontre Fóruns, Unidades, Setores, telefones, ramais, WhatsApp e e-mails pelo mapa ou pelo seletor de Comarcas.</p>
+    <div class="manual-hero-meta">
+      <span>🗺️ Navegação pelo mapa</span>
+      <span>☎️ Contatos clicáveis</span>
+      <span>🖨️ Impressão e PDF</span>
+    </div>
+  </div>
+
+  <div class="panel manual-toc-panel" id="manual-topo">
+    <h3>📑 Neste manual</h3>
+    <div class="manual-toc-grid">
+      <a href="#manual-consultar" onclick="rolarManual('manual-consultar');return false"><span class="toc-num">01</span> Localizar uma Comarca</a>
+      <a href="#manual-navegar" onclick="rolarManual('manual-navegar');return false"><span class="toc-num">02</span> Navegar pelos contatos</a>
+      <a href="#manual-imprimir" onclick="rolarManual('manual-imprimir');return false"><span class="toc-num">03</span> Imprimir ou salvar PDF</a>
+      <a href="#manual-dicas-publicas" onclick="rolarManual('manual-dicas-publicas');return false"><span class="toc-num">04</span> Dicas de uso</a>
+    </div>
+  </div>
+
+  <section id="manual-consultar" class="panel manual-section">
+    <div class="manual-section-head"><div><h3>🗺️ 01 — Localizar uma Comarca</h3><p>Use o mapa responsivo ou o menu suspenso no painel de Contatos.</p></div></div>
+    <ol class="manual-steps">
+      <li><span class="manual-step-num">1</span><div><strong>Abra “Contatos”</strong><p>Clique em <code>☎ Contatos</code> na sidebar.</p></div></li>
+      <li><span class="manual-step-num">2</span><div><strong>Escolha pelo mapa</strong><p>Clique em uma Comarca destacada no mapa do Espírito Santo.</p></div></li>
+      <li><span class="manual-step-num">3</span><div><strong>Ou use o menu suspenso</strong><p>Selecione a Comarca na lista exibida abaixo do campo de busca.</p></div></li>
+    </ol>
+  </section>
+
+  <section id="manual-navegar" class="panel manual-section">
+    <div class="manual-section-head"><div><h3>🏛️ 02 — Navegar pelos contatos</h3><p>A estrutura segue Comarca, Fórum, Unidade e Setor.</p></div></div>
+    <ol class="manual-steps">
+      <li><span class="manual-step-num">1</span><div><strong>Selecione um Fórum</strong><p>Confira os badges de Unidades, Setores e Contatos e clique no Fórum desejado.</p></div></li>
+      <li><span class="manual-step-num">2</span><div><strong>Abra uma Unidade ou um Setor</strong><p>Use os cartões da estrutura e o botão de voltar para percorrer os níveis.</p></div></li>
+      <li><span class="manual-step-num">3</span><div><strong>Use o contato</strong><p>Clique no telefone para abrir o discador, no WhatsApp para iniciar uma conversa e no e-mail para abrir seu aplicativo de mensagens.</p></div></li>
+      <li><span class="manual-step-num">4</span><div><strong>Consulte o endereço</strong><p>Clique no endereço para abrir sua localização no mapa.</p></div></li>
+    </ol>
+  </section>
+
+  <section id="manual-imprimir" class="panel manual-section">
+    <div class="manual-section-head"><div><h3>🖨️ 03 — Imprimir ou salvar PDF</h3><p>Os documentos são preparados para impressão em folha A4.</p></div></div>
+    <ol class="manual-steps">
+      <li><span class="manual-step-num">1</span><div><strong>Todos os contatos</strong><p>Na tela inicial, clique em <span class="manual-kbd">Imprimir / Salvar PDF</span>.</p></div></li>
+      <li><span class="manual-step-num">2</span><div><strong>Fórum, Unidade ou Setor</strong><p>Abra a localidade e use o botão <span class="manual-kbd">Imprimir / Salvar PDF</span> para gerar somente aquela estrutura.</p></div></li>
+      <li><span class="manual-step-num">3</span><div><strong>Salvar como arquivo</strong><p>Na janela de impressão do navegador, escolha o destino <code>Salvar como PDF</code>.</p></div></li>
+    </ol>
+  </section>
+
+  <section id="manual-dicas-publicas" class="panel manual-section">
+    <div class="manual-section-head"><div><h3>💡 04 — Dicas de uso</h3><p>Recursos disponíveis na consulta pública.</p></div></div>
+    <div class="manual-cols">
+      <div class="panel"><strong>Busca</strong><p>Digite Fórum, Unidade, Setor, telefone ou e-mail no campo de busca.</p></div>
+      <div class="panel"><strong>Modo escuro</strong><p>Use a aba Configurações para alternar a aparência. A preferência fica salva neste navegador.</p></div>
+    </div>
+    <div class="manual-info"><span class="mi">ℹ️</span><div>Em telas menores, o mapa e o painel se reorganizam automaticamente. Use o botão de voltar para retornar ao nível anterior.</div></div>
+  </section>
+
+  <div class="manual-footer-nav"><a href="#manual-topo" onclick="rolarManual('manual-topo');return false">⬆️ Voltar ao topo</a><a href="#manual-consultar" onclick="rolarManual('manual-consultar');return false">🗺️ Consultar contatos</a></div>
+</div>
+<? } else { ?>
+
 <div class="manual-container">
 
   <div class="page-header" style="margin-bottom:2px">
@@ -102,7 +173,7 @@ Arquivo: Manual.html
         <span style="font-size:11px;color:#64748b;padding:5px 0">Google Apps Script Web App · Poder Judiciário do ES</span>
       </div>
     </div>
-    <button type="button" class="btn btn-secondary" onclick="window.print()" title="Imprimir / salvar em PDF">🖨️ Imprimir / PDF</button>
+    <button type="button" class="btn btn-secondary" onclick="window.print()" title="Imprimir / Salvar PDF do Manual do Usuário">🖨️ Imprimir / Salvar PDF</button>
   </div>
 
   <!-- HERO -->
@@ -192,7 +263,7 @@ Arquivo: Manual.html
       <li><span class="manual-step-num">2</span><div><strong>Selecione a microrregião</strong><p>No seletor <code>Microrregião</code> escolha a região do ES. A lista da esquerda carrega as <strong>comarcas</strong> da região.</p></div></li>
       <li><span class="manual-step-num">3</span><div><strong>Abra a comarca e escolha o setor</strong><p>Clique na comarca para expandir os <strong>setores</strong>. Clique no setor para ver os detalhes à direita — telefones, ramais, WhatsApp, e-mail e endereço agrupados.</p></div></li>
       <li><span class="manual-step-num">4</span><div><strong>Use os contatos</strong><p><code>Telefone</code> abre o discador (<code>tel:</code>), <code>WhatsApp</code> abre <code>wa.me</code>, <code>E-mail</code> abre <code>mailto:</code>. Valores vazios aparecem como “—”.</p></div></li>
-      <li><span class="manual-step-num">5</span><div><strong>Imprima ou salve em PDF</strong><p>Com um setor aberto, clique em <span class="manual-kbd">🖨️ Imprimir / PDF</span> no topo da direita. A impressão traz apenas os detalhes do setor.</p></div></li>
+      <li><span class="manual-step-num">5</span><div><strong>Imprima ou salve em PDF</strong><p>Com um setor aberto, clique em <span class="manual-kbd">🖨️ Imprimir / Salvar PDF</span> no topo da direita. A impressão traz apenas os detalhes do setor.</p></div></li>
     </ol>
     <div class="manual-tip"><span class="mi">💡</span><div><strong>Dica:</strong> digite no campo de busca para filtrar comarcas/setores instantaneamente — não precisa apertar Enter.</div></div>
     <div class="manual-info"><span class="mi">🗺️</span><div><strong>Mapa:</strong> enquanto nenhum setor está selecionado, o painel da direita mostra o mapa do ES. Ao abrir um setor, o mapa é substituído pelos contatos; use <em>“Ver mapa”</em> para voltar.</div></div>
@@ -340,7 +411,7 @@ Arquivo: Manual.html
     <ol class="manual-steps">
       <li><span class="manual-step-num">1</span><div><strong>Abra “Configurações”</strong><p>Clique em <code>⚙ Configurações</code>. Veja <code>Versão</code> (ex.: 3.4), <code>Ambiente</code> (Google Apps Script Web App), <code>URLs pública/administrativa</code> e <code>Status da Base</code>.</p></div></li>
       <li><span class="manual-step-num">2</span><div><strong>Modo escuro</strong><p>Alterne o switch <code>Aparência</code>. A escolha é salva em <code>localStorage.darkMode</code> e vale só neste navegador.</p></div></li>
-      <li><span class="manual-step-num">3</span><div><strong>Veja a conta conectada</strong><p><code>Conta conectada</code> mostra e-mail e perfil (ou “sem cargo” / “acesso anônimo”). A sidebar também exibe <code>Perfil: …</code> e a versão.</p></div></li>
+      <li><span class="manual-step-num">3</span><div><strong>Veja a conta conectada</strong><p><code>Conta conectada</code> mostra e-mail e perfil ou o estado de consulta. A sidebar também exibe <code>Perfil: …</code> e a versão.</p></div></li>
       <li><span class="manual-step-num">4</span><div><strong>Sair (voltar a Visitante)</strong><p>O botão no rodapé muda de estado: <code>Solicitar Acesso</code> (visitante) → <code style="background:#fee2e2;border:1px solid #dc2626;padding:2px 6px;border-radius:6px;color:#991b1b;font-weight:700;font-size:11px">SAIR</code> (logado). Clique em SAIR, confirme — a sessão é encerrada no servidor (<code>encerrarSessao</code>) e localmente você volta ao modo consulta sem redirect externo.</p></div></li>
     </ol>
     <div class="manual-warn"><span class="mi">⚠️</span><div><strong>Múltiplas contas Google:</strong> se o botão mostrar “Trocar de conta Google”, clique nele — você será levado ao <code>AccountChooser</code> com dica <code>hd=tjes.jus.br</code> para escolher a conta institucional.</div></div>
@@ -405,11 +476,12 @@ Arquivo: Manual.html
   </section>
 
   <div class="panel" style="text-align:center;padding:18px;color:#64748b;font-size:12px;line-height:1.6">
-    <strong style="color:#0f172a">Sistema Inteligente de Gestão de Telefones do PJES</strong> · v3.4 · Google Apps Script Web App<br>
+    <strong style="color:#0f172a">Sistema Inteligente de Consulta e Gerenciamento de Contatos do Poder Judiciário do Estado do Espírito Santo</strong> · v3.4 · Google Apps Script Web App<br>
     Dúvidas técnicas: verifique a aba <code>LOG</code> na planilha e a versão na sidebar (<code>v3.4</code>). Para suporte, contate o Gestor do Sistema da sua comarca.
   </div>
 
 </div>
+<? } ?>
 
 <script>
 function rolarManual(id){

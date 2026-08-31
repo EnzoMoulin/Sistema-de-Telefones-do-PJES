@@ -285,6 +285,75 @@ function pjesAtualizarEnderecoLocalidade(tipo, id, dados) {
   });
 }
 
+function pjesCriarLocalidadeOrganizacional(dados) {
+  return _cgExecutar("PJES_CRIAR_LOCALIDADE", function() {
+    new AuthService().exigirPermissao(CONFIG.PERMISSOES.EDITAR);
+    const usuario = new AuthService().usuarioAtual();
+    const entrada = ehObjeto(dados) ? dados : {};
+    const forumId = textoSeguro(valorObjeto(entrada, "forumId", "FORUM_ID"));
+    const paiId = textoSeguro(valorObjeto(entrada, "paiId", "PAI_ID"));
+    const tipo = normalizarChave(valorObjeto(entrada, "tipo", "TIPO"));
+    const nome = textoSeguro(valorObjeto(entrada, "nome", "NOME"));
+    const endereco = textoSeguro(valorObjeto(entrada, "endereco", "ENDERECO"));
+    const cep = textoSeguro(valorObjeto(entrada, "cep", "CEP"));
+
+    if (!forumId || !nome) throw new Error("Fórum e nome são obrigatórios.");
+    if (["UNIDADE", "SETOR"].indexOf(tipo) === -1) throw new Error("Tipo de localidade inválido.");
+    if (tipo === "UNIDADE" && paiId) throw new Error("Uma nova Unidade deve ser vinculada diretamente ao Fórum.");
+    if (tipo === "SETOR" && !paiId) throw new Error("Informe a Unidade pai do novo Setor.");
+    _cgExigirGerencia(usuario, forumId, paiId);
+
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      _cgExigirGerencia(new AuthService().usuarioAtual(), forumId, paiId);
+      const nos = _fcIndiceOrganizacional();
+      if (paiId && (!nos[paiId] || nos[paiId].forumId !== forumId)) {
+        throw new Error("A localidade pai não pertence ao Fórum informado.");
+      }
+      const duplicadoId = Object.keys(nos).find(function(id) {
+        const no = nos[id];
+        return no.forumId === forumId && no.paiId === paiId &&
+          no.tipo === tipo && no.ativo && limparTexto(no.nome) === limparTexto(nome);
+      });
+      if (duplicadoId) {
+        return respostaSucesso({
+          id: duplicadoId,
+          forumId: forumId,
+          paiId: paiId,
+          tipo: tipo,
+          nome: nos[duplicadoId].nome,
+          existente: true
+        });
+      }
+
+      const sheet = DB.unidadesOrganizacionais();
+      const headers = DB.headers(sheet);
+      const id = new IdService().gerarId(tipo === "SETOR" ? "SET" : "UNI");
+      const ultimaLinha = sheet.getLastRow();
+      const linha = headers.map(function(header) {
+        const chave = normalizarChave(header);
+        if (chave === "ID") return id;
+        if (chave === "FORUMID") return forumId;
+        if (chave === "PAIID") return paiId;
+        if (chave === "TIPO") return tipo;
+        if (chave === "NOME") return nome;
+        if (chave === "ENDERECO") return endereco;
+        if (chave === "CEP") return cep;
+        if (chave === "SELECIONAVELACESSO") return tipo === "UNIDADE";
+        if (chave === "ATIVO") return true;
+        if (chave === "ORDEM") return ultimaLinha;
+        return "";
+      });
+      sheet.getRange(ultimaLinha + 1, 1, 1, linha.length).setValues([linha]);
+      try { CACHE.limparTudo(); } catch (e) {}
+      return respostaSucesso({ id: id, forumId: forumId, paiId: paiId, tipo: tipo, nome: nome });
+    } finally {
+      lock.releaseLock();
+    }
+  });
+}
+
 function pjesDiagnosticarDadosContatos() {
   return _cgExecutar("PJES_DIAGNOSTICO_CONTATOS", function() {
     new AuthService().exigirPerfil(CONFIG.PERFIS.GESTOR_SISTEMA);

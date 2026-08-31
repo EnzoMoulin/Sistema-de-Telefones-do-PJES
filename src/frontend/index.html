@@ -51,6 +51,41 @@ Arquivo: index.html
     <a class="skip-link" href="#app">Ir para o conteúdo principal</a>
     <div id="app"><?!= include("Layout"); ?></div>
 
+    <div id="modal-confirmacao-sistema" class="modal confirm-dialog" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="titulo-confirmacao-sistema">
+      <div class="panel confirm-dialog__panel">
+        <div class="confirm-dialog__body">
+          <div id="icone-confirmacao-sistema" class="confirm-dialog__icon" aria-hidden="true">?</div>
+          <h3 id="titulo-confirmacao-sistema" class="confirm-dialog__title">Confirmar ação</h3>
+          <p id="mensagem-confirmacao-sistema" class="confirm-dialog__message"></p>
+        </div>
+        <div class="confirm-dialog__actions">
+          <button type="button" id="btn-cancelar-confirmacao-sistema" class="btn btn-secondary">Cancelar</button>
+          <button type="button" id="btn-confirmar-confirmacao-sistema" class="btn btn-primary">Confirmar</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-perfil-usuario" class="modal profile-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="titulo-perfil-usuario">
+      <div class="panel profile-dialog__panel">
+        <div class="profile-dialog__header">
+          <div>
+            <span class="profile-dialog__eyebrow">Conta administrativa</span>
+            <h3 id="titulo-perfil-usuario">Meus dados</h3>
+          </div>
+          <button type="button" class="modal-close" onclick="fecharPerfilUsuario()" aria-label="Fechar">×</button>
+        </div>
+        <div class="profile-dialog__identity">
+          <div class="profile-dialog__avatar" aria-hidden="true">👤</div>
+          <div><small>Nome</small><strong id="perfil-usuario-nome">—</strong></div>
+        </div>
+        <div class="profile-dialog__detail"><span>E-mail institucional logado</span><strong id="perfil-usuario-email">—</strong></div>
+        <div class="profile-dialog__detail"><span>Nível de acesso</span><strong id="perfil-usuario-nivel">—</strong></div>
+        <div class="profile-dialog__access-head"><div><span>Acessos</span><small id="perfil-usuario-acessos-ajuda"></small></div></div>
+        <div id="perfil-usuario-acessos" class="profile-dialog__access-list"></div>
+        <div class="profile-dialog__footer"><button type="button" class="btn btn-secondary" onclick="fecharPerfilUsuario()">Fechar</button></div>
+      </div>
+    </div>
+
     <!-- Modal de confirmação de exclusão -->
     <div id="modal-confirmar-exclusao" class="modal confirm-dialog" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="titulo-confirmar-exclusao">
       <div class="panel confirm-dialog__panel">

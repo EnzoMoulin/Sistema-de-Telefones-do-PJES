@@ -17,9 +17,9 @@ Arquivo: Layout.html
       </div>
 
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:160px;">
-        <div id="user-info" class="user-info"></div>
-        <button type="button" id="btn-imprimir-dashboard" class="btn btn-secondary" style="display:none;padding:6px 10px;font-size:12px;" onclick="imprimirDashboardView()" title="Imprimir o dashboard (cartões e gráficos) em PDF">
-          🖨️ Imprimir Dashboard
+        <button type="button" id="user-info" class="user-info user-info-button" onclick="abrirPerfilUsuario()" disabled></button>
+        <button type="button" id="btn-imprimir-dashboard" class="btn btn-secondary" style="display:none;padding:6px 10px;font-size:12px;" onclick="imprimirDashboardView()" title="Imprimir / Salvar PDF da tela Dashboard">
+          🖨️ Imprimir / Salvar PDF
         </button>
         <button type="button" id="btn-imprimir-todas-comarcas" class="hidden" style="display:none;" onclick="imprimirDashboardView()" aria-hidden="true" tabindex="-1"></button>
       </div>
@@ -122,7 +122,7 @@ Arquivo: Layout.html
             <div class="config-kv">
               <div class="config-row">
                 <span class="config-label">Nome</span>
-                <span class="config-value config-value-nome">Sistema Inteligente de Gestão de Telefones do PJES</span>
+                <span class="config-value config-value-nome"><?= ehContextoAdmin ? 'Sistema Inteligente de Consulta e Gerenciamento de Contatos do Poder Judiciário do Estado do Espírito Santo' : 'Sistema Inteligente de Consulta de Contatos do Poder Judiciário do Estado do Espírito Santo' ?></span>
               </div>
               <div class="config-row">
                 <span class="config-label">Versão</span>
@@ -188,9 +188,9 @@ Arquivo: Layout.html
               </div>
             </div>
             <div id="config-conta-comarcas-wrap" class="config-comarcas-wrap hidden">
-              <label>Unidades permitidas</label>
+              <label>Acessos por Fórum e Unidade</label>
               <div id="config-conta-comarcas" class="config-comarcas-list"></div>
-              <span class="config-comarcas-hint">Gestor de Conteúdo — edição limitada às Unidades acima.</span>
+              <span id="config-conta-escopo-hint" class="config-comarcas-hint">Gestor de Conteúdo — edição limitada às Unidades acima.</span>
             </div>
             <div class="config-meta-row">
               <span class="config-meta-label">Domínio institucional</span>
@@ -224,7 +224,7 @@ Arquivo: Layout.html
               </div>
               <div class="config-db-item">
                 <span class="config-db-label">Sincronização</span>
-                <span class="config-db-value">automática</span>
+                <span class="config-db-value">Automática</span>
               </div>
               <div class="config-db-item">
                 <span class="config-db-label">Última verificação</span>

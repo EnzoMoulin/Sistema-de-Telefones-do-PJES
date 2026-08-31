@@ -305,7 +305,7 @@ function renderizarComarcas() {
     } else {
       container.innerHTML =
         '<div class="panel consulta-lista-vazio">' +
-          'Selecione um município no mapa para ver os detalhes.' +
+          'Selecione uma Comarca no mapa para ver os detalhes.' +
         '</div>';
       return;
     }
@@ -351,7 +351,7 @@ function renderizarComarcas() {
                 if(!_pode) return "";
               }
             }catch(e){}
-            return '<button type="button" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;white-space:nowrap;" onclick="event.stopPropagation(); imprimirTodosSetoresDaComarca(\'' + escaparJs(_cc2) + '\')" title="Imprimir todos os setores desta comarca">\uD83D\uDDA8\uFE0F Imprimir / PDF</button>';
+            return '<button type="button" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;white-space:nowrap;" onclick="event.stopPropagation(); imprimirTodosSetoresDaComarca(\'' + escaparJs(_cc2) + '\')" title="Imprimir / Salvar PDF dos contatos desta Comarca">\uD83D\uDDA8\uFE0F Imprimir / Salvar PDF</button>';
           })(comarca) +
           (function(c){
             try{
@@ -692,26 +692,28 @@ function handleSolicitarComarcaClick(comarca, botao){
     var isSoli=false;
     if(v){ var ts=Number(v); if(Date.now()-ts<=10*60*1000) isSoli=true; else try{ sessionStorage.removeItem(k);}catch(e){} }
     if(isSoli){
-      if(!confirm("Cancelar solicitação de acesso à comarca \""+comarca+"\"?")) return;
-      if(botao){ botao.disabled=true; botao.textContent="Cancelando..."; }
-      if(typeof API!=="undefined" && typeof API.cancelarSolicitacaoComarca==="function"){
-        API.cancelarSolicitacaoComarca(comarca, function(res){
-          if(res && res.sucesso===true){
-            try{ sessionStorage.removeItem(k);}catch(e){}
-            if(botao){ botao.textContent="🔓 Solicitar acesso"; botao.style.background=""; botao.style.borderColor=""; botao.style.color=""; botao.disabled=false; }
-            if(typeof mostrarToast==="function") mostrarToast("Solicitação cancelada.","warning"); else try{ alert("Solicitação cancelada."); }catch(e){}
-          } else {
+      confirmarAcaoSistema({titulo:"Cancelar solicitação",mensagem:"Cancelar a solicitação de acesso à comarca \""+comarca+"\"?",textoConfirmar:"Cancelar solicitação",perigo:true,icone:"×"}).then(function(confirmado){
+        if(!confirmado) return;
+        if(botao){ botao.disabled=true; botao.textContent="Cancelando..."; }
+        if(typeof API!=="undefined" && typeof API.cancelarSolicitacaoComarca==="function"){
+          API.cancelarSolicitacaoComarca(comarca, function(res){
+            if(res && res.sucesso===true){
+              try{ sessionStorage.removeItem(k);}catch(e){}
+              if(botao){ botao.textContent="🔓 Solicitar acesso"; botao.style.background=""; botao.style.borderColor=""; botao.style.color=""; botao.disabled=false; }
+              if(typeof mostrarToast==="function") mostrarToast("Solicitação cancelada.","warning");
+            } else {
+              if(botao){ botao.disabled=false; botao.textContent="✕ Cancelar"; botao.style.background="#fee2e2"; botao.style.borderColor="#fca5a5"; botao.style.color="#991b1b"; }
+              if(typeof mostrarToast==="function") mostrarToast((res&&res.erro)||"Falha ao cancelar.", "error");
+            }
+          }, function(err){
             if(botao){ botao.disabled=false; botao.textContent="✕ Cancelar"; botao.style.background="#fee2e2"; botao.style.borderColor="#fca5a5"; botao.style.color="#991b1b"; }
-            if(typeof mostrarToast==="function") mostrarToast((res&&res.erro)||"Falha ao cancelar.", "error");
-          }
-        }, function(err){
-          if(botao){ botao.disabled=false; botao.textContent="✕ Cancelar"; botao.style.background="#fee2e2"; botao.style.borderColor="#fca5a5"; botao.style.color="#991b1b"; }
-          if(typeof mostrarToast==="function") mostrarToast((err&&err.message)||"Falha ao cancelar.", "error");
-        });
-      } else {
-        try{ sessionStorage.removeItem(k);}catch(e){}
-        if(botao){ botao.textContent="🔓 Solicitar acesso"; botao.style.background=""; botao.style.borderColor=""; botao.style.color=""; botao.disabled=false; }
-      }
+            if(typeof mostrarToast==="function") mostrarToast((err&&err.message)||"Falha ao cancelar.", "error");
+          });
+        } else {
+          try{ sessionStorage.removeItem(k);}catch(e){}
+          if(botao){ botao.textContent="🔓 Solicitar acesso"; botao.style.background=""; botao.style.borderColor=""; botao.style.color=""; botao.disabled=false; }
+        }
+      });
       return;
     }
   }catch(e){}
