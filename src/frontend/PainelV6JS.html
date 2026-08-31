@@ -40,6 +40,89 @@
     if (el) el.textContent = String(valor);
   }
 
+  function usuarioDaInterface() {
+    return (typeof window.usuarioAtual !== "undefined" && window.usuarioAtual) ||
+      (typeof usuarioAtual !== "undefined" && usuarioAtual) || {};
+  }
+
+  function possuiAcessoAdministrativo(usuario) {
+    var perfil = String((usuario && usuario.perfil) || "").toUpperCase();
+    return Boolean(
+      usuario &&
+      usuario.logado === true &&
+      usuario.ativo === true &&
+      (perfil === "GESTOR_CONTEUDO" || perfil === "GESTOR_SISTEMA")
+    );
+  }
+
+  function ajustarIdentidadeFormularioAcesso() {
+    var usuario = usuarioDaInterface();
+    var ocultarIdentidade = possuiAcessoAdministrativo(usuario);
+    var nome = document.getElementById("acesso-nome");
+    var email = document.getElementById("acesso-email");
+
+    [nome, email].forEach(function (campoIdentidade) {
+      if (!campoIdentidade) return;
+      var grupo = campoIdentidade.closest ? campoIdentidade.closest(".fa-field") : campoIdentidade.parentElement;
+      if (grupo) {
+        grupo.style.display = ocultarIdentidade ? "none" : "";
+        grupo.setAttribute("aria-hidden", ocultarIdentidade ? "true" : "false");
+      }
+    });
+
+    if (ocultarIdentidade) {
+      if (nome) nome.value = String(usuario.nome || "").trim();
+      if (email) email.value = String(usuario.email || "").trim();
+    }
+
+    var aviso = document.querySelector("#formulario-acesso-view .fa-head p");
+    if (aviso) {
+      aviso.textContent = ocultarIdentidade
+        ? "Seu nome e e-mail cadastrados serão usados automaticamente. A solicitação ficará pendente até análise de um Gestor do Sistema."
+        : "Informe seu nome. O e-mail vem da conta Google identificada nesta URL privada. A solicitação ficará pendente até análise de um Gestor do Sistema.";
+    }
+  }
+
+  function removerBotoesImpressaoDashboardLegados() {
+    var botaoTopbar = document.getElementById("btn-imprimir-dashboard");
+    if (botaoTopbar) botaoTopbar.remove();
+
+    var botaoCompatibilidade = document.getElementById("btn-imprimir-todas-comarcas");
+    if (botaoCompatibilidade) botaoCompatibilidade.remove();
+
+    var dashboard = document.getElementById("dashboard-view");
+    if (!dashboard) return;
+    dashboard.querySelectorAll("button").forEach(function (botao) {
+      var texto = normalizar(botao.textContent || "");
+      if (texto === "IMPRIMIRCONTATOS" || texto === "IMPRIMIRTODOSOSCONTATOS") {
+        botao.remove();
+      }
+    });
+  }
+
+  var atualizarIdentidadeOriginal = window.atualizarIdentidadeFormularioAcesso;
+  if (typeof atualizarIdentidadeOriginal === "function") {
+    window.atualizarIdentidadeFormularioAcesso = function () {
+      var retorno = atualizarIdentidadeOriginal.apply(this, arguments);
+      ajustarIdentidadeFormularioAcesso();
+      return retorno;
+    };
+  }
+
+  var enviarFormularioOriginal = window.enviarFormularioAcesso;
+  if (typeof enviarFormularioOriginal === "function") {
+    window.enviarFormularioAcesso = function () {
+      var usuario = usuarioDaInterface();
+      if (possuiAcessoAdministrativo(usuario)) {
+        var nome = document.getElementById("acesso-nome");
+        var email = document.getElementById("acesso-email");
+        if (nome) nome.value = String(usuario.nome || "").trim();
+        if (email) email.value = String(usuario.email || "").trim();
+      }
+      return enviarFormularioOriginal.apply(this, arguments);
+    };
+  }
+
   window.atualizarDashboardPublico = function (dadosRaw) {
     var dados = Array.isArray(dadosRaw) ? dadosRaw : [];
     var porTipo = { "Telefone": 0, "Ramal": 0, "WhatsApp": 0, "E-mail": 0 };
@@ -164,7 +247,14 @@
     }).observe(painel, { childList: true, subtree: true });
   }
 
+  ajustarIdentidadeFormularioAcesso();
+  removerBotoesImpressaoDashboardLegados();
   observarPainel();
-  document.addEventListener("DOMContentLoaded", observarPainel);
+
+  document.addEventListener("DOMContentLoaded", function () {
+    ajustarIdentidadeFormularioAcesso();
+    removerBotoesImpressaoDashboardLegados();
+    observarPainel();
+  });
 })();
 </script>
