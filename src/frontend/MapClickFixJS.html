@@ -10,6 +10,15 @@
       .toUpperCase();
   }
 
+  function escHtml(valor) {
+    return String(valor == null ? "" : valor)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
   function nomeFeature(feature) {
     var p = feature && feature.properties || {};
     return String(p.name || p.NOME || p.NM_MUN || p.description || "").trim();
@@ -74,9 +83,30 @@
     return true;
   }
 
+  function camadaPossuiContatos(layer) {
+    var opcoes = layer && layer.options || {};
+    var borda = String(opcoes.color || "").toLowerCase();
+    var preenchimento = String(opcoes.fillColor || "").toLowerCase();
+    return borda === "#2563eb" || preenchimento === "#60a5fa";
+  }
+
+  function atualizarTooltipMunicipio(layer, nome) {
+    if (!layer || typeof layer.getTooltip !== "function") return;
+    var tooltip = layer.getTooltip();
+    if (!tooltip || typeof tooltip.setContent !== "function") return;
+
+    var possui = camadaPossuiContatos(layer);
+    tooltip.setContent(
+      escHtml(nome) +
+      (possui
+        ? "<br><small>Possui contatos cadastrados</small>"
+        : "<br><small>Sem contatos cadastrados</small>")
+    );
+  }
+
   function instalarCliqueDeterministicoMapa() {
     if (!window.L || typeof window.L.geoJSON !== "function") return false;
-    if (window.L.geoJSON.__pjesMapClickFixV2) return true;
+    if (window.L.geoJSON.__pjesMapClickFixV3) return true;
 
     var geoJsonOriginal = window.L.geoJSON;
 
@@ -93,10 +123,19 @@
           var nome = nomeFeature(feature);
           if (!nome) return;
 
-          // O handler original depende de CODIGO_IBGE e qtdContatos. Como o
-          // GeoJSON oficial já fornece `properties.id` e `properties.name`,
-          // substituímos o clique por uma resolução direta e previsível pelo nome.
-          // O código IBGE continua disponível para diagnóstico/destaque.
+          // O tooltip original é montado antes de a hierarquia terminar de carregar.
+          // A camada, porém, é reestilizada quando os dados chegam. Recalculamos o
+          // conteúdo no hover usando o estilo atual para não manter o status inicial.
+          layer.on("mouseover", function () {
+            atualizarTooltipMunicipio(layer, nome);
+          });
+          layer.on("tooltipopen", function () {
+            atualizarTooltipMunicipio(layer, nome);
+          });
+
+          // O handler original depende do estado existente no instante em que o
+          // GeoJSON é criado. O clique é sempre registrado e resolve o município
+          // pelo nome, que permanece estável entre o GeoJSON e a tabela MUNICIPIOS.
           layer.off("click");
           layer.on("click", function (evento) {
             try {
@@ -122,7 +161,7 @@
     Object.keys(geoJsonOriginal).forEach(function (chave) {
       try { geoJsonComCliqueDeterministico[chave] = geoJsonOriginal[chave]; } catch (e) {}
     });
-    geoJsonComCliqueDeterministico.__pjesMapClickFixV2 = true;
+    geoJsonComCliqueDeterministico.__pjesMapClickFixV3 = true;
     window.L.geoJSON = geoJsonComCliqueDeterministico;
     return true;
   }
