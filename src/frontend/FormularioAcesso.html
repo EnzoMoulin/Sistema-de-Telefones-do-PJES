@@ -7,15 +7,15 @@
   <div class="fa-card">
     <div class="fa-head">
       <h2>Solicitar Acesso Administrativo</h2>
-      <p>O e-mail vem da conta Google identificada nesta URL privada. A solicitação ficará pendente até análise de um Gestor do Sistema.</p>
+      <p id="acesso-identidade-info">O e-mail vem da conta Google identificada nesta URL privada. A solicitação ficará pendente até análise de um Gestor do Sistema.</p>
     </div>
     <div class="fa-body">
       <div class="fa-grid">
-        <div class="fa-field">
+        <div id="grupo-acesso-nome" class="fa-field">
           <label for="acesso-nome">Nome completo *</label>
           <input id="acesso-nome" maxlength="150" autocomplete="name">
         </div>
-        <div class="fa-field">
+        <div id="grupo-acesso-email" class="fa-field">
           <label for="acesso-email">Conta Google identificada</label>
           <input id="acesso-email" readonly aria-readonly="true">
         </div>
@@ -49,12 +49,37 @@ var escoposAcessoSelecionados = new Set();
 var forumAcessoAberto = "";
 function chaveEscopoAcesso(escopo){return escopo.tipo+":"+escopo.id;}
 
+function usuarioPossuiAcessoAdministrativoFormulario(usuario){
+  var perfil=String((usuario&&usuario.perfil)||"").toUpperCase();
+  return !!(usuario&&usuario.logado===true&&usuario.ativo===true&&(perfil==="GESTOR_CONTEUDO"||perfil==="GESTOR_SISTEMA"));
+}
+
+function ajustarCamposIdentidadeFormularioAcesso(){
+  var usuario=typeof usuarioAtual!=="undefined"?usuarioAtual:{};
+  var ocultar=usuarioPossuiAcessoAdministrativoFormulario(usuario);
+  var grupoNome=document.getElementById("grupo-acesso-nome");
+  var grupoEmail=document.getElementById("grupo-acesso-email");
+  var aviso=document.getElementById("acesso-identidade-info");
+  if(grupoNome){grupoNome.style.display=ocultar?"none":"";grupoNome.setAttribute("aria-hidden",ocultar?"true":"false");}
+  if(grupoEmail){grupoEmail.style.display=ocultar?"none":"";grupoEmail.setAttribute("aria-hidden",ocultar?"true":"false");}
+  if(aviso){
+    aviso.textContent=ocultar
+      ? "Seu nome e e-mail cadastrados serão usados automaticamente. A solicitação ficará pendente até análise de um Gestor do Sistema."
+      : "Informe seu nome. O e-mail vem da conta Google identificada nesta URL privada. A solicitação ficará pendente até análise de um Gestor do Sistema.";
+  }
+}
+
 function atualizarIdentidadeFormularioAcesso(){
   var email = document.getElementById("acesso-email");
   var nome = document.getElementById("acesso-nome");
   var usuario = typeof usuarioAtual !== "undefined" ? usuarioAtual : {};
   if(email) email.value = String(usuario.email || window.SESSAO_EMAIL || "");
   if(nome && !nome.value && usuario.nome && usuario.nome !== "Visitante") nome.value = usuario.nome;
+  if(usuarioPossuiAcessoAdministrativoFormulario(usuario)){
+    if(nome) nome.value=String(usuario.nome||"").trim();
+    if(email) email.value=String(usuario.email||"").trim();
+  }
+  ajustarCamposIdentidadeFormularioAcesso();
   var nivel = document.getElementById("acesso-nivel");
   if(nivel && usuario.logado === true && usuario.perfil === "GESTOR_CONTEUDO"){
     nivel.value = "";
@@ -100,12 +125,15 @@ function mensagemFormularioAcesso(texto, sucesso){
 }
 
 function enviarFormularioAcesso(){
-  var nome = String(document.getElementById("acesso-nome")?.value || "").trim();
+  var usuario = typeof usuarioAtual !== "undefined" ? usuarioAtual : {};
+  var usarIdentidadeCadastrada=usuarioPossuiAcessoAdministrativoFormulario(usuario);
+  var nome = usarIdentidadeCadastrada
+    ? String(usuario.nome || "").trim()
+    : String(document.getElementById("acesso-nome")?.value || "").trim();
   var nivel = Number(document.getElementById("acesso-nivel")?.value || 0);
   var escopos = Array.from(escoposAcessoSelecionados).map(function(chave){var partes=chave.split(":");return {tipo:partes[0],id:partes.slice(1).join(":")};});
   var justificativa = String(document.getElementById("acesso-justificativa")?.value || "").trim();
-  if(nome.length < 3){ mensagemFormularioAcesso("Informe seu nome completo.", false); return; }
-  var usuario = typeof usuarioAtual !== "undefined" ? usuarioAtual : {};
+  if(nome.length < 3){ mensagemFormularioAcesso(usarIdentidadeCadastrada?"Não foi possível identificar o nome cadastrado.":"Informe seu nome completo.", false); return; }
   if(!nivel && !escopos.length){ mensagemFormularioAcesso("Solicite uma alteração de nível, localidades adicionais ou ambos.", false); return; }
   if(usuario.cadastrado !== true && nivel === 1 && !escopos.length){ mensagemFormularioAcesso("Selecione ao menos um Município, Fórum ou Unidade para o Gestor de Conteúdo.", false); return; }
   var botao = document.getElementById("btn-enviar-formulario-acesso"); if(botao) botao.disabled = true;

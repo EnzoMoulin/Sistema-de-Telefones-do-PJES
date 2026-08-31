@@ -40,6 +40,23 @@
     if (el) el.textContent = String(valor);
   }
 
+  function removerBotoesImpressaoDashboardLegados() {
+    var botaoTopbar = document.getElementById("btn-imprimir-dashboard");
+    if (botaoTopbar) botaoTopbar.remove();
+
+    var botaoCompatibilidade = document.getElementById("btn-imprimir-todas-comarcas");
+    if (botaoCompatibilidade) botaoCompatibilidade.remove();
+
+    var dashboard = document.getElementById("dashboard-view");
+    if (!dashboard) return;
+    dashboard.querySelectorAll("button").forEach(function (botao) {
+      var texto = normalizar(botao.textContent || "");
+      if (texto === "IMPRIMIRCONTATOS" || texto === "IMPRIMIRTODOSOSCONTATOS") {
+        botao.remove();
+      }
+    });
+  }
+
   window.atualizarDashboardPublico = function (dadosRaw) {
     var dados = Array.isArray(dadosRaw) ? dadosRaw : [];
     var porTipo = { "Telefone": 0, "Ramal": 0, "WhatsApp": 0, "E-mail": 0 };
@@ -164,7 +181,11 @@
     }).observe(painel, { childList: true, subtree: true });
   }
 
+  removerBotoesImpressaoDashboardLegados();
   observarPainel();
-  document.addEventListener("DOMContentLoaded", observarPainel);
+  document.addEventListener("DOMContentLoaded", function () {
+    removerBotoesImpressaoDashboardLegados();
+    observarPainel();
+  });
 })();
 </script>
