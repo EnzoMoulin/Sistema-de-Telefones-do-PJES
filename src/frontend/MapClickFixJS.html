@@ -15,6 +15,11 @@
     return String(p.name || p.NOME || p.NM_MUN || p.description || "").trim();
   }
 
+  function codigoFeature(feature) {
+    var p = feature && feature.properties || {};
+    return String(p.id || p.CD_MUN || p.codmun || p.code || "").replace(/\D/g, "");
+  }
+
   function localizarCardMunicipio(nome) {
     var alvo = normalizarNome(nome);
     if (!alvo) return null;
@@ -36,7 +41,7 @@
     return opcao ? { select: select, option: opcao } : null;
   }
 
-  function abrirMunicipioPorNome(nome) {
+  function executarAbertura(nome) {
     var card = localizarCardMunicipio(nome);
     if (card) {
       card.click();
@@ -50,33 +55,32 @@
       return true;
     }
 
-    if (typeof window.fcInicio === "function") {
-      window.fcInicio();
-      setTimeout(function () {
-        var cardDepois = localizarCardMunicipio(nome);
-        if (cardDepois) {
-          cardDepois.click();
-          return;
-        }
-        var opcaoDepois = localizarOpcaoMunicipio(nome);
-        if (opcaoDepois) {
-          opcaoDepois.select.value = opcaoDepois.option.value;
-          opcaoDepois.select.dispatchEvent(new Event("change", { bubbles: true }));
-        }
-      }, 30);
-      return true;
-    }
-
     return false;
   }
 
-  function instalarFallbackCliqueMapa() {
+  function abrirMunicipioPorNome(nome) {
+    if (executarAbertura(nome)) return true;
+
+    if (typeof window.fcInicio !== "function") return false;
+    window.fcInicio();
+
+    var tentativas = 0;
+    var timer = setInterval(function () {
+      tentativas += 1;
+      if (executarAbertura(nome) || tentativas >= 20) {
+        clearInterval(timer);
+      }
+    }, 25);
+    return true;
+  }
+
+  function instalarCliqueDeterministicoMapa() {
     if (!window.L || typeof window.L.geoJSON !== "function") return false;
-    if (window.L.geoJSON.__pjesMapClickFix) return true;
+    if (window.L.geoJSON.__pjesMapClickFixV2) return true;
 
     var geoJsonOriginal = window.L.geoJSON;
 
-    function geoJsonComFallback(data, options) {
+    function geoJsonComCliqueDeterministico(data, options) {
       var opcoesOriginais = options || {};
       var onEachOriginal = opcoesOriginais.onEachFeature;
       var opcoes = Object.assign({}, opcoesOriginais, {
@@ -85,18 +89,29 @@
             onEachOriginal(feature, layer);
           }
 
-          var eventosClick = layer && layer._events ? layer._events.click : null;
-          var jaPossuiClique = Array.isArray(eventosClick)
-            ? eventosClick.length > 0
-            : Boolean(eventosClick);
-
-          if (jaPossuiClique || !layer || typeof layer.on !== "function") return;
-
+          if (!layer || typeof layer.on !== "function") return;
           var nome = nomeFeature(feature);
           if (!nome) return;
 
-          layer.on("click", function () {
-            abrirMunicipioPorNome(nome);
+          // O handler original depende de CODIGO_IBGE e qtdContatos. Como o
+          // GeoJSON oficial já fornece `properties.id` e `properties.name`,
+          // substituímos o clique por uma resolução direta e previsível pelo nome.
+          // O código IBGE continua disponível para diagnóstico/destaque.
+          layer.off("click");
+          layer.on("click", function (evento) {
+            try {
+              if (window.L && window.L.DomEvent && evento) {
+                window.L.DomEvent.stopPropagation(evento);
+              }
+            } catch (e) {}
+
+            var abriu = abrirMunicipioPorNome(nome);
+            if (!abriu) {
+              console.warn("Município do mapa não encontrado na navegação:", {
+                nome: nome,
+                codigoIbge: codigoFeature(feature)
+              });
+            }
           });
         }
       });
@@ -105,18 +120,18 @@
     }
 
     Object.keys(geoJsonOriginal).forEach(function (chave) {
-      try { geoJsonComFallback[chave] = geoJsonOriginal[chave]; } catch (e) {}
+      try { geoJsonComCliqueDeterministico[chave] = geoJsonOriginal[chave]; } catch (e) {}
     });
-    geoJsonComFallback.__pjesMapClickFix = true;
-    window.L.geoJSON = geoJsonComFallback;
+    geoJsonComCliqueDeterministico.__pjesMapClickFixV2 = true;
+    window.L.geoJSON = geoJsonComCliqueDeterministico;
     return true;
   }
 
-  if (!instalarFallbackCliqueMapa()) {
+  if (!instalarCliqueDeterministicoMapa()) {
     var tentativas = 0;
     var timer = setInterval(function () {
       tentativas += 1;
-      if (instalarFallbackCliqueMapa() || tentativas >= 40) {
+      if (instalarCliqueDeterministicoMapa() || tentativas >= 40) {
         clearInterval(timer);
       }
     }, 50);
