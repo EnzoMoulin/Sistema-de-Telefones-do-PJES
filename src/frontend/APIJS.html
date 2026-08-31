@@ -22,19 +22,19 @@ const API = {
   },
 
   dashboard(sucesso, erro) {
-    criarRunnerAPI(sucesso, erro).pjesCarregarDashboard();
+    criarRunnerAPI(sucesso, erro).pjesCarregarDashboardEscopadoV6();
   },
 
   listarTelefones(sucesso, erro) {
-    criarRunnerAPI(sucesso, erro).pjesListarContatos();
+    criarRunnerAPI(sucesso, erro).pjesListarContatosEscopadosV6();
   },
 
   listarComarcas(sucesso, erro) {
-    criarRunnerAPI(sucesso, erro).v4ListarMunicipios();
+    criarRunnerAPI(sucesso, erro).pjesListarMunicipiosEscopadosV6();
   },
 
   pesquisarTelefones(texto, sucesso, erro) {
-    criarRunnerAPI(sucesso, erro).pjesPesquisarContatos(texto);
+    criarRunnerAPI(sucesso, erro).pjesPesquisarContatosEscopadosV6(texto);
   },
 
   // Nomes legados preservados para TableJS/ModalJS.
@@ -115,10 +115,10 @@ const API = {
   },
 
   hierarquiaForum(termo, sucesso, erro) {
-    criarRunnerAPI(sucesso, erro).pjesObterHierarquiaContatos(termo || "");
+    criarRunnerAPI(sucesso, erro).pjesObterHierarquiaContatosEscopadaV6(termo || "");
   },
   pesquisarHierarquiaForum(termo, sucesso, erro) {
-    criarRunnerAPI(sucesso, erro).pjesPesquisarHierarquiaContatos(termo || "");
+    criarRunnerAPI(sucesso, erro).pjesObterHierarquiaContatosEscopadaV6(termo || "");
   },
   validarArquiteturaForum(sucesso, erro) {
     criarRunnerAPI(sucesso, erro).validarArquiteturaForum();
