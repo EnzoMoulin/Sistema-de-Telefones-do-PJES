@@ -1,45 +1,92 @@
 <!--
 ==========================================================
-SISTEMA DE TELEFONES TJES
+SISTEMA DE CONTATOS TJES
 Arquivo: Dashboard.html
 ==========================================================
 -->
 
 <div class="dashboard-container">
-  <div class="page-header">
+  <div class="page-header" style="align-items:flex-start;gap:16px;flex-wrap:wrap;">
     <div>
-      <h2>Dashboard</h2>
-      <p>Visão geral do sistema</p>
+      <h2>Visão geral</h2>
+      <p>Indicadores consolidados da estrutura de contatos do PJES</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;">
+      <button type="button" class="btn btn-secondary" onclick="window.fcImprimirTudo ? window.fcImprimirTudo() : imprimirDashboardView()" title="Imprimir todos os contatos por Fórum, Unidade e Setor">
+        🖨️ Imprimir todos os contatos
+      </button>
     </div>
   </div>
 
   <div class="dashboard-cards">
     <div class="card">
-      <div class="card-title">Total de contatos</div>
+      <div class="card-title">Contatos</div>
       <div id="total-telefones" class="card-value">0</div>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">registros ativos</div>
     </div>
 
     <div class="card">
-      <div class="card-title">Quantidade de setores</div>
+      <div class="card-title">Municípios</div>
+      <div id="total-municipios" class="card-value">0</div>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">com dados cadastrados</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Fóruns</div>
+      <div id="total-foruns" class="card-value">0</div>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">na hierarquia atual</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Unidades</div>
+      <div id="total-unidades" class="card-value">0</div>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">unidades organizacionais</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Setores</div>
       <div id="total-setores" class="card-value">0</div>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">setores com contatos</div>
     </div>
 
     <div class="card">
-      <div class="card-title">Tipos de contatos cadastrados</div>
+      <div class="card-title">Tipos de contato</div>
       <div id="total-tipos" class="card-value">0</div>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">categorias utilizadas</div>
     </div>
   </div>
 
   <div class="dashboard-grid">
     <div class="panel">
-      <h3>Contatos por tipo</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">
+        <div>
+          <h3 style="margin-bottom:4px;">Contatos por tipo</h3>
+          <p style="margin:0;color:#64748b;font-size:12px;">Distribuição dos registros cadastrados</p>
+        </div>
+      </div>
       <div id="grafico-tipos" class="chart-container"></div>
     </div>
 
     <div class="panel">
-      <h3>Contatos por comarca</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">
+        <div>
+          <h3 style="margin-bottom:4px;">Contatos por município</h3>
+          <p style="margin:0;color:#64748b;font-size:12px;">Localidades com maior volume de contatos</p>
+        </div>
+      </div>
       <div id="grafico-comarcas" class="chart-container"></div>
     </div>
   </div>
 
+  <div class="panel" style="margin-top:16px;">
+    <div style="display:flex;align-items:flex-start;gap:10px;">
+      <div aria-hidden="true" style="font-size:20px;">✓</div>
+      <div>
+        <h3 style="margin:0 0 4px;">Fonte de dados unificada</h3>
+        <p style="margin:0;color:#64748b;font-size:13px;line-height:1.5;">
+          Os indicadores e a aba Contatos utilizam a mesma fonte operacional. Alterações em contatos e endereços são refletidas após a atualização dos dados.
+        </p>
+      </div>
+    </div>
+  </div>
 </div>
