@@ -30,13 +30,11 @@ jobs:
     - name: Create clasprc.json
       env:
         CLASPRC_CONTENT: ${{ secrets[matrix.secret_name] }}
+        SECRET_NAME: ${{ matrix.secret_name }}
       run: |
         test -n "$CLASPRC_CONTENT" || { echo "Secret ${SECRET_NAME} não configurado." >&2; exit 1; }
         printf '%s' "$CLASPRC_CONTENT" > ~/.clasprc.json
       shell: bash
-      env:
-        CLASPRC_CONTENT: ${{ secrets[matrix.secret_name] }}
-        SECRET_NAME: ${{ matrix.secret_name }}
 
     - name: Select Clasp project
       run: cp ".clasp.${{ matrix.target }}.json.example" .clasp.json
