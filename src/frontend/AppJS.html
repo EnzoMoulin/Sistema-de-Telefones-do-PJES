@@ -270,6 +270,7 @@ function atualizarInterfaceUsuario() {
     );
 
   if (btnAcesso && textoAcesso) {
+    btnAcesso.classList.toggle("btn-sair", logado);
     if (window.EH_CONTEXTO_ADMIN !== true) {
       btnAcesso.classList.add("hidden");
       btnAcesso.style.display = "none";
