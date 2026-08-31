@@ -1,6 +1,6 @@
 <div class="usuarios-container">
   <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-    <div><h2>Usuários</h2><p>Selecione um usuário para gerenciar seu nível e seus escopos de acesso.</p></div>
+    <div><h2>Usuários</h2><p>Selecione um usuário para gerenciar seu nível e as localidades sob sua responsabilidade.</p></div>
     <div style="display:flex;gap:8px">
       <button type="button" class="btn btn-secondary" onclick="carregarUsuarios()">Atualizar</button>
       <button type="button" class="btn btn-primary" onclick="abrirModalAdicionarUsuario()">+ Adicionar</button>
@@ -12,8 +12,8 @@
   </div>
   <div class="table-panel" style="overflow-x:auto">
     <table class="data-table" id="tabela-usuarios">
-      <thead><tr><th>Nome</th><th>E-mail</th><th>Nível de Acesso</th><th>Escopos de Acesso</th><th>Ativo</th></tr></thead>
-      <tbody id="corpo-tabela-usuarios"><tr><td colspan="5">Carregando...</td></tr></tbody>
+      <thead><tr><th>Nome</th><th>E-mail</th><th>Nível de Acesso</th><th>Ativo</th></tr></thead>
+      <tbody id="corpo-tabela-usuarios"><tr><td colspan="4">Carregando...</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -23,11 +23,11 @@
     <div class="modal-header"><h2 id="titulo-modal-usuario">Adicionar usuário</h2><button type="button" class="modal-close" onclick="fecharModalUsuario()">×</button></div>
     <div class="modal-body">
       <div class="form-grid">
-        <div class="form-group full"><label>E-mail *</label><input id="usuario-email" type="email"></div>
         <div class="form-group full"><label>Nome *</label><input id="usuario-nome" maxlength="150"></div>
+        <div class="form-group full"><label>E-mail *</label><input id="usuario-email" type="email"></div>
         <div class="form-group"><label>Nível de Acesso *</label><select id="usuario-nivel" onchange="alternarEscoposUsuario()"><option value="1">Gestor de Conteúdo</option><option value="2">Gestor do Sistema</option></select></div>
-        <div class="form-group"><label><input id="usuario-ativo" type="checkbox" checked> Ativo</label></div>
-        <div id="grupo-usuario-escopos" class="form-group full"><label>Escopos de acesso *</label><select id="usuario-escopos" multiple size="10" style="width:100%"></select><small>Selecione Municípios, Fóruns ou Unidades. Cada escopo inclui seus descendentes.</small></div>
+        <div class="form-group" style="display:flex;align-items:flex-end"><label style="display:flex;align-items:center;gap:8px;min-height:42px;margin:0;cursor:pointer"><input id="usuario-ativo" type="checkbox" checked style="width:auto"> Conta ativa</label></div>
+        <div id="grupo-usuario-escopos" class="form-group full"><label>Localidades sob gestão *</label><select id="usuario-escopos" multiple size="10" style="width:100%"></select><small>Defina os Municípios, Fóruns ou Unidades onde este Gestor de Conteúdo pode consultar e editar dados. Cada seleção inclui suas unidades subordinadas.</small></div>
       </div>
       <div id="usuario-erro" class="modal-alert hidden"></div>
     </div>
