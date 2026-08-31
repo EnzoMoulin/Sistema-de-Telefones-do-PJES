@@ -2,6 +2,11 @@
 (function () {
   "use strict";
 
+  var municipiosPainelV6 = [];
+  var municipioSelecionadoPainelV6 = "";
+  var carregandoMunicipiosPainelV6 = false;
+  var dashboardCarregandoV6 = false;
+
   function normalizar(valor) {
     return String(valor == null ? "" : valor)
       .normalize("NFD")
@@ -37,7 +42,17 @@
 
   function atualizarTexto(id, valor) {
     var el = document.getElementById(id);
-    if (el) el.textContent = String(valor);
+    if (el) el.textContent = String(valor == null ? 0 : valor);
+  }
+
+  function instalarAjustesVisuaisGlobais() {
+    if (document.getElementById("pjes-v6-ajustes-visuais")) return;
+    var style = document.createElement("style");
+    style.id = "pjes-v6-ajustes-visuais";
+    style.textContent =
+      "#btn-status-acesso.btn-sair{min-width:112px;padding-left:18px!important;padding-right:18px!important;}" +
+      ".fc-municipio-select{margin:8px 0 12px;}";
+    document.head.appendChild(style);
   }
 
   function removerBotoesImpressaoDashboardLegados() {
@@ -54,6 +69,93 @@
       if (texto === "IMPRIMIRCONTATOS" || texto === "IMPRIMIRTODOSOSCONTATOS") {
         botao.remove();
       }
+    });
+  }
+
+  function renderizarResumoDashboardV6(container, dados) {
+    if (!container) return;
+
+    if (typeof window.renderizarResumoDashboard === "function") {
+      try {
+        window.renderizarResumoDashboard(container, dados || {});
+        return;
+      } catch (erro) {
+        console.error("Falha ao usar renderizador do Dashboard:", erro);
+      }
+    }
+
+    container.innerHTML = "";
+    var entradas = Object.keys(dados || {}).map(function (nome) {
+      return { nome: nome, valor: Number(dados[nome]) || 0 };
+    }).sort(function (a, b) {
+      return b.valor - a.valor || a.nome.localeCompare(b.nome, "pt-BR");
+    });
+
+    if (!entradas.length) {
+      container.innerHTML = '<p style="color:#94a3b8;margin:0;">Nenhum contato cadastrado.</p>';
+      return;
+    }
+
+    entradas.slice(0, 15).forEach(function (item) {
+      var linha = document.createElement("div");
+      linha.style.cssText = "display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #e2e8f0;";
+      var nome = document.createElement("span");
+      nome.textContent = item.nome;
+      var numero = document.createElement("strong");
+      numero.textContent = String(item.valor);
+      linha.append(nome, numero);
+      container.appendChild(linha);
+    });
+  }
+
+  function aplicarDashboardEstruturadoV6(dados) {
+    dados = dados || {};
+    var tipos = dados.tipos || { "Telefone": 0, "Ramal": 0, "WhatsApp": 0, "E-mail": 0 };
+    var municipios = dados.municipios || dados.comarcas || {};
+
+    atualizarTexto("total-telefones", Number(dados.total) || 0);
+    atualizarTexto("total-municipios", Number(dados.totalMunicipios) || Object.keys(municipios).length);
+    atualizarTexto("total-foruns", Number(dados.totalForuns) || 0);
+    atualizarTexto("total-unidades", Number(dados.totalUnidades) || 0);
+    atualizarTexto("total-setores", Number(dados.totalSetores) || 0);
+    atualizarTexto("total-tipos", 4);
+
+    renderizarResumoDashboardV6(document.getElementById("grafico-tipos"), tipos);
+    renderizarResumoDashboardV6(document.getElementById("grafico-comarcas"), municipios);
+  }
+
+  function fallbackDashboardPorContatosV6() {
+    if (typeof API === "undefined" || typeof API.listarTelefones !== "function") return;
+    API.listarTelefones(function (resp) {
+      if (resp && resp.sucesso === true && Array.isArray(resp.dados)) {
+        window.atualizarDashboardPublico(resp.dados);
+      }
+    }, function (erro) {
+      console.error("Falha ao carregar fallback do Dashboard:", erro);
+    });
+  }
+
+  function carregarDashboardV6() {
+    var view = document.getElementById("dashboard-view");
+    if (!view || view.classList.contains("hidden") || dashboardCarregandoV6) return;
+    if (typeof API === "undefined" || typeof API.dashboard !== "function") {
+      fallbackDashboardPorContatosV6();
+      return;
+    }
+
+    dashboardCarregandoV6 = true;
+    API.dashboard(function (resp) {
+      dashboardCarregandoV6 = false;
+      if (resp && resp.sucesso === true && resp.dados) {
+        aplicarDashboardEstruturadoV6(resp.dados);
+        return;
+      }
+      console.error("Dashboard sem resposta válida:", resp && resp.erro ? resp.erro : resp);
+      fallbackDashboardPorContatosV6();
+    }, function (erro) {
+      dashboardCarregandoV6 = false;
+      console.error("Falha ao carregar Dashboard:", erro);
+      fallbackDashboardPorContatosV6();
     });
   }
 
@@ -90,10 +192,8 @@
     atualizarTexto("total-setores", setores.size);
     atualizarTexto("total-tipos", 4);
 
-    if (typeof window.renderizarResumoDashboard === "function") {
-      window.renderizarResumoDashboard(document.getElementById("grafico-tipos"), porTipo);
-      window.renderizarResumoDashboard(document.getElementById("grafico-comarcas"), porMunicipio);
-    }
+    renderizarResumoDashboardV6(document.getElementById("grafico-tipos"), porTipo);
+    renderizarResumoDashboardV6(document.getElementById("grafico-comarcas"), porMunicipio);
   };
 
   function trocarTextoPainel() {
@@ -119,10 +219,7 @@
     });
   }
 
-  function trocarBuscaPorMunicipio() {
-    var busca = document.getElementById("fc-search");
-    if (!busca || String(busca.tagName || "").toUpperCase() === "SELECT") return;
-
+  function capturarMunicipiosDoPainel() {
     var cards = Array.prototype.slice.call(document.querySelectorAll('#fc-content .fc-card[data-mun]'));
     if (!cards.length) return;
 
@@ -135,57 +232,182 @@
       var titulo = card.querySelector("h4");
       opcoes.push({ id: id, nome: String(titulo ? titulo.textContent : id).trim() });
     });
-    opcoes.sort(function (a, b) { return a.nome.localeCompare(b.nome, "pt-BR"); });
+
+    if (opcoes.length) {
+      opcoes.sort(function (a, b) { return a.nome.localeCompare(b.nome, "pt-BR"); });
+      municipiosPainelV6 = opcoes;
+    }
+  }
+
+  function carregarMunicipiosPainelV6() {
+    if (municipiosPainelV6.length || carregandoMunicipiosPainelV6) return;
+    if (typeof API === "undefined" || typeof API.hierarquiaForum !== "function") return;
+
+    carregandoMunicipiosPainelV6 = true;
+    API.hierarquiaForum("", function (resp) {
+      carregandoMunicipiosPainelV6 = false;
+      var lista = resp && resp.sucesso === true && resp.dados && Array.isArray(resp.dados.municipios)
+        ? resp.dados.municipios
+        : [];
+      municipiosPainelV6 = lista.map(function (m) {
+        return { id: String(m.id || ""), nome: String(m.nome || m.id || "") };
+      }).filter(function (m) { return m.id; }).sort(function (a, b) {
+        return a.nome.localeCompare(b.nome, "pt-BR");
+      });
+      garantirSeletorMunicipioPainel();
+    }, function () {
+      carregandoMunicipiosPainelV6 = false;
+    });
+  }
+
+  function detectarMunicipioAtualPainel() {
+    if (municipioSelecionadoPainelV6 || !municipiosPainelV6.length) return;
+    var painel = document.getElementById("fc-content");
+    if (!painel) return;
+
+    var candidatos = [];
+    var backMunicipio = document.getElementById("fc-back-municipio");
+    var backNo = document.getElementById("fc-back-no");
+    var titulo = painel.querySelector(".fc-head .fc-title");
+    var subtitulo = painel.querySelector(".fc-head .fc-subtitle");
+    if (backMunicipio) candidatos.push(backMunicipio.textContent || "");
+    if (backNo) candidatos.push(backNo.textContent || "");
+    if (titulo) candidatos.push(titulo.textContent || "");
+    if (subtitulo) candidatos.push(subtitulo.textContent || "");
+
+    for (var i = 0; i < municipiosPainelV6.length; i++) {
+      var municipio = municipiosPainelV6[i];
+      var alvo = normalizar(municipio.nome);
+      if (candidatos.some(function (texto) { return normalizar(texto).indexOf(alvo) !== -1; })) {
+        municipioSelecionadoPainelV6 = municipio.id;
+        return;
+      }
+    }
+  }
+
+  function navegarParaMunicipioPainel(id) {
+    municipioSelecionadoPainelV6 = String(id || "");
+    if (!municipioSelecionadoPainelV6) {
+      if (typeof window.fcInicio === "function") window.fcInicio();
+      return;
+    }
+
+    var destino = Array.prototype.slice.call(document.querySelectorAll('#fc-content .fc-card[data-mun]')).find(function (card) {
+      return String(card.getAttribute("data-mun") || "") === municipioSelecionadoPainelV6;
+    });
+    if (destino) {
+      destino.click();
+      return;
+    }
+
+    if (typeof window.fcInicio === "function") {
+      window.fcInicio();
+      setTimeout(function () {
+        var card = Array.prototype.slice.call(document.querySelectorAll('#fc-content .fc-card[data-mun]')).find(function (item) {
+          return String(item.getAttribute("data-mun") || "") === municipioSelecionadoPainelV6;
+        });
+        if (card) card.click();
+      }, 40);
+    }
+  }
+
+  function garantirSeletorMunicipioPainel() {
+    var painel = document.getElementById("fc-content");
+    if (!painel) return;
+
+    capturarMunicipiosDoPainel();
+    if (!municipiosPainelV6.length) {
+      carregarMunicipiosPainelV6();
+      return;
+    }
+    detectarMunicipioAtualPainel();
+
+    var existente = document.getElementById("fc-search");
+    if (existente && String(existente.tagName || "").toUpperCase() === "SELECT" && existente.getAttribute("data-pjes-municipio-v6") === "true") {
+      existente.value = municipioSelecionadoPainelV6 || "";
+      return;
+    }
 
     var select = document.createElement("select");
     select.id = "fc-search";
     select.className = "fc-select fc-municipio-select";
     select.setAttribute("aria-label", "Selecionar município");
+    select.setAttribute("data-pjes-municipio-v6", "true");
 
     var inicial = document.createElement("option");
     inicial.value = "";
     inicial.textContent = "Selecione um município";
     select.appendChild(inicial);
 
-    opcoes.forEach(function (opcao) {
+    municipiosPainelV6.forEach(function (opcao) {
       var el = document.createElement("option");
       el.value = opcao.id;
       el.textContent = opcao.nome;
       select.appendChild(el);
     });
 
+    select.value = municipioSelecionadoPainelV6 || "";
     select.onchange = function () {
-      var id = select.value;
-      if (!id) return;
-      var destino = Array.prototype.slice.call(document.querySelectorAll('#fc-content .fc-card[data-mun]')).find(function (card) {
-        return String(card.getAttribute("data-mun") || "") === id;
-      });
-      if (destino) destino.click();
+      navegarParaMunicipioPainel(select.value);
     };
 
-    busca.replaceWith(select);
+    if (existente) {
+      existente.replaceWith(select);
+      return;
+    }
+
+    var head = painel.querySelector(".fc-head");
+    if (head && head.parentNode) {
+      if (head.nextSibling) head.parentNode.insertBefore(select, head.nextSibling);
+      else head.parentNode.appendChild(select);
+    } else {
+      painel.insertBefore(select, painel.firstChild || null);
+    }
   }
 
   function aplicarAjustesContatos() {
     trocarTextoPainel();
-    trocarBuscaPorMunicipio();
+    garantirSeletorMunicipioPainel();
   }
 
   function observarPainel() {
     var painel = document.getElementById("fc-content");
     if (!painel || painel.__pjesV6Observer) return;
     painel.__pjesV6Observer = true;
+
+    painel.addEventListener("click", function (evento) {
+      var alvo = evento.target && evento.target.closest ? evento.target.closest("[data-mun]") : null;
+      if (alvo) municipioSelecionadoPainelV6 = String(alvo.getAttribute("data-mun") || "");
+    }, true);
+
     aplicarAjustesContatos();
     new MutationObserver(function () {
       aplicarAjustesContatos();
     }).observe(painel, { childList: true, subtree: true });
   }
 
+  function observarDashboard() {
+    var dashboard = document.getElementById("dashboard-view");
+    if (!dashboard || dashboard.__pjesV6DashboardObserver) return;
+    dashboard.__pjesV6DashboardObserver = true;
+    new MutationObserver(function () {
+      if (!dashboard.classList.contains("hidden")) {
+        setTimeout(carregarDashboardV6, 0);
+      }
+    }).observe(dashboard, { attributes: true, attributeFilter: ["class", "style"] });
+    if (!dashboard.classList.contains("hidden")) carregarDashboardV6();
+  }
+
+  instalarAjustesVisuaisGlobais();
   removerBotoesImpressaoDashboardLegados();
   observarPainel();
+  observarDashboard();
+
   document.addEventListener("DOMContentLoaded", function () {
+    instalarAjustesVisuaisGlobais();
     removerBotoesImpressaoDashboardLegados();
     observarPainel();
+    observarDashboard();
   });
 })();
 </script>
