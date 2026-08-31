@@ -29,7 +29,8 @@
         </div>
         <div id="grupo-acesso-unidades" class="fa-field fa-full">
           <label>Localidades solicitadas</label>
-          <div id="acesso-unidades" class="fa-unidades" aria-live="polite">Carregando Municípios, Fóruns e Unidades...</div>
+          <select id="acesso-municipio" onchange="renderizarSeletorLocalidadesAcesso()"><option value="">Selecione um Município</option></select>
+          <div id="acesso-unidades" class="fa-unidades" aria-live="polite">Carregando Fóruns e Unidades...</div>
         </div>
         <div class="fa-field fa-full">
           <label for="acesso-justificativa">Justificativa</label>
@@ -44,6 +45,9 @@
 
 <script>
 var escoposDisponiveisAcesso = [];
+var escoposAcessoSelecionados = new Set();
+var forumAcessoAberto = "";
+function chaveEscopoAcesso(escopo){return escopo.tipo+":"+escopo.id;}
 
 function atualizarIdentidadeFormularioAcesso(){
   var email = document.getElementById("acesso-email");
@@ -64,24 +68,28 @@ function carregarUnidadesFormularioAcesso(){
     escoposDisponiveisAcesso = resp && resp.sucesso === true && Array.isArray(resp.dados) ? resp.dados : [];
     holder.textContent = "";
     if(!escoposDisponiveisAcesso.length){ holder.textContent = (resp && resp.erro) || "Nenhum escopo disponível."; return; }
-    escoposDisponiveisAcesso.forEach(function(escopo){
-      var label = document.createElement("label"); label.className = "fa-unidade";
-      var check = document.createElement("input"); check.type = "checkbox"; check.value = escopo.tipo + ":" + escopo.id; check.name = "acesso-escopo";
-      var atuais = (typeof usuarioAtual !== "undefined" && Array.isArray(usuarioAtual.acessos)) ? usuarioAtual.acessos : [];
-      if(atuais.some(function(atual){ return atual.tipo === escopo.tipo && atual.id === escopo.id; })){ check.disabled = true; label.style.opacity = ".58"; }
-      var texto = document.createElement("span"); texto.textContent = ({MUNICIPIO:"Município",FORUM:"Fórum",UNIDADE:"Unidade"}[escopo.tipo] || escopo.tipo) + ": " + (escopo.caminhoTexto || escopo.nome);
-      var detalhe = document.createElement("small"); detalhe.textContent = [escopo.municipio, escopo.forum].filter(Boolean).join(" — ");
-      if(check.disabled) detalhe.textContent += (detalhe.textContent ? " — " : "") + "já vinculada";
-      texto.appendChild(detalhe); label.appendChild(check); label.appendChild(texto); holder.appendChild(label);
-    });
+    prepararSeletorLocalidadesAcesso();
   }, function(erro){ holder.textContent = (erro && erro.message) || "Falha ao carregar escopos."; });
+}
+
+function prepararSeletorLocalidadesAcesso(){
+  var select=document.getElementById("acesso-municipio");if(!select)return;select.textContent="";var inicial=document.createElement("option");inicial.value="";inicial.textContent="Selecione um Município";select.appendChild(inicial);
+  var municipios=[];escoposDisponiveisAcesso.forEach(function(escopo){if(escopo.municipio&&municipios.indexOf(escopo.municipio)<0)municipios.push(escopo.municipio);});
+  municipios.forEach(function(nome){var opcao=document.createElement("option");opcao.value=nome;opcao.textContent=nome;select.appendChild(opcao);});select.value=municipios[0]||"";renderizarSeletorLocalidadesAcesso();
+}
+function alternarEscopoAcesso(escopo,marcado){var chave=chaveEscopoAcesso(escopo);if(marcado){escoposAcessoSelecionados.add(chave);if(escopo.tipo==="FORUM")escoposDisponiveisAcesso.filter(function(item){return item.tipo==="UNIDADE"&&item.forumId===escopo.forumId;}).forEach(function(item){escoposAcessoSelecionados.delete(chaveEscopoAcesso(item));});}else escoposAcessoSelecionados.delete(chave);renderizarSeletorLocalidadesAcesso();}
+function renderizarSeletorLocalidadesAcesso(){
+  var municipio=document.getElementById("acesso-municipio"),holder=document.getElementById("acesso-unidades");if(!municipio||!holder)return;holder.textContent="";var atuais=(typeof usuarioAtual!=="undefined"&&Array.isArray(usuarioAtual.acessos))?usuarioAtual.acessos:[];var foruns=escoposDisponiveisAcesso.filter(function(item){return item.tipo==="FORUM"&&item.municipio===municipio.value;});if(!foruns.length){holder.textContent="Selecione um Município para visualizar os Fóruns.";return;}var titulo=document.createElement("strong");titulo.textContent="Fóruns";holder.appendChild(titulo);
+  foruns.forEach(function(forum){var jaVinculado=atuais.some(function(atual){return atual.tipo===forum.tipo&&atual.id===forum.id;});var linha=document.createElement("div");linha.style.marginTop="10px";var check=document.createElement("input");check.type="checkbox";check.checked=escoposAcessoSelecionados.has(chaveEscopoAcesso(forum));check.disabled=jaVinculado;check.onchange=function(){alternarEscopoAcesso(forum,check.checked);};var nome=document.createElement("button");nome.type="button";nome.className="btn";nome.style.marginLeft="8px";nome.textContent=forum.caminhoTexto||forum.nome;nome.onclick=function(){forumAcessoAberto=forumAcessoAberto===forum.id?"":forum.id;renderizarSeletorLocalidadesAcesso();};linha.appendChild(check);linha.appendChild(nome);if(jaVinculado)linha.appendChild(document.createTextNode(" já vinculada"));holder.appendChild(linha);
+    if(forumAcessoAberto===forum.id){var subtitulo=document.createElement("strong");subtitulo.textContent="Unidades";subtitulo.style.cssText="display:block;margin:8px 0 4px 28px";holder.appendChild(subtitulo);escoposDisponiveisAcesso.filter(function(item){return item.tipo==="UNIDADE"&&item.forumId===forum.forumId;}).forEach(function(unidade){var existente=atuais.some(function(atual){return atual.tipo===unidade.tipo&&atual.id===unidade.id;});var unidadeLinha=document.createElement("label");unidadeLinha.style.cssText="display:block;margin:5px 0 5px 28px";var unidadeCheck=document.createElement("input");unidadeCheck.type="checkbox";unidadeCheck.checked=escoposAcessoSelecionados.has(chaveEscopoAcesso(unidade));unidadeCheck.disabled=check.checked||existente;unidadeCheck.onchange=function(){alternarEscopoAcesso(unidade,unidadeCheck.checked);};unidadeLinha.appendChild(unidadeCheck);unidadeLinha.appendChild(document.createTextNode(" "+(unidade.caminhoTexto||unidade.nome)+(existente?" já vinculada":"")));holder.appendChild(unidadeLinha);});}
+  });
 }
 
 function alternarUnidadesSolicitacao(){
   var nivel = Number(document.getElementById("acesso-nivel")?.value || 0);
   var grupo = document.getElementById("grupo-acesso-unidades");
   if(grupo) grupo.style.display = nivel === 2 ? "none" : "";
-  if(nivel === 2) document.querySelectorAll('input[name="acesso-escopo"]').forEach(function(el){ el.checked = false; });
+  if(nivel === 2){escoposAcessoSelecionados.clear();renderizarSeletorLocalidadesAcesso();}
 }
 
 function mensagemFormularioAcesso(texto, sucesso){
@@ -94,7 +102,7 @@ function mensagemFormularioAcesso(texto, sucesso){
 function enviarFormularioAcesso(){
   var nome = String(document.getElementById("acesso-nome")?.value || "").trim();
   var nivel = Number(document.getElementById("acesso-nivel")?.value || 0);
-  var escopos = Array.from(document.querySelectorAll('input[name="acesso-escopo"]:checked')).map(function(el){ var partes=el.value.split(":"); return {tipo:partes[0],id:partes.slice(1).join(":")}; });
+  var escopos = Array.from(escoposAcessoSelecionados).map(function(chave){var partes=chave.split(":");return {tipo:partes[0],id:partes.slice(1).join(":")};});
   var justificativa = String(document.getElementById("acesso-justificativa")?.value || "").trim();
   if(nome.length < 3){ mensagemFormularioAcesso("Informe seu nome completo.", false); return; }
   var usuario = typeof usuarioAtual !== "undefined" ? usuarioAtual : {};

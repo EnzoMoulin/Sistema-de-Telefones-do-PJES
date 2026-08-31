@@ -27,7 +27,7 @@
         <div class="form-group full"><label>E-mail *</label><input id="usuario-email" type="email"></div>
         <div class="form-group"><label>Nível de Acesso *</label><select id="usuario-nivel" onchange="alternarEscoposUsuario()"><option value="1">Gestor de Conteúdo</option><option value="2">Gestor do Sistema</option></select></div>
         <div class="form-group" style="display:flex;align-items:flex-end"><label style="display:flex;align-items:center;gap:8px;min-height:42px;margin:0;cursor:pointer"><input id="usuario-ativo" type="checkbox" checked style="width:auto"> Conta ativa</label></div>
-        <div id="grupo-usuario-escopos" class="form-group full"><label>Localidades sob gestão *</label><select id="usuario-escopos" multiple size="10" style="width:100%"></select><small>Defina os Municípios, Fóruns ou Unidades onde este Gestor de Conteúdo pode consultar e editar dados. Cada seleção inclui suas unidades subordinadas.</small></div>
+        <div id="grupo-usuario-escopos" class="form-group full"><label>Localidades sob gestão *</label><select id="usuario-municipio" onchange="renderizarSeletorLocalidadesUsuario()" style="width:100%"></select><div id="usuario-localidades" style="margin-top:10px;max-height:320px;overflow:auto;border:1px solid #cbd5e1;border-radius:8px;padding:10px"></div><small>Escolha um Município para navegar pelos Fóruns e suas Unidades. Um Fórum selecionado concede acesso a todas as suas Unidades.</small></div>
       </div>
       <div id="usuario-erro" class="modal-alert hidden"></div>
     </div>

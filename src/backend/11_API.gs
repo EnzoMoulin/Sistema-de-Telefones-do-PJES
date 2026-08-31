@@ -550,12 +550,13 @@ function normalizarEscoposAcesso(valor) {
   const vistos = new Set();
   return itens.map(function(item) {
     const objeto = ehObjeto(item) ? item : { id: item };
-    const tipo = tipoEscopoAcesso(valorObjeto(objeto, "tipo", "TIPO", "tipoEscopo", "TIPO_ESCOPO")) || CONFIG.ACESSOS.UNIDADE;
+    const tipoInformado = textoSeguro(valorObjeto(objeto, "tipo", "TIPO", "tipoEscopo", "TIPO_ESCOPO"));
+    const tipo = tipoEscopoAcesso(tipoInformado) || (!tipoInformado ? CONFIG.ACESSOS.UNIDADE : "");
     const id = textoSeguro(valorObjeto(objeto, "id", "ID", "escopoId", "ESCOPO_ID", "unidadeId", "UNIDADE_ID"));
     return { tipo: tipo, id: id };
   }).filter(function(item) {
     const chave = item.tipo + ":" + item.id;
-    if (!item.id || vistos.has(chave)) return false;
+    if (!item.tipo || !item.id || vistos.has(chave)) return false;
     vistos.add(chave);
     return true;
   });
@@ -596,12 +597,15 @@ function lerTodosAcessosAtivos() {
   return DB.read(sheet).filter(function(linha) {
     return paraBoolean(linha[indices.ativo - 1]);
   }).map(function(linha) {
+    const tipo = indices.tipo === undefined
+      ? CONFIG.ACESSOS.UNIDADE
+      : tipoEscopoAcesso(linha[indices.tipo - 1]);
     return {
       usuarioId: textoSeguro(linha[indices.usuarioId - 1]),
-      tipo: indices.tipo === undefined ? CONFIG.ACESSOS.UNIDADE : tipoEscopoAcesso(linha[indices.tipo - 1]) || CONFIG.ACESSOS.UNIDADE,
+      tipo: tipo,
       id: textoSeguro(linha[indices.escopoId - 1])
     };
-  }).filter(function(item) { return item.id; });
+  }).filter(function(item) { return item.tipo && item.id; });
 }
 
 function resolverEscopoAcessos(acessos, catalogo) {
@@ -639,15 +643,9 @@ function montarCatalogoEscoposAcesso() {
   const porChave = {};
   const itens = [];
   const unidadesPorEscopo = {};
-  Object.keys(municipios).forEach(function(id) {
-    const item = { tipo: CONFIG.ACESSOS.MUNICIPIO, id: id, nome: municipios[id].nome, municipio: municipios[id].nome, forum: "", caminhoTexto: municipios[id].nome };
-    porChave[item.tipo + ":" + id] = item;
-    itens.push(item);
-    unidadesPorEscopo[item.tipo + ":" + id] = [];
-  });
   Object.keys(foruns).forEach(function(id) {
     const forum = foruns[id];
-    const item = { tipo: CONFIG.ACESSOS.FORUM, id: id, nome: forum.nome, municipio: municipios[forum.municipioId].nome, forum: forum.nome, caminhoTexto: forum.nome };
+    const item = { tipo: CONFIG.ACESSOS.FORUM, id: id, nome: forum.nome, municipio: municipios[forum.municipioId].nome, forumId: id, forum: forum.nome, caminhoTexto: forum.nome + " (" + municipios[forum.municipioId].nome + ")" };
     porChave[item.tipo + ":" + id] = item;
     itens.push(item);
     unidadesPorEscopo[item.tipo + ":" + id] = [];
@@ -660,9 +658,7 @@ function montarCatalogoEscoposAcesso() {
     const caminho = _fcResolverAncestros(nos, id);
     if (caminho.some(function(item) { return !item.ativo; })) return;
     const municipio = municipios[forum.municipioId];
-    const chaveMunicipio = CONFIG.ACESSOS.MUNICIPIO + ":" + municipio.id;
     const chaveForum = CONFIG.ACESSOS.FORUM + ":" + forum.id;
-    unidadesPorEscopo[chaveMunicipio].push(id);
     unidadesPorEscopo[chaveForum].push(id);
     caminho.forEach(function(ancestral) {
       const chaveUnidade = CONFIG.ACESSOS.UNIDADE + ":" + ancestral.id;
@@ -675,6 +671,7 @@ function montarCatalogoEscoposAcesso() {
       id: id,
       nome: no.nome || id,
       municipio: municipio.nome,
+      forumId: forum.id,
       forum: forum.nome,
       caminhoTexto: caminho.map(function(ancestral) { return ancestral.nome; }).join(" › ")
     };
@@ -712,12 +709,7 @@ function listarEscoposParaAcesso() {
     if (!usuario.identificado || !AuthService.emailPermitidoNoPrivado(usuario.email)) {
       throw new Error("Não foi possível identificar uma conta autorizada nesta URL privada.");
     }
-    const itens = montarCatalogoEscoposAcesso().itens.sort(function(a, b) {
-      return [a.tipo, a.municipio, a.forum, a.caminhoTexto].join("|").localeCompare(
-        [b.tipo, b.municipio, b.forum, b.caminhoTexto].join("|"), "pt-BR"
-      );
-    });
-    return respostaSucesso(itens);
+    return respostaSucesso(montarCatalogoEscoposAcesso().itens);
   } catch (erro) {
     registrarErroAPI("LISTAR_ESCOPOS_ACESSO", erro);
     return respostaErro(erro);
@@ -873,8 +865,7 @@ function listarSolicitacoes() {
           escopos: escopos,
           acessosSolicitados: escopos.map(function(escopo) {
             const item = catalogo.porChave[escopo.tipo + ":" + escopo.id];
-            const nome = item ? item.caminhoTexto : escopo.id;
-            return escopo.tipo.charAt(0) + escopo.tipo.slice(1).toLowerCase() + ": " + nome;
+            return item ? item.caminhoTexto : escopo.id;
           }),
           justificativa: indices.JUSTIFICATIVA !== undefined ? row[indices.JUSTIFICATIVA] : "",
           status: row[indices.STATUS],

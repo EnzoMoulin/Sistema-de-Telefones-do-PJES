@@ -3,8 +3,7 @@ var escoposUsuarios = [];
 var usuarioEmEdicao = null;
 
 function textoEscopoUsuario(escopo) {
-  var prefixo = { MUNICIPIO: "Município", FORUM: "Fórum", UNIDADE: "Unidade" }[escopo.tipo] || escopo.tipo;
-  return prefixo + ": " + (escopo.caminhoTexto || escopo.nome || escopo.id);
+  return escopo.caminhoTexto || escopo.nome || escopo.id;
 }
 
 function carregarUsuarios() {
@@ -32,15 +31,47 @@ function renderizarUsuarios(lista) {
   });
 }
 
-function preencherEscoposUsuario(selecionados) {
-  var select = document.getElementById("usuario-escopos"); if (!select) return; select.textContent = "";
-  var atuais = new Set((selecionados || []).map(function(escopo) { return escopo.tipo + ":" + escopo.id; }));
-  ["MUNICIPIO", "FORUM", "UNIDADE"].forEach(function(tipo) {
-    var grupo = document.createElement("optgroup"); grupo.label = { MUNICIPIO: "Municípios", FORUM: "Fóruns", UNIDADE: "Unidades" }[tipo];
-    escoposUsuarios.filter(function(escopo) { return escopo.tipo === tipo; }).forEach(function(escopo) {
-      var opcao = document.createElement("option"); opcao.value = escopo.tipo + ":" + escopo.id; opcao.textContent = textoEscopoUsuario(escopo); opcao.selected = atuais.has(opcao.value); grupo.appendChild(opcao);
-    });
-    if (grupo.children.length) select.appendChild(grupo);
+var escoposUsuarioSelecionados = new Set();
+var forumUsuarioAberto = "";
+function chaveEscopoUsuario(escopo) { return escopo.tipo + ":" + escopo.id; }
+function prepararSeletorLocalidadesUsuario(selecionados) {
+  escoposUsuarioSelecionados = new Set((selecionados || []).map(chaveEscopoUsuario));
+  forumUsuarioAberto = "";
+  var select = document.getElementById("usuario-municipio"); if (!select) return; select.textContent = "";
+  var municipios = [];
+  escoposUsuarios.forEach(function(escopo) { if (escopo.municipio && municipios.indexOf(escopo.municipio) < 0) municipios.push(escopo.municipio); });
+  var inicial = document.createElement("option"); inicial.value = ""; inicial.textContent = "Selecione um Município"; select.appendChild(inicial);
+  municipios.forEach(function(nome) { var opcao = document.createElement("option"); opcao.value = nome; opcao.textContent = nome; select.appendChild(opcao); });
+  var primeiroSelecionado = escoposUsuarios.find(function(escopo) { return escoposUsuarioSelecionados.has(chaveEscopoUsuario(escopo)); });
+  select.value = primeiroSelecionado ? primeiroSelecionado.municipio : (municipios[0] || "");
+  renderizarSeletorLocalidadesUsuario();
+}
+function marcarEscopoUsuario(escopo, marcado) {
+  var chave = chaveEscopoUsuario(escopo);
+  if (marcado) {
+    escoposUsuarioSelecionados.add(chave);
+    if (escopo.tipo === "FORUM") escoposUsuarios.filter(function(item) { return item.tipo === "UNIDADE" && item.forumId === escopo.forumId; }).forEach(function(item) { escoposUsuarioSelecionados.delete(chaveEscopoUsuario(item)); });
+  } else escoposUsuarioSelecionados.delete(chave);
+  renderizarSeletorLocalidadesUsuario();
+}
+function renderizarSeletorLocalidadesUsuario() {
+  var municipio = document.getElementById("usuario-municipio"); var holder = document.getElementById("usuario-localidades"); if (!municipio || !holder) return; holder.textContent = "";
+  var foruns = escoposUsuarios.filter(function(item) { return item.tipo === "FORUM" && item.municipio === municipio.value; });
+  if (!foruns.length) { holder.textContent = "Selecione um Município para visualizar os Fóruns."; return; }
+  var titulo = document.createElement("strong"); titulo.textContent = "Fóruns"; holder.appendChild(titulo);
+  foruns.forEach(function(forum) {
+    var linha = document.createElement("div"); linha.style.marginTop = "10px";
+    var check = document.createElement("input"); check.type = "checkbox"; check.checked = escoposUsuarioSelecionados.has(chaveEscopoUsuario(forum)); check.onchange = function() { marcarEscopoUsuario(forum, check.checked); };
+    var nome = document.createElement("button"); nome.type = "button"; nome.className = "btn"; nome.style.marginLeft = "8px"; nome.textContent = textoEscopoUsuario(forum); nome.onclick = function() { forumUsuarioAberto = forumUsuarioAberto === forum.id ? "" : forum.id; renderizarSeletorLocalidadesUsuario(); };
+    linha.appendChild(check); linha.appendChild(nome); holder.appendChild(linha);
+    if (forumUsuarioAberto === forum.id) {
+      var subtitulo = document.createElement("strong"); subtitulo.textContent = "Unidades"; subtitulo.style.cssText = "display:block;margin:8px 0 4px 28px"; holder.appendChild(subtitulo);
+      escoposUsuarios.filter(function(item) { return item.tipo === "UNIDADE" && item.forumId === forum.forumId; }).forEach(function(unidade) {
+        var unidadeLinha = document.createElement("label"); unidadeLinha.style.cssText = "display:block;margin:5px 0 5px 28px";
+        var unidadeCheck = document.createElement("input"); unidadeCheck.type = "checkbox"; unidadeCheck.checked = escoposUsuarioSelecionados.has(chaveEscopoUsuario(unidade)); unidadeCheck.disabled = check.checked; unidadeCheck.onchange = function() { marcarEscopoUsuario(unidade, unidadeCheck.checked); };
+        unidadeLinha.appendChild(unidadeCheck); unidadeLinha.appendChild(document.createTextNode(" " + textoEscopoUsuario(unidade))); holder.appendChild(unidadeLinha);
+      });
+    }
   });
 }
 
@@ -50,7 +81,7 @@ function abrirModalAdicionarUsuario() {
   document.getElementById("usuario-email").value = ""; document.getElementById("usuario-email").disabled = false;
   document.getElementById("usuario-nome").value = ""; document.getElementById("usuario-nivel").value = "1"; document.getElementById("usuario-ativo").checked = true;
   document.getElementById("btn-excluir-usuario").classList.add("hidden"); document.getElementById("btn-salvar-usuario").textContent = "Adicionar";
-  preencherEscoposUsuario([]); alternarEscoposUsuario(); document.getElementById("modal-usuario").classList.remove("hidden");
+  prepararSeletorLocalidadesUsuario([]); alternarEscoposUsuario(); document.getElementById("modal-usuario").classList.remove("hidden");
 }
 
 function abrirModalEditarUsuario(usuario) {
@@ -59,12 +90,12 @@ function abrirModalEditarUsuario(usuario) {
   document.getElementById("usuario-email").value = usuario.email || ""; document.getElementById("usuario-email").disabled = true;
   document.getElementById("usuario-nome").value = usuario.nome || ""; document.getElementById("usuario-nivel").value = String(usuario.nivel || 1); document.getElementById("usuario-ativo").checked = usuario.ativo === true;
   document.getElementById("btn-excluir-usuario").classList.remove("hidden"); document.getElementById("btn-salvar-usuario").textContent = "Salvar";
-  preencherEscoposUsuario(usuario.escopos || []); alternarEscoposUsuario(); document.getElementById("modal-usuario").classList.remove("hidden");
+  prepararSeletorLocalidadesUsuario(usuario.escopos || []); alternarEscoposUsuario(); document.getElementById("modal-usuario").classList.remove("hidden");
 }
 
 function fecharModalUsuario() { document.getElementById("modal-usuario").classList.add("hidden"); usuarioEmEdicao = null; }
 function alternarEscoposUsuario() { var nivel = Number(document.getElementById("usuario-nivel").value || 0); document.getElementById("grupo-usuario-escopos").style.display = nivel === 1 ? "" : "none"; }
-function obterEscoposSelecionadosUsuario() { return Array.from(document.getElementById("usuario-escopos").selectedOptions).map(function(opcao) { var partes = opcao.value.split(":"); return { tipo: partes[0], id: partes.slice(1).join(":") }; }); }
+function obterEscoposSelecionadosUsuario() { return Array.from(escoposUsuarioSelecionados).map(function(chave) { var partes = chave.split(":"); return { tipo: partes[0], id: partes.slice(1).join(":") }; }); }
 
 function salvarUsuarioModal() {
   var email = String(document.getElementById("usuario-email").value || "").trim(); var nome = String(document.getElementById("usuario-nome").value || "").trim(); var nivel = Number(document.getElementById("usuario-nivel").value || 0); var ativo = document.getElementById("usuario-ativo").checked === true; var escopos = obterEscoposSelecionadosUsuario();
