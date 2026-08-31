@@ -88,9 +88,10 @@ function include(nomeArquivo) {
 }
 
 /**
- * O Clasp preserva as subpastas ao publicar os arquivos do projeto. Assim,
- * os templates em src/frontend são identificados no Apps Script como
- * "frontend/NomeDoArquivo", embora os includes usem somente o nome lógico.
+ * O Clasp normalmente preserva src/frontend como "frontend/NomeDoArquivo".
+ * Projetos Apps Script antigos podem, porém, conter os mesmos HTMLs na raiz.
+ * Tentamos os dois formatos para evitar quebra total durante migrações ou
+ * atualizações parciais do projeto remoto.
  */
 function criarTemplateFrontend(nomeArquivo) {
   const nome = textoSeguro(nomeArquivo);
@@ -98,5 +99,22 @@ function criarTemplateFrontend(nomeArquivo) {
   if (!/^[A-Za-z0-9_-]+$/.test(nome)) {
     throw new Error("Nome de template inválido.");
   }
-  return HtmlService.createTemplateFromFile("frontend/" + nome);
+
+  const candidatos = ["frontend/" + nome, nome];
+  let ultimoErro = null;
+
+  for (let i = 0; i < candidatos.length; i += 1) {
+    try {
+      return HtmlService.createTemplateFromFile(candidatos[i]);
+    } catch (erro) {
+      ultimoErro = erro;
+    }
+  }
+
+  throw new Error(
+    'Template HTML "' + nome + '" não encontrado. ' +
+    'Verificados: "frontend/' + nome + '" e "' + nome + '". ' +
+    'Faça um clasp push completo para sincronizar todos os arquivos HTML. ' +
+    (ultimoErro && ultimoErro.message ? 'Detalhe: ' + ultimoErro.message : '')
+  );
 }
