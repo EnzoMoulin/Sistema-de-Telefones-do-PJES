@@ -147,7 +147,7 @@
 
   function melhorarBotoes() {
     qsa("button").forEach(function (botao) {
-      if (!botao.getAttribute("type")) botao.setAttribute("type", "button");
+      if (!botao.getAttribute("type") && !botao.closest("form")) botao.setAttribute("type", "button");
     });
   }
 
