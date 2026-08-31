@@ -22,7 +22,7 @@ Arquivo: index.html
     <?!= include("PolishCSS"); ?>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9coqIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   </head>
 
   <body>
@@ -136,5 +136,35 @@ Arquivo: index.html
     <?!= include("ContatoGestaoJS"); ?>
     <?!= include("PolishJS"); ?>
     <?!= include("PainelV6JS"); ?>
+
+    <script>
+      (function () {
+        "use strict";
+
+        function ocultarZeroUnidadesForum() {
+          var painel = document.getElementById("fc-content");
+          if (!painel) return;
+
+          painel.querySelectorAll('.fc-card[data-forum] .fc-meta .fc-pill').forEach(function (badge) {
+            var texto = String(badge.textContent || "").trim().toLowerCase();
+            if (/^0\s+unidade(?:s)?$/.test(texto)) badge.remove();
+          });
+        }
+
+        function observarBadgesForum() {
+          var painel = document.getElementById("fc-content");
+          if (!painel || painel.__pjesZeroUnidadesObserver) return;
+          painel.__pjesZeroUnidadesObserver = true;
+          ocultarZeroUnidadesForum();
+          new MutationObserver(ocultarZeroUnidadesForum).observe(painel, {
+            childList: true,
+            subtree: true
+          });
+        }
+
+        observarBadgesForum();
+        document.addEventListener("DOMContentLoaded", observarBadgesForum);
+      })();
+    </script>
   </body>
 </html>
