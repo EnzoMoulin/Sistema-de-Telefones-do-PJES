@@ -100,21 +100,36 @@
     renderResumo("grafico-comarcas", porMunicipio);
   };
 
+  function contarSetores(lista) {
+    var total = 0;
+    (lista || []).forEach(function (no) {
+      if (String(no.tipo || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase() === "SETOR") total++;
+      total += contarSetores(no.filhos || []);
+    });
+    return total;
+  }
+
   window.fcAtualizarDashboardHierarquia = function (dados) {
     var municipios = dados && Array.isArray(dados.municipios) ? dados.municipios : [];
     var totalForuns = 0;
     var totalUnidades = 0;
+    var totalSetores = 0;
+    var totalContatos = 0;
     municipios.forEach(function (m) {
       totalForuns += Number(m.qtdForuns || (m.foruns || []).length || 0);
       totalUnidades += Number(m.qtdUnidades || 0);
+      totalContatos += Number(m.qtdContatos || 0);
+      (m.foruns || []).forEach(function (f) { totalSetores += contarSetores(f.nos || []); });
     });
+    atualizarTextoSeguro("total-telefones", totalContatos);
     atualizarTextoSeguro("total-municipios", municipios.length);
     atualizarTextoSeguro("total-foruns", totalForuns);
     atualizarTextoSeguro("total-unidades", totalUnidades);
+    atualizarTextoSeguro("total-setores", totalSetores);
   };
 
   // Toda resposta hierárquica também corrige as contagens estruturais do dashboard,
-  // inclusive Unidades sem contato direto que não aparecem no dataset achatado.
+  // inclusive Unidades/Setores sem contato direto que não aparecem no dataset achatado.
   try {
     if (typeof API !== "undefined" && typeof API.hierarquiaForum === "function") {
       var hierarquiaOriginal = API.hierarquiaForum;
@@ -154,5 +169,19 @@
       return resultado;
     };
   }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    try {
+      var btn = document.getElementById("btn-imprimir-dashboard");
+      if (btn) {
+        btn.textContent = "🖨️ Imprimir contatos";
+        btn.title = "Imprimir todos os contatos por Fórum, Unidade e Setor";
+        btn.onclick = function () {
+          if (typeof window.fcImprimirTudo === "function") window.fcImprimirTudo();
+          else if (typeof imprimirDashboardView === "function") imprimirDashboardView();
+        };
+      }
+    } catch (e) {}
+  });
 })();
 </script>
