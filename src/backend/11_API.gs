@@ -867,6 +867,9 @@ function listarSolicitacoes() {
           nome: row[indices.NOME],
           nivelSolicitado: nivel,
           perfilSolicitado: CONFIG.NIVEIS.POR_NIVEL[String(nivel)] || "",
+          nivelTexto: nivel
+            ? CONFIG.NIVEIS.POR_NIVEL[String(nivel)] || "Nível inválido"
+            : "Sem alteração de nível",
           escopos: escopos,
           acessosSolicitados: escopos.map(function(escopo) {
             const item = catalogo.porChave[escopo.tipo + ":" + escopo.id];
@@ -924,14 +927,17 @@ function enviarFormularioAcesso(dados) {
     if (nome.length < 3 || nome.length > CONFIG.LIMITES.TAMANHO_MAXIMO_NOME) {
       throw new Error("Informe um nome válido.");
     }
-    if (nivel !== CONFIG.NIVEIS.GESTOR_CONTEUDO && nivel !== CONFIG.NIVEIS.GESTOR_SISTEMA) {
+    if (nivel && nivel !== CONFIG.NIVEIS.GESTOR_CONTEUDO && nivel !== CONFIG.NIVEIS.GESTOR_SISTEMA) {
       throw new Error("Perfil desejado inválido. Use nível 1 ou 2.");
     }
-    if (ehAmpliacaoGestorConteudo && nivel !== CONFIG.NIVEIS.GESTOR_CONTEUDO) {
-      throw new Error("Gestor de Conteúdo pode solicitar somente novas Unidades do perfil 1.");
+    if (!usuario.cadastrado && !nivel) {
+      throw new Error("Informe o nível de acesso desejado.");
     }
-    if (nivel === CONFIG.NIVEIS.GESTOR_CONTEUDO && escopos.length === 0) {
-      throw new Error("Selecione ao menos um Município, Fórum ou Unidade para o perfil 1.");
+    if (!nivel && escopos.length === 0) {
+      throw new Error("Selecione uma alteração de nível, localidades adicionais ou ambos.");
+    }
+    if (!usuario.cadastrado && nivel === CONFIG.NIVEIS.GESTOR_CONTEUDO && escopos.length === 0) {
+      throw new Error("Selecione ao menos um Município, Fórum ou Unidade para o Gestor de Conteúdo.");
     }
     if (nivel === CONFIG.NIVEIS.GESTOR_SISTEMA && escopos.length) {
       throw new Error("O Gestor do Sistema possui escopo global e não recebe vínculos adicionais.");
@@ -940,7 +946,7 @@ function enviarFormularioAcesso(dados) {
       throw new Error("A justificativa é muito longa.");
     }
 
-    const escoposValidados = validarEscoposAcesso(escopos);
+    const escoposValidados = escopos.length ? validarEscoposAcesso(escopos) : [];
     if (ehAmpliacaoGestorConteudo) {
       const permitidas = new Set(usuario.unidadeIds || []);
       const catalogo = montarCatalogoEscoposAcesso();
@@ -974,9 +980,9 @@ function enviarFormularioAcesso(dados) {
       ID: id,
       EMAIL: usuario.email,
       NOME: nome,
-      NIVEL: nivel,
-      UNIDADE_ID: nivel === CONFIG.NIVEIS.GESTOR_CONTEUDO ? escoposValidados.filter(function(escopo) { return escopo.tipo === CONFIG.ACESSOS.UNIDADE; }).map(function(escopo) { return escopo.id; }).join(",") : "",
-      ESCOPOS: nivel === CONFIG.NIVEIS.GESTOR_CONTEUDO ? serializarEscoposAcesso(escoposValidados) : "",
+      NIVEL: nivel || "",
+      UNIDADE_ID: escoposValidados.filter(function(escopo) { return escopo.tipo === CONFIG.ACESSOS.UNIDADE; }).map(function(escopo) { return escopo.id; }).join(","),
+      ESCOPOS: serializarEscoposAcesso(escoposValidados),
       JUSTIFICATIVA: justificativa,
       STATUS: "PENDENTE",
       DATA: new Date()
@@ -1094,10 +1100,7 @@ function processarSolicitacaoAPI(id, novoStatus) {
     const solicitacao = localizarSolicitacaoAPI(sheetSolic, id);
     if (!solicitacao) throw new Error("Solicitação não encontrada.");
     if (solicitacao.status !== "PENDENTE") throw new Error("Esta solicitação já foi processada.");
-    if (solicitacao.nivel !== 1 && solicitacao.nivel !== 2) throw new Error("Nível solicitado inválido.");
-    if (solicitacao.nivel === 1 && solicitacao.escopos.length === 0) {
-      throw new Error("Solicitação de Gestor de Conteúdo sem escopos vinculados.");
-    }
+    if (solicitacao.nivel && solicitacao.nivel !== 1 && solicitacao.nivel !== 2) throw new Error("Nível solicitado inválido.");
     if (solicitacao.nivel === 2 && solicitacao.escopos.length > 0) {
       throw new Error("Solicitação de Gestor do Sistema não deve possuir escopos adicionais.");
     }
@@ -1107,7 +1110,7 @@ function processarSolicitacaoAPI(id, novoStatus) {
     }
 
     if (status === "APROVADO") {
-      if (solicitacao.nivel === 1) {
+      if (solicitacao.escopos.length) {
         solicitacao.escopos = validarEscoposAcesso(solicitacao.escopos);
       }
       const sheetUsuarios = DB.usuarios();
@@ -1118,6 +1121,13 @@ function processarSolicitacaoAPI(id, novoStatus) {
         return normalizarEmail(linha[mapaU.EMAIL - 1]) === solicitacao.email;
       });
       const nivelAnterior = indice >= 0 ? Number(dadosU[indice][mapaU.NIVEL - 1]) : 0;
+      const nivelFinal = solicitacao.nivel || nivelAnterior;
+      if (nivelFinal !== CONFIG.NIVEIS.GESTOR_CONTEUDO && nivelFinal !== CONFIG.NIVEIS.GESTOR_SISTEMA) {
+        throw new Error("A solicitação não define um nível de acesso válido.");
+      }
+      if (indice < 0 && nivelFinal === CONFIG.NIVEIS.GESTOR_CONTEUDO && solicitacao.escopos.length === 0) {
+        throw new Error("Novo Gestor de Conteúdo deve possuir ao menos uma localidade.");
+      }
       let usuarioId = indice >= 0
         ? textoSeguro(dadosU[indice][mapaU.ID - 1])
         : Utilities.getUuid();
@@ -1127,18 +1137,18 @@ function processarSolicitacaoAPI(id, novoStatus) {
       nova[mapaU.ID - 1] = usuarioId;
       nova[mapaU.NOME - 1] = solicitacao.nome;
       nova[mapaU.EMAIL - 1] = solicitacao.email;
-      nova[mapaU.NIVEL - 1] = solicitacao.nivel;
+      nova[mapaU.NIVEL - 1] = nivelFinal;
       nova[mapaU.ATIVO - 1] = "SIM";
       if (indice >= 0) sheetUsuarios.getRange(indice + 2, 1, 1, nova.length).setValues([nova]);
       else sheetUsuarios.appendRow(nova);
 
       if (indice >= 0 && nivelAnterior === CONFIG.NIVEIS.GESTOR_CONTEUDO &&
-          solicitacao.nivel === CONFIG.NIVEIS.GESTOR_CONTEUDO) {
+          nivelFinal === CONFIG.NIVEIS.GESTOR_CONTEUDO) {
         adicionarAcessosUnidades(usuarioId, solicitacao.escopos);
       } else {
         substituirAcessosUnidades(
           usuarioId,
-          solicitacao.nivel === CONFIG.NIVEIS.GESTOR_CONTEUDO ? solicitacao.escopos : []
+          nivelFinal === CONFIG.NIVEIS.GESTOR_CONTEUDO ? solicitacao.escopos : []
         );
       }
     }

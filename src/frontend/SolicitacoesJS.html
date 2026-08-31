@@ -5,17 +5,20 @@ function carregarSolicitacoes(){
     renderizarSolicitacoes(resp.dados||[]);
   },function(erro){mostrarToast((erro&&erro.message)||"Falha de comunicação.","error");});
 }
+var solicitacaoEmDetalhe=null;
 function celulaSolicitacao(valor){var td=document.createElement("td");td.textContent=valor===null||valor===undefined||String(valor).trim()===""?"-":String(valor);return td;}
 function renderizarSolicitacoes(lista){
   var tbody=document.getElementById("corpo-tabela-solicitacoes");if(!tbody)return;tbody.textContent="";
-  if(!lista.length){var tr0=document.createElement("tr"),td0=document.createElement("td");td0.colSpan=7;td0.textContent="Nenhuma solicitação pendente.";td0.style.textAlign="center";tr0.appendChild(td0);tbody.appendChild(tr0);return;}
+  if(!lista.length){var tr0=document.createElement("tr"),td0=document.createElement("td");td0.colSpan=4;td0.textContent="Nenhuma solicitação pendente.";td0.style.textAlign="center";tr0.appendChild(td0);tbody.appendChild(tr0);return;}
   lista.forEach(function(sol){
-    var tr=document.createElement("tr");tr.appendChild(celulaSolicitacao(sol.email));tr.appendChild(celulaSolicitacao(sol.nome));
-    tr.appendChild(celulaSolicitacao(sol.nivelSolicitado+" — "+(sol.nivelSolicitado===1?"Gestor de Conteúdo":"Gestor do Sistema")));
-    tr.appendChild(celulaSolicitacao((sol.acessosSolicitados||[]).join(", ")));tr.appendChild(celulaSolicitacao(sol.justificativa));tr.appendChild(celulaSolicitacao(sol.status));
-    var acoes=document.createElement("td");var aprovar=document.createElement("button");aprovar.type="button";aprovar.className="btn btn-primary";aprovar.textContent="Aprovar";aprovar.onclick=function(){aprovarSolicitacao(sol.id,sol.nivelSolicitado);};var rejeitar=document.createElement("button");rejeitar.type="button";rejeitar.className="btn btn-danger";rejeitar.textContent="Rejeitar";rejeitar.style.marginLeft="6px";rejeitar.onclick=function(){rejeitarSolicitacao(sol.id);};acoes.appendChild(aprovar);acoes.appendChild(rejeitar);tr.appendChild(acoes);tbody.appendChild(tr);
+    var tr=document.createElement("tr");tr.tabIndex=0;tr.style.cursor="pointer";tr.title="Clique para ver e decidir esta solicitação";
+    tr.appendChild(celulaSolicitacao(sol.nome));tr.appendChild(celulaSolicitacao(sol.email));tr.appendChild(celulaSolicitacao(sol.nivelTexto));tr.appendChild(celulaSolicitacao(sol.status));
+    tr.onclick=function(){abrirModalSolicitacao(sol);};tr.onkeydown=function(evento){if(evento.key==="Enter"||evento.key===" "){evento.preventDefault();abrirModalSolicitacao(sol);}};tbody.appendChild(tr);
   });
 }
-function aprovarSolicitacao(id,nivel){if(!confirm("Aprovar esta solicitação de nível "+nivel+"?"))return;API.aprovarSolicitacao(id,function(resp){if(resp&&resp.sucesso===true){mostrarToast("Solicitação aprovada.","success");carregarSolicitacoes();}else mostrarToast((resp&&resp.erro)||"Falha ao aprovar.","error");},function(erro){mostrarToast((erro&&erro.message)||"Falha de comunicação.","error");});}
-function rejeitarSolicitacao(id){if(!confirm("Rejeitar esta solicitação?"))return;API.rejeitarSolicitacao(id,function(resp){if(resp&&resp.sucesso===true){mostrarToast("Solicitação rejeitada.","info");carregarSolicitacoes();}else mostrarToast((resp&&resp.erro)||"Falha ao rejeitar.","error");},function(erro){mostrarToast((erro&&erro.message)||"Falha de comunicação.","error");});}
+function abrirModalSolicitacao(sol){solicitacaoEmDetalhe=sol;var alvo=document.getElementById("detalhes-solicitacao");alvo.textContent="";[["Nome",sol.nome],["E-mail",sol.email],["Nível de acesso",sol.nivelTexto],["Localidades solicitadas",(sol.acessosSolicitados||[]).join(" • ")||"Nenhuma"],["Justificativa",sol.justificativa||"Não informada"],["Status",sol.status]].forEach(function(item){var bloco=document.createElement("div");bloco.style.marginBottom="14px";var titulo=document.createElement("strong");titulo.textContent=item[0];var valor=document.createElement("div");valor.textContent=item[1];valor.style.marginTop="4px";valor.style.whiteSpace="pre-wrap";bloco.appendChild(titulo);bloco.appendChild(valor);alvo.appendChild(bloco);});document.getElementById("modal-solicitacao").classList.remove("hidden");}
+function fecharModalSolicitacao(){document.getElementById("modal-solicitacao").classList.add("hidden");solicitacaoEmDetalhe=null;}
+function decidirSolicitacao(status){if(!solicitacaoEmDetalhe||!confirm((status==="APROVADO"?"Aprovar":"Rejeitar")+" esta solicitação?"))return;var api=status==="APROVADO"?API.aprovarSolicitacao:API.rejeitarSolicitacao;api(solicitacaoEmDetalhe.id,function(resp){if(resp&&resp.sucesso===true){fecharModalSolicitacao();mostrarToast(status==="APROVADO"?"Solicitação aprovada.":"Solicitação rejeitada.",status==="APROVADO"?"success":"info");carregarSolicitacoes();}else mostrarToast((resp&&resp.erro)||"Falha ao processar solicitação.","error");},function(erro){mostrarToast((erro&&erro.message)||"Falha de comunicação.","error");});}
+function aprovarSolicitacaoAtual(){decidirSolicitacao("APROVADO");}
+function rejeitarSolicitacaoAtual(){decidirSolicitacao("REJEITADO");}
 </script>

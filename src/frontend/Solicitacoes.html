@@ -20,22 +20,27 @@ Arquivo: Solicitacoes.html
   <table class="data-table" id="tabela-solicitacoes">
     <thead>
       <tr>
-        <th>E-mail</th>
         <th>Nome</th>
-        <th>Nível</th>
-        <th>Escopos solicitados</th>
-        <th>Justificativa</th>
+        <th>E-mail</th>
+        <th>Nível de acesso</th>
         <th>Status</th>
-        <th>Ações</th>
       </tr>
     </thead>
 
     <tbody id="corpo-tabela-solicitacoes">
       <tr>
-        <td colspan="7" style="text-align: center; color: #64748b; padding: 20px;">
+        <td colspan="4" style="text-align: center; color: #64748b; padding: 20px;">
           Nenhuma solicitação encontrada.
         </td>
       </tr>
     </tbody>
   </table>
+</div>
+
+<div id="modal-solicitacao" class="modal hidden" onclick="if(event.target===this)fecharModalSolicitacao()">
+  <div class="modal-content" style="width:min(620px,95vw)">
+    <div class="modal-header"><h2>Detalhes da solicitação</h2><button type="button" class="modal-close" onclick="fecharModalSolicitacao()">×</button></div>
+    <div class="modal-body" id="detalhes-solicitacao"></div>
+    <div class="modal-footer"><button type="button" class="btn" onclick="fecharModalSolicitacao()">Fechar</button><button id="btn-rejeitar-solicitacao" type="button" class="btn btn-danger" onclick="rejeitarSolicitacaoAtual()">Rejeitar</button><button id="btn-aprovar-solicitacao" type="button" class="btn btn-primary" onclick="aprovarSolicitacaoAtual()">Aprovar</button></div>
+  </div>
 </div>

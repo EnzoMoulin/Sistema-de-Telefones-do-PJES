@@ -20,14 +20,15 @@
           <input id="acesso-email" readonly aria-readonly="true">
         </div>
         <div class="fa-field fa-full">
-          <label for="acesso-nivel">Perfil desejado *</label>
+          <label for="acesso-nivel">Alteração de nível de acesso</label>
           <select id="acesso-nivel" onchange="alternarUnidadesSolicitacao()">
+            <option value="">Não solicitar alteração de nível</option>
             <option value="1">1 — Gestor de Conteúdo</option>
             <option value="2">2 — Gestor do Sistema</option>
           </select>
         </div>
         <div id="grupo-acesso-unidades" class="fa-field fa-full">
-          <label>Escopos desejados *</label>
+          <label>Localidades solicitadas</label>
           <div id="acesso-unidades" class="fa-unidades" aria-live="polite">Carregando Municípios, Fóruns e Unidades...</div>
         </div>
         <div class="fa-field fa-full">
@@ -52,9 +53,8 @@ function atualizarIdentidadeFormularioAcesso(){
   if(nome && !nome.value && usuario.nome && usuario.nome !== "Visitante") nome.value = usuario.nome;
   var nivel = document.getElementById("acesso-nivel");
   if(nivel && usuario.logado === true && usuario.perfil === "GESTOR_CONTEUDO"){
-    nivel.value = "1";
-    nivel.disabled = true;
-  } else if(nivel) nivel.disabled = false;
+    nivel.value = "";
+  } else if(nivel) nivel.value = "1";
 }
 
 function carregarUnidadesFormularioAcesso(){
@@ -80,7 +80,7 @@ function carregarUnidadesFormularioAcesso(){
 function alternarUnidadesSolicitacao(){
   var nivel = Number(document.getElementById("acesso-nivel")?.value || 0);
   var grupo = document.getElementById("grupo-acesso-unidades");
-  if(grupo) grupo.style.display = nivel === 1 ? "" : "none";
+  if(grupo) grupo.style.display = nivel === 2 ? "none" : "";
   if(nivel === 2) document.querySelectorAll('input[name="acesso-escopo"]').forEach(function(el){ el.checked = false; });
 }
 
@@ -97,7 +97,9 @@ function enviarFormularioAcesso(){
   var escopos = Array.from(document.querySelectorAll('input[name="acesso-escopo"]:checked')).map(function(el){ var partes=el.value.split(":"); return {tipo:partes[0],id:partes.slice(1).join(":")}; });
   var justificativa = String(document.getElementById("acesso-justificativa")?.value || "").trim();
   if(nome.length < 3){ mensagemFormularioAcesso("Informe seu nome completo.", false); return; }
-  if(nivel === 1 && !escopos.length){ mensagemFormularioAcesso("Selecione ao menos um Município, Fórum ou Unidade.", false); return; }
+  var usuario = typeof usuarioAtual !== "undefined" ? usuarioAtual : {};
+  if(!nivel && !escopos.length){ mensagemFormularioAcesso("Solicite uma alteração de nível, localidades adicionais ou ambos.", false); return; }
+  if(usuario.cadastrado !== true && nivel === 1 && !escopos.length){ mensagemFormularioAcesso("Selecione ao menos um Município, Fórum ou Unidade para o Gestor de Conteúdo.", false); return; }
   var botao = document.getElementById("btn-enviar-formulario-acesso"); if(botao) botao.disabled = true;
   API.enviarFormularioAcesso({nome:nome,nivel:nivel,escopos:escopos,justificativa:justificativa}, function(resp){
     if(botao) botao.disabled = false;

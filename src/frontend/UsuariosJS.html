@@ -19,13 +19,12 @@ function carregarUsuarios() {
 
 function renderizarUsuarios(lista) {
   var tbody = document.getElementById("corpo-tabela-usuarios"); if (!tbody) return; tbody.textContent = "";
-  if (!lista.length) { var tr0 = document.createElement("tr"), td0 = document.createElement("td"); td0.colSpan = 5; td0.textContent = "Nenhum usuário cadastrado."; tr0.appendChild(td0); tbody.appendChild(tr0); return; }
+  if (!lista.length) { var tr0 = document.createElement("tr"), td0 = document.createElement("td"); td0.colSpan = 4; td0.textContent = "Nenhum usuário cadastrado."; tr0.appendChild(td0); tbody.appendChild(tr0); return; }
   lista.forEach(function(usuario) {
     var tr = document.createElement("tr"); tr.tabIndex = 0; tr.style.cursor = "pointer"; tr.title = "Clique para gerenciar este usuário";
     function celula(texto) { var td = document.createElement("td"); td.textContent = texto || "-"; tr.appendChild(td); }
     celula(usuario.nome); celula(usuario.email);
     celula(usuario.nivel === 1 ? "Gestor de Conteúdo" : "Gestor do Sistema");
-    celula(usuario.nivel === 2 ? "Acesso global" : (usuario.unidades || []).map(textoEscopoUsuario).join(" • "));
     celula(usuario.ativo === true ? "Sim" : "Não");
     tr.onclick = function() { abrirModalEditarUsuario(usuario); };
     tr.onkeydown = function(evento) { if (evento.key === "Enter" || evento.key === " ") { evento.preventDefault(); abrirModalEditarUsuario(usuario); } };
