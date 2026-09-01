@@ -1,4 +1,4 @@
-# Sistema Inteligente de Consulta e Gerenciamento de Contatos do Poder Judiciário do Estado do Espírito Santo
+# Diretório Institucional de Contatos - PJES
 
 Sistema Web App do **Poder Judiciário do Estado do Espírito Santo (TJES)** para consulta e gestão de contatos institucionais, construído com **Google Apps Script + Google Sheets**.
 

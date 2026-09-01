@@ -91,8 +91,10 @@
   function linkEndereco(endereco) {
     var texto = String(endereco || "").trim();
     if (!texto) return '<span class="fc-muted">Endereço não informado</span>';
-    return '<a class="fc-endereco" href="https://www.google.com/maps/search/?api=1&query=' +
-      encodeURIComponent(texto) + '" target="_blank" rel="noopener noreferrer">📍 ' + esc(texto) + "</a>";
+    return '<span class="fc-address-inline"><a class="fc-endereco" href="https://www.google.com/maps/search/?api=1&query=' +
+      encodeURIComponent(texto) + '" target="_blank" rel="noopener noreferrer">📍 ' + esc(texto) + "</a>" +
+      '<button type="button" class="fc-icon-btn fc-copy-btn" data-copy-value="' + esc(texto) +
+      '" data-copy-label="Endereço" title="Copiar endereço" aria-label="Copiar endereço">⧉</button></span>';
   }
 
   function todosNos(lista, saida) {
@@ -154,6 +156,57 @@
     return f ? encontrarNo(f.nos || [], estado.noId) : null;
   }
 
+  function caminhoAteNo(lista, id, caminho) {
+    caminho = caminho || [];
+    for (var i = 0; i < (lista || []).length; i++) {
+      var atual = caminho.concat(lista[i]);
+      if (lista[i].id === id) return atual;
+      var encontrado = caminhoAteNo(lista[i].filhos || [], id, atual);
+      if (encontrado) return encontrado;
+    }
+    return null;
+  }
+
+  function breadcrumbHtml(municipio, forum, no) {
+    var itens = [
+      { tipo: "MUNICIPIO", id: municipio.id, nome: municipio.nome },
+      { tipo: "FORUM", id: forum.id, nome: forum.nome }
+    ];
+    if (no) {
+      (caminhoAteNo(forum.nos || [], no.id, []) || []).forEach(function (item) {
+        itens.push({ tipo: "NO", id: item.id, nome: item.nome });
+      });
+    }
+
+    return '<nav class="fc-breadcrumb" aria-label="Caminho da localidade">' + itens.map(function (item, indice) {
+      var ultimo = indice === itens.length - 1;
+      var conteudo = ultimo
+        ? '<span class="fc-breadcrumb-current" aria-current="page">' + esc(item.nome) + "</span>"
+        : '<button type="button" data-breadcrumb-type="' + esc(item.tipo) + '" data-breadcrumb-id="' +
+          esc(item.id) + '">' + esc(item.nome) + "</button>";
+      return conteudo + (ultimo ? "" : '<span class="fc-breadcrumb-separator" aria-hidden="true">›</span>');
+    }).join("") + "</nav>";
+  }
+
+  function vincularBreadcrumbs() {
+    document.querySelectorAll("[data-breadcrumb-type]").forEach(function (btn) {
+      btn.onclick = function () {
+        var tipo = btn.getAttribute("data-breadcrumb-type");
+        var id = btn.getAttribute("data-breadcrumb-id");
+        if (tipo === "MUNICIPIO") {
+          estado.municipioId = id;
+          estado.forumId = "";
+          estado.noId = "";
+          renderForuns();
+        } else if (tipo === "FORUM") {
+          estado.forumId = id;
+          estado.noId = "";
+          renderForum();
+        } else if (tipo === "NO") abrirNo(id);
+      };
+    });
+  }
+
   function acessosExplicitos() {
     return Array.isArray(usuario().acessos) ? usuario().acessos : [];
   }
@@ -203,6 +256,50 @@
     else console.log(msg);
   }
 
+  function copiarTexto(texto, rotulo) {
+    var valor = String(texto || "").trim();
+    if (!valor) {
+      mostrarToastSeguro("Não há conteúdo para copiar.", "warning");
+      return;
+    }
+
+    function sucesso() {
+      mostrarToastSeguro((rotulo || "Conteúdo") + " copiado.", "success");
+    }
+
+    function copiarComFallback() {
+      var area = document.createElement("textarea");
+      area.value = valor;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      try {
+        if (document.execCommand("copy")) sucesso();
+        else mostrarToastSeguro("Não foi possível copiar.", "error");
+      } catch (erro) {
+        mostrarToastSeguro("Não foi possível copiar.", "error");
+      } finally {
+        document.body.removeChild(area);
+      }
+    }
+
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      navigator.clipboard.writeText(valor).then(sucesso).catch(copiarComFallback);
+    } else copiarComFallback();
+  }
+
+  function vincularCopias() {
+    document.querySelectorAll("[data-copy-value]").forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        copiarTexto(btn.getAttribute("data-copy-value"), btn.getAttribute("data-copy-label"));
+      };
+    });
+  }
+
   function injectStyle() {
     if (document.getElementById("fc-navigation-style")) return;
     var style = document.createElement("style");
@@ -211,7 +308,8 @@
       .fc-map{width:100%;height:100%;min-height:0;border-radius:12px;overflow:hidden;background:#e2e8f0;border:1px solid #cbd5e1;box-shadow:0 4px 12px rgba(15,23,42,.10)}
       .fc-panel{width:100%;height:100%;min-height:0;overflow-y:auto;background:#fff;border:1px solid #cbd5e1;border-radius:16px;padding:clamp(16px,2vw,24px);box-shadow:0 6px 18px rgba(15,23,42,.11)}
       .fc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-      .fc-title{font-size:21px;font-weight:800;color:#0f172a;margin:0 0 5px}.fc-subtitle{color:#64748b;font-size:13px;margin:0;line-height:1.5}
+      .fc-title{font-size:21px;font-weight:800;color:#0f172a;margin:0 0 5px}.fc-subtitle{color:#64748b;font-size:13px;margin:0;line-height:1.5}.fc-subtitle--intro{font-size:14px!important;line-height:1.65;max-width:680px}
+      .fc-breadcrumb{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin:0;color:#64748b;font-size:13px;line-height:1.5}.fc-breadcrumb button{appearance:none;border:0;background:transparent;padding:0;color:#1d4ed8;font:inherit;font-weight:700;cursor:pointer}.fc-breadcrumb button:hover{text-decoration:underline}.fc-breadcrumb-separator{color:#94a3b8}.fc-breadcrumb-current{color:#475569;font-weight:700}
       .fc-toolbar{display:flex;gap:8px;flex-wrap:wrap}.fc-btn{appearance:none;border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:9px;padding:8px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
       .fc-btn:hover{background:#f8fafc}.fc-btn--primary{background:#1d4ed8;border-color:#1d4ed8;color:#fff}.fc-btn--primary:hover{background:#1e40af}
       .fc-btn--danger{border-color:#fecaca;color:#b91c1c;background:#fff}.fc-btn--danger:hover{background:#fef2f2}.fc-btn:disabled{opacity:.55;cursor:not-allowed}
@@ -223,21 +321,21 @@
       .fc-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.fc-pill{font-size:11px;background:#f1f5f9;color:#334155;border-radius:999px;padding:4px 8px}.fc-pill--ok{background:#dcfce7;color:#166534}.fc-pill--locked{background:#fff7ed;color:#9a3412}.fc-pill-type{background:#dbeafe;color:#1e40af}
       .fc-back{border:0;background:transparent;color:#1d4ed8;font-weight:700;padding:0;margin-bottom:12px;cursor:pointer}
       .fc-contatos{display:grid;gap:9px}.fc-contato{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:#f8fafc;border:1px solid #dbe3ed;border-radius:10px}
-      .fc-contato-main{min-width:0}.fc-contato h4{margin:4px 0 0;font-size:14px;color:#0f172a}.fc-contato-tipo{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#475569}
+      .fc-contato-main{min-width:0}.fc-contato h4{margin:4px 0 0;font-size:14px;color:#0f172a}.fc-contato-tipo{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#475569}.fc-contato-observacao{margin:5px 0 0;font-size:11px;line-height:1.35;color:#64748b}.fc-contato-observacao--provisoria{color:#9a3412;font-weight:700}
       .fc-contato-side{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}.fc-contato-valor{color:#1d4ed8;font-size:14px;font-weight:700;text-decoration:none;overflow-wrap:anywhere}.fc-contato-actions{display:flex;gap:5px}
-      .fc-icon-btn{border:1px solid #dbe3ed;background:#fff;border-radius:8px;padding:5px 7px;cursor:pointer;font-size:12px}.fc-icon-btn:hover{background:#f1f5f9}.fc-icon-btn--danger{color:#b91c1c;border-color:#fecaca}
-      .fc-endereco{display:inline-block;color:#1d4ed8;font-size:13px;line-height:1.45;text-decoration:none}.fc-endereco:hover{text-decoration:underline}.fc-muted{color:#64748b;font-size:13px}
+      .fc-icon-btn{border:1px solid #dbe3ed;background:#fff;border-radius:8px;padding:5px 7px;cursor:pointer;font-size:12px}.fc-icon-btn:hover{background:#f1f5f9}.fc-icon-btn--danger{color:#b91c1c;border-color:#fecaca}.fc-copy-btn{color:#1d4ed8;font-weight:800}
+      .fc-address-inline{display:inline-flex;align-items:center;gap:6px;max-width:100%;vertical-align:middle}.fc-endereco{display:inline-block;color:#1d4ed8;font-size:13px;line-height:1.45;text-decoration:none;overflow-wrap:anywhere}.fc-endereco:hover{text-decoration:underline}.fc-muted{color:#64748b;font-size:13px}
       .fc-inherit{margin-top:10px;padding:10px 12px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;color:#475569;font-size:12px}
       .fc-empty{padding:20px;border:1px dashed #cbd5e1;border-radius:12px;color:#64748b;text-align:center}.fc-error{padding:16px;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:12px;line-height:1.5}
       .fc-access{margin-top:10px;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:8px;padding:7px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
       .fc-map-legenda{padding:7px 9px;background:rgba(255,255,255,.94);border:1px solid #cbd5e1;border-radius:7px;box-shadow:0 2px 8px rgba(15,23,42,.12);font-size:11px;color:#334155}.fc-map-legenda span{display:block;margin:2px 0}.fc-map-legenda .tem-contato{color:#2563eb}.fc-map-legenda .sem-contato{color:#94a3b8}
-      .fc-total-comarcas{display:inline-flex;margin:12px 0 8px;background:#dbeafe;color:#1e40af;font-weight:800}.fc-print-all{width:100%;justify-content:center;margin-bottom:12px}.fc-address-row{margin-top:10px}.fc-address-row .fc-inherit{margin-top:0}
+      .fc-total-comarcas{display:inline-flex;margin:12px 0 8px;background:#dbeafe;color:#1e40af;font-weight:800}.fc-print-all{width:100%;min-height:44px;display:flex;align-items:center;justify-content:center;line-height:1.2;margin-bottom:12px}.fc-print-footer{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin-top:22px;padding-top:16px;border-top:1px solid #e2e8f0}.fc-print-footer .fc-btn{min-height:42px;display:inline-flex;align-items:center;justify-content:center;padding-inline:18px}.fc-address-row{margin-top:10px}.fc-address-row .fc-inherit{margin-top:0}
       .fc-dialog-backdrop{position:fixed;inset:0;z-index:10050;background:rgba(15,23,42,.52);display:flex;align-items:center;justify-content:center;padding:18px}
       .fc-dialog{width:min(560px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:16px;padding:20px;box-shadow:0 24px 64px rgba(15,23,42,.28)}
       .fc-dialog h3{margin:0 0 4px;color:#0f172a}.fc-dialog p{margin:0 0 16px;color:#64748b;font-size:13px}.fc-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.fc-field{display:grid;gap:5px}.fc-field--full{grid-column:1/-1}.fc-field label{font-size:12px;font-weight:700;color:#334155}.fc-field input,.fc-field select,.fc-field textarea{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:9px;padding:9px 10px;font:inherit}.fc-field textarea{min-height:86px;resize:vertical}
       .fc-dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap}
       @media(max-width:680px){.fc-form-grid{grid-template-columns:1fr}.fc-field--full{grid-column:auto}.fc-contato{align-items:flex-start;flex-direction:column}.fc-contato-side{justify-content:flex-start}}
-      @media print{.fc-back,.fc-search,.fc-select,.fc-toolbar,.fc-access{display:none!important}.fc-panel{height:auto;overflow:visible;border:0;box-shadow:none}.fc-contato,.fc-card{break-inside:avoid}}
+      @media print{.fc-back,.fc-search,.fc-select,.fc-toolbar,.fc-access,.fc-print-footer,.fc-copy-btn{display:none!important}.fc-panel{height:auto;overflow:visible;border:0;box-shadow:none}.fc-contato,.fc-card{break-inside:avoid}}
     `;
     document.head.appendChild(style);
   }
@@ -344,20 +442,23 @@
   }
 
   function acoesLocalidade(tipo, item, pode, tipoNo) {
-    var rotuloImpressao = tipo === "FORUM" ? "Fórum" : (tipoNo === "Setor" ? "Setor" : "Unidade");
-    var idImpressao = tipo === "FORUM" ? "fc-print-forum" : "fc-print-unit";
-    var artigoImpressao = rotuloImpressao === "Unidade" ? "da" : "do";
-    var html = '<div class="fc-toolbar">';
+    var botoes = [];
     if (ehGestor() && pode) {
-      html += '<button type="button" class="fc-btn" data-edit-address="' + esc(tipo) + '" data-local-id="' + esc(item.id) + '">✎ Endereço</button>';
+      botoes.push('<button type="button" class="fc-btn" data-edit-address="' + esc(tipo) + '" data-local-id="' + esc(item.id) + '">✎ Endereço</button>');
+      botoes.push('<button type="button" class="fc-btn" data-add-locality="' + (tipo === "FORUM" ? "UNIDADE" : "SETOR") + '">' +
+        (tipo === "FORUM" ? "＋ Unidade" : "＋ Setor") + "</button>");
+      botoes.push('<button type="button" class="fc-btn fc-btn--primary" data-add-contact="' + esc(tipo) + '" data-local-id="' + esc(item.id) + '">＋ Contato</button>');
     }
-    html += '<button type="button" class="fc-btn" id="' + idImpressao + '" title="Imprimir / Salvar PDF dos contatos ' + artigoImpressao + " " + rotuloImpressao + '">🖨 Imprimir / Salvar PDF</button>';
-    if (ehGestor() && pode) {
-      html += '<button type="button" class="fc-btn" data-add-locality="' + (tipo === "FORUM" ? "UNIDADE" : "SETOR") + '">' +
-        (tipo === "FORUM" ? "＋ Unidade" : "＋ Setor") + "</button>" +
-        '<button type="button" class="fc-btn fc-btn--primary" data-add-contact="' + esc(tipo) + '" data-local-id="' + esc(item.id) + '">＋ Contato</button>';
-    }
-    return html + "</div>";
+    return botoes.length ? '<div class="fc-toolbar">' + botoes.join("") + "</div>" : "";
+  }
+
+  function botaoImpressaoLocalidade(tipo, tipoNo) {
+    var rotulo = tipo === "FORUM" ? "Localidade" : (tipoNo === "Setor" ? "Setor" : "Unidade");
+    var artigo = rotulo === "Unidade" ? "da" : "do";
+    var id = tipo === "FORUM" ? "fc-print-forum" : "fc-print-unit";
+    return '<div class="fc-print-footer"><button type="button" class="fc-btn" data-scroll-top title="Voltar ao início deste painel">↑ Voltar ao topo</button>' +
+      '<button type="button" class="fc-btn" id="' + id + '" title="Imprimir / Salvar PDF dos contatos ' +
+      artigo + " " + rotulo + '">🖨 Imprimir / Salvar PDF</button></div>';
   }
 
   function contatosCards(contatos, contexto) {
@@ -372,24 +473,39 @@
         ? '<a class="fc-contato-valor" href="' + esc(href) + '" ' +
           (externo ? 'target="_blank" rel="noopener noreferrer"' : "") + ">" + esc(valor) + "</a>"
         : '<span class="fc-contato-valor">' + esc(valor) + "</span>";
-      var acoes = pode
-        ? '<div class="fc-contato-actions">' +
-          '<button type="button" class="fc-icon-btn" data-edit-contact="' + esc(c.id) + '" title="Editar contato">✎</button>' +
-          '<button type="button" class="fc-icon-btn fc-icon-btn--danger" data-delete-contact="' + esc(c.id) + '" title="Excluir contato">🗑</button>' +
-          "</div>"
-        : "";
+      var acoes = '<div class="fc-contato-actions">' +
+        '<button type="button" class="fc-icon-btn fc-copy-btn" data-copy-value="' + esc(valor) +
+        '" data-copy-label="' + esc(tipo) + '" title="Copiar ' + esc(tipo) + '" aria-label="Copiar ' + esc(tipo) + '">⧉</button>' +
+        (pode
+          ? '<button type="button" class="fc-icon-btn" data-edit-contact="' + esc(c.id) + '" title="Editar contato">✎</button>' +
+            '<button type="button" class="fc-icon-btn fc-icon-btn--danger" data-delete-contact="' + esc(c.id) + '" title="Excluir contato">🗑</button>'
+          : "") +
+        "</div>";
       var descricao = String(c.descricao || "").trim();
       var descricaoHtml = descricao && descricao.toLocaleLowerCase("pt-BR") !== String(tipo).toLocaleLowerCase("pt-BR")
         ? "<h4>" + esc(descricao) + "</h4>"
         : "";
+      var observacao = String(c.observacao || "").trim();
+      var observacaoHtml = observacao
+        ? '<p class="fc-contato-observacao' + (/contato provis[oó]rio/i.test(observacao) ? ' fc-contato-observacao--provisoria' : '') + '">' + esc(observacao) + "</p>"
+        : "";
       return '<article class="fc-contato">' +
-        '<div class="fc-contato-main"><span class="fc-contato-tipo">' + esc(tipo) + "</span>" + descricaoHtml + "</div>" +
+        '<div class="fc-contato-main"><span class="fc-contato-tipo">' + esc(tipo) + "</span>" + descricaoHtml + observacaoHtml + "</div>" +
         '<div class="fc-contato-side">' + valorHtml + acoes + "</div></article>";
     }).join("") + "</div>";
   }
 
   function bindAcoesContexto(contexto) {
     vincularSolicitacoes();
+    vincularCopias();
+
+    document.querySelectorAll("[data-scroll-top]").forEach(function (btn) {
+      btn.onclick = function () {
+        var painel = document.querySelector("#consulta-detalhes .fc-panel");
+        if (painel && typeof painel.scrollTo === "function") painel.scrollTo({ top: 0, behavior: "smooth" });
+        else if (host()) host().scrollIntoView({ behavior: "smooth", block: "start" });
+      };
+    });
 
     document.querySelectorAll("[data-add-contact]").forEach(function (btn) {
       btn.onclick = function (e) {
@@ -444,9 +560,8 @@
 
     var municipios = (estado.dados && estado.dados.municipios) || [];
     var conteudo = '<div class="fc-head"><div><h2 class="fc-title">Contatos do PJES</h2>' +
-      '<p class="fc-subtitle">Consulte a estrutura completa por Comarca, Fórum, Unidade e Setor. Selecione uma Comarca no mapa ao lado ou no menu suspenso abaixo.</p></div></div>' +
+      '<p class="fc-subtitle fc-subtitle--intro">Consulte a estrutura completa por Comarca, Localidade, Unidade e Setor. Selecione uma Comarca no mapa ao lado ou no menu suspenso abaixo.</p></div></div>' +
       (municipios.length ? '<span class="fc-pill fc-total-comarcas">' + esc(rotuloQuantidade(municipios.length, "Comarca", "Comarcas")) + "</span>" : "") +
-      '<input id="fc-search" class="fc-search" type="search" placeholder="Buscar Fórum, Unidade, Setor, telefone ou e-mail">' +
       '<select id="fc-comarca" class="fc-select">' + opcoesComarcas(municipios, "") + "</select>" +
       '<button type="button" class="fc-btn fc-print-all" id="fc-print-all" title="Imprimir / Salvar PDF de todos os contatos">🖨 Imprimir / Salvar PDF</button>';
 
@@ -454,19 +569,6 @@
 
     var seletor = document.getElementById("fc-comarca");
     if (seletor) seletor.onchange = function () { if (seletor.value) abrirMunicipio(seletor.value); };
-
-    var busca = document.getElementById("fc-search");
-    if (busca) {
-      busca.oninput = function () {
-        var v = busca.value.trim();
-        clearTimeout(estado.buscaTimer);
-        estado.buscaTimer = setTimeout(function () {
-          if (!v) return recarregar({ termo: "", mostrarCarregando: false });
-          if (v.length < 2) return;
-          recarregar({ termo: v, mostrarCarregando: false });
-        }, 280);
-      };
-    }
 
     var imprimir = document.getElementById("fc-print-all");
     if (imprimir) imprimir.onclick = imprimirTudo;
@@ -488,7 +590,7 @@
     if (!c || !m) return;
 
     var resumo = resumoQuantidades([
-      rotuloQuantidade(m.qtdForuns, "Fórum", "Fóruns"),
+      rotuloQuantidade(m.qtdForuns, "Localidade", "Localidades"),
       rotuloQuantidade(m.qtdUnidades, "Unidade", "Unidades"),
       rotuloQuantidade((m.foruns || []).reduce(function (total, f) { return total + qtdSetores(f.nos || []); }, 0), "Setor", "Setores"),
       rotuloQuantidade(m.qtdContatos, "Contato", "Contatos")
@@ -497,7 +599,7 @@
       '<div class="fc-head"><div><h2 class="fc-title">' + esc(m.nome) + "</h2>" +
       '<p class="fc-subtitle">' + esc(resumo) + "</p></div></div>" +
       '<select id="fc-comarca" class="fc-select">' + opcoesComarcas(estado.dados.municipios || [], m.id) + "</select>" +
-      '<div class="fc-section"><h3>Fóruns</h3>' +
+      '<div class="fc-section"><h3>Fóruns e órgãos</h3>' +
       (m.foruns || []).map(function (f) {
         var acesso = forumTemAlgumAcesso(f);
         var podeForum = podeGerenciarForum(f);
@@ -522,6 +624,7 @@
       el.onclick = function () { abrirForum(el.getAttribute("data-forum")); };
     });
     vincularSolicitacoes();
+    vincularCopias();
   }
 
   function abrirForum(id) {
@@ -556,10 +659,10 @@
 
     c.innerHTML = '<button class="fc-back" id="fc-back-municipio">← ' + esc(m.nome) + "</button>" +
       '<div class="fc-head"><div><h2 class="fc-title">' + esc(f.nome) + "</h2>" +
-      '<p class="fc-subtitle">' + esc(m.nome) + "</p></div></div>" +
-      '<div class="fc-meta"><span class="fc-pill fc-pill-type">Fórum</span>' +
+      breadcrumbHtml(m, f, null) + "</div></div>" +
+      '<div class="fc-meta"><span class="fc-pill fc-pill-type">Localidade</span>' +
       badgeQuantidade(f.qtdUnidades, "Unidade", "Unidades") + "</div>" +
-      '<div class="fc-address-row"><div class="fc-inherit"><strong>Endereço do Fórum:</strong> ' + linkEndereco(f.endereco) +
+      '<div class="fc-address-row"><div class="fc-inherit"><strong>Endereço da localidade:</strong> ' + linkEndereco(f.endereco) +
       (f.cep ? " • CEP " + esc(f.cep) : "") + "</div></div>" +
       acoesLocalidade("FORUM", f, pode) +
       (pode ? "" : botaoSolicitar("FORUM", f.id)) +
@@ -567,13 +670,14 @@
       contatosCards(f.contatos || [], contexto) + "</div>" +
       '<div class="fc-section"><div class="fc-section-title"><h3>Unidades e Setores</h3></div>' +
       ((f.nos || []).length ? (f.nos || []).map(cardNo).join("") : '<div class="fc-empty">Nenhuma Unidade cadastrada.</div>') +
-      "</div>";
+      "</div>" + botaoImpressaoLocalidade("FORUM");
 
     document.getElementById("fc-back-municipio").onclick = renderForuns;
     document.getElementById("fc-print-forum").onclick = imprimirForum;
     document.querySelectorAll("[data-no]").forEach(function (el) {
       el.onclick = function () { abrirNo(el.getAttribute("data-no")); };
     });
+    vincularBreadcrumbs();
     bindAcoesContexto(contexto);
   }
 
@@ -603,17 +707,16 @@
     var tipoTela = String(no.tipo || "").toUpperCase() === "SETOR" ? "Setor" : "Unidade";
     var pode = podeGerenciarNo(no);
     var contexto = { tipo: "UNIDADE", item: no, forumId: f.id, noId: no.id };
-    var caminho = [m.nome, f.nome].concat(no.caminhoNomes || []).join(" › ");
 
     c.innerHTML =
       '<button class="fc-back" id="fc-back-no">← ' + esc(pai ? pai.nome : f.nome) + "</button>" +
       '<div class="fc-head"><div><h2 class="fc-title">' + esc(no.nome) + "</h2>" +
-      '<p class="fc-subtitle">' + esc(caminho) + "</p></div></div>" +
+      breadcrumbHtml(m, f, no) + "</div></div>" +
       '<div class="fc-meta"><span class="fc-pill fc-pill-type">' + esc(tipo) + "</span>" +
       badgeQuantidade(qtdSetores(no.filhos || []), "Setor", "Setores") + "</div>" +
       '<div class="fc-address-row"><div class="fc-inherit"><strong>Endereço:</strong> ' + linkEndereco(no.enderecoExibicao) +
       (no.cepExibicao ? " • CEP " + esc(no.cepExibicao) : "") +
-      (no.endereco ? "" : " <span class=\"fc-muted\">(" + (pai ? "herdado da Unidade" : "herdado do Fórum") + ")</span>") + "</div></div>" +
+      (no.endereco ? "" : " <span class=\"fc-muted\">(" + (pai ? "herdado da Unidade" : "herdado da Localidade") + ")</span>") + "</div></div>" +
       acoesLocalidade("UNIDADE", no, pode, tipoTela) +
       (pode ? "" : botaoSolicitar("UNIDADE", no.id)) +
       '<div class="fc-section"><div class="fc-section-title"><h3>Contatos ' + (tipoTela === "Setor" ? "deste setor" : "desta Unidade") + "</h3></div>" +
@@ -621,7 +724,8 @@
       ((no.filhos || []).length
         ? '<div class="fc-section"><div class="fc-section-title"><h3>Setores</h3></div>' +
           no.filhos.map(cardNo).join("") + "</div>"
-        : "");
+        : "") +
+      botaoImpressaoLocalidade("UNIDADE", tipoTela);
 
     document.getElementById("fc-back-no").onclick = function () {
       if (pai) abrirNo(pai.id);
@@ -631,6 +735,7 @@
     document.querySelectorAll("[data-no]").forEach(function (el) {
       el.onclick = function () { abrirNo(el.getAttribute("data-no")); };
     });
+    vincularBreadcrumbs();
     bindAcoesContexto(contexto);
   }
 
@@ -851,10 +956,12 @@
   function contatoPrint(c) {
     var tipo = fmtTipoContato(c.tipo);
     var descricao = String(c.descricao || "").trim();
+    var observacao = String(c.observacao || "").trim();
     var complemento = descricao && descricao.toLocaleLowerCase("pt-BR") !== String(tipo).toLocaleLowerCase("pt-BR")
       ? " — " + printEsc(descricao)
       : "";
-    return '<li><strong>' + printEsc(tipo) + ":</strong> " + printEsc(c.valor || "") + complemento + "</li>";
+    var nota = observacao ? '<small class="note">' + printEsc(observacao) + "</small>" : "";
+    return '<li><strong>' + printEsc(tipo) + ":</strong> " + printEsc(c.valor || "") + complemento + nota + "</li>";
   }
 
   function noPrint(no, nivel) {
@@ -892,7 +999,7 @@
       "body{font-family:Arial,Helvetica,sans-serif;color:#0f172a;margin:24px;line-height:1.45}" +
       "h1{font-size:22px;margin:0 0 4px}h2{font-size:18px;border-bottom:2px solid #0f172a;padding-bottom:5px;margin-top:24px}" +
       "h3,h4,h5,h6{font-size:15px;margin:16px 0 4px}.meta{color:#64748b;font-size:11px;margin:0 0 8px}.muted{color:#94a3b8;font-style:italic;font-size:12px}" +
-      "ul{margin:5px 0 10px;padding-left:20px}li{font-size:12px;margin:2px 0}.forum{break-before:auto}.unit{break-inside:auto;page-break-inside:auto;border-left:2px solid #e2e8f0;padding-left:10px;margin:9px 0}.unit>h3,.unit>h4,.unit>h5,.unit>h6{break-after:avoid-page;page-break-after:avoid}.unit>ul{break-inside:avoid-page;page-break-inside:avoid}" +
+      "ul{margin:5px 0 10px;padding-left:20px}li{font-size:12px;margin:2px 0}.note{display:block;color:#64748b;font-size:9px;margin-top:1px}.forum{break-before:auto}.unit{break-inside:auto;page-break-inside:auto;border-left:2px solid #e2e8f0;padding-left:10px;margin:9px 0}.unit>h3,.unit>h4,.unit>h5,.unit>h6{break-after:avoid-page;page-break-after:avoid}.unit>ul{break-inside:avoid-page;page-break-inside:avoid}" +
       "@media print{@page{size:A4 portrait;margin:12mm}html,body{margin:0;padding:0}.forum,.unit{break-before:auto;page-break-before:auto}}";
     var html = '<!doctype html><html><head><meta charset="utf-8"><title>' + printEsc(titulo) +
       "</title><style>" + css + "</style></head><body><h1>" + printEsc(titulo) +

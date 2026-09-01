@@ -71,31 +71,12 @@ Arquivo: Sidebar.html
   </div>
 
   <div class="sidebar-footer">
+    <div id="sidebar-user" class="sidebar-user"><?= ehContextoAdmin ? 'Sem acesso administrativo' : 'Acesso Público' ?></div>
+    <div id="sidebar-access-hint" class="sidebar-access-hint hidden">Solicite acesso administrativo na aba Formulário de Acesso.</div>
+
     <button type="button" id="btn-status-acesso" class="sidebar-status-btn <?= ehContextoAdmin ? '' : 'hidden' ?>" onclick="entrarAreaAdministrativa()">
       <span id="icone-status-acesso" aria-hidden="true">🔑</span>
       <span id="texto-status-acesso"><?= ehContextoAdmin ? 'Entrar na área administrativa' : 'Acesso Administrativo' ?></span>
     </button>
-
-    <div id="sidebar-user" class="sidebar-user"><?= ehContextoAdmin ? 'Sem acesso administrativo' : 'Acesso Público' ?></div>
-    <div id="sidebar-access-hint" class="sidebar-access-hint hidden">Solicite acesso administrativo na aba Formulário de Acesso.</div>
-
-    <div id="sidebar-version" class="sidebar-version">
-      v<span id="sidebar-version-num">5.0</span>
-    </div>
   </div>
 </div>
-
-<script>
-function atualizarVersaoSidebar() {
-  var elemento = document.getElementById("sidebar-version-num");
-  if (!elemento) return;
-
-  var versao =
-    (typeof window.SISTEMA_VERSAO !== "undefined" && window.SISTEMA_VERSAO) ||
-    "5.0";
-
-  elemento.textContent = String(versao);
-}
-
-document.addEventListener("DOMContentLoaded", atualizarVersaoSidebar);
-</script>
