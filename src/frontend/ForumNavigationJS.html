@@ -321,7 +321,7 @@
       .fc-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.fc-pill{font-size:11px;background:#f1f5f9;color:#334155;border-radius:999px;padding:4px 8px}.fc-pill--ok{background:#dcfce7;color:#166534}.fc-pill--locked{background:#fff7ed;color:#9a3412}.fc-pill-type{background:#dbeafe;color:#1e40af}
       .fc-back{border:0;background:transparent;color:#1d4ed8;font-weight:700;padding:0;margin-bottom:12px;cursor:pointer}
       .fc-contatos{display:grid;gap:9px}.fc-contato{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:#f8fafc;border:1px solid #dbe3ed;border-radius:10px}
-      .fc-contato-main{min-width:0}.fc-contato h4{margin:4px 0 0;font-size:14px;color:#0f172a}.fc-contato-tipo{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#475569}
+      .fc-contato-main{min-width:0}.fc-contato h4{margin:4px 0 0;font-size:14px;color:#0f172a}.fc-contato-tipo{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#475569}.fc-contato-observacao{margin:5px 0 0;font-size:11px;line-height:1.35;color:#64748b}.fc-contato-observacao--provisoria{color:#9a3412;font-weight:700}
       .fc-contato-side{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}.fc-contato-valor{color:#1d4ed8;font-size:14px;font-weight:700;text-decoration:none;overflow-wrap:anywhere}.fc-contato-actions{display:flex;gap:5px}
       .fc-icon-btn{border:1px solid #dbe3ed;background:#fff;border-radius:8px;padding:5px 7px;cursor:pointer;font-size:12px}.fc-icon-btn:hover{background:#f1f5f9}.fc-icon-btn--danger{color:#b91c1c;border-color:#fecaca}.fc-copy-btn{color:#1d4ed8;font-weight:800}
       .fc-address-inline{display:inline-flex;align-items:center;gap:6px;max-width:100%;vertical-align:middle}.fc-endereco{display:inline-block;color:#1d4ed8;font-size:13px;line-height:1.45;text-decoration:none;overflow-wrap:anywhere}.fc-endereco:hover{text-decoration:underline}.fc-muted{color:#64748b;font-size:13px}
@@ -453,7 +453,7 @@
   }
 
   function botaoImpressaoLocalidade(tipo, tipoNo) {
-    var rotulo = tipo === "FORUM" ? "Fórum" : (tipoNo === "Setor" ? "Setor" : "Unidade");
+    var rotulo = tipo === "FORUM" ? "Localidade" : (tipoNo === "Setor" ? "Setor" : "Unidade");
     var artigo = rotulo === "Unidade" ? "da" : "do";
     var id = tipo === "FORUM" ? "fc-print-forum" : "fc-print-unit";
     return '<div class="fc-print-footer"><button type="button" class="fc-btn" data-scroll-top title="Voltar ao início deste painel">↑ Voltar ao topo</button>' +
@@ -485,8 +485,12 @@
       var descricaoHtml = descricao && descricao.toLocaleLowerCase("pt-BR") !== String(tipo).toLocaleLowerCase("pt-BR")
         ? "<h4>" + esc(descricao) + "</h4>"
         : "";
+      var observacao = String(c.observacao || "").trim();
+      var observacaoHtml = observacao
+        ? '<p class="fc-contato-observacao' + (/contato provis[oó]rio/i.test(observacao) ? ' fc-contato-observacao--provisoria' : '') + '">' + esc(observacao) + "</p>"
+        : "";
       return '<article class="fc-contato">' +
-        '<div class="fc-contato-main"><span class="fc-contato-tipo">' + esc(tipo) + "</span>" + descricaoHtml + "</div>" +
+        '<div class="fc-contato-main"><span class="fc-contato-tipo">' + esc(tipo) + "</span>" + descricaoHtml + observacaoHtml + "</div>" +
         '<div class="fc-contato-side">' + valorHtml + acoes + "</div></article>";
     }).join("") + "</div>";
   }
@@ -556,7 +560,7 @@
 
     var municipios = (estado.dados && estado.dados.municipios) || [];
     var conteudo = '<div class="fc-head"><div><h2 class="fc-title">Contatos do PJES</h2>' +
-      '<p class="fc-subtitle fc-subtitle--intro">Consulte a estrutura completa por Comarca, Fórum, Unidade e Setor. Selecione uma Comarca no mapa ao lado ou no menu suspenso abaixo.</p></div></div>' +
+      '<p class="fc-subtitle fc-subtitle--intro">Consulte a estrutura completa por Comarca, Localidade, Unidade e Setor. Selecione uma Comarca no mapa ao lado ou no menu suspenso abaixo.</p></div></div>' +
       (municipios.length ? '<span class="fc-pill fc-total-comarcas">' + esc(rotuloQuantidade(municipios.length, "Comarca", "Comarcas")) + "</span>" : "") +
       '<select id="fc-comarca" class="fc-select">' + opcoesComarcas(municipios, "") + "</select>" +
       '<button type="button" class="fc-btn fc-print-all" id="fc-print-all" title="Imprimir / Salvar PDF de todos os contatos">🖨 Imprimir / Salvar PDF</button>';
@@ -586,7 +590,7 @@
     if (!c || !m) return;
 
     var resumo = resumoQuantidades([
-      rotuloQuantidade(m.qtdForuns, "Fórum", "Fóruns"),
+      rotuloQuantidade(m.qtdForuns, "Localidade", "Localidades"),
       rotuloQuantidade(m.qtdUnidades, "Unidade", "Unidades"),
       rotuloQuantidade((m.foruns || []).reduce(function (total, f) { return total + qtdSetores(f.nos || []); }, 0), "Setor", "Setores"),
       rotuloQuantidade(m.qtdContatos, "Contato", "Contatos")
@@ -595,7 +599,7 @@
       '<div class="fc-head"><div><h2 class="fc-title">' + esc(m.nome) + "</h2>" +
       '<p class="fc-subtitle">' + esc(resumo) + "</p></div></div>" +
       '<select id="fc-comarca" class="fc-select">' + opcoesComarcas(estado.dados.municipios || [], m.id) + "</select>" +
-      '<div class="fc-section"><h3>Fóruns</h3>' +
+      '<div class="fc-section"><h3>Fóruns e órgãos</h3>' +
       (m.foruns || []).map(function (f) {
         var acesso = forumTemAlgumAcesso(f);
         var podeForum = podeGerenciarForum(f);
@@ -656,9 +660,9 @@
     c.innerHTML = '<button class="fc-back" id="fc-back-municipio">← ' + esc(m.nome) + "</button>" +
       '<div class="fc-head"><div><h2 class="fc-title">' + esc(f.nome) + "</h2>" +
       breadcrumbHtml(m, f, null) + "</div></div>" +
-      '<div class="fc-meta"><span class="fc-pill fc-pill-type">Fórum</span>' +
+      '<div class="fc-meta"><span class="fc-pill fc-pill-type">Localidade</span>' +
       badgeQuantidade(f.qtdUnidades, "Unidade", "Unidades") + "</div>" +
-      '<div class="fc-address-row"><div class="fc-inherit"><strong>Endereço do Fórum:</strong> ' + linkEndereco(f.endereco) +
+      '<div class="fc-address-row"><div class="fc-inherit"><strong>Endereço da localidade:</strong> ' + linkEndereco(f.endereco) +
       (f.cep ? " • CEP " + esc(f.cep) : "") + "</div></div>" +
       acoesLocalidade("FORUM", f, pode) +
       (pode ? "" : botaoSolicitar("FORUM", f.id)) +
@@ -712,7 +716,7 @@
       badgeQuantidade(qtdSetores(no.filhos || []), "Setor", "Setores") + "</div>" +
       '<div class="fc-address-row"><div class="fc-inherit"><strong>Endereço:</strong> ' + linkEndereco(no.enderecoExibicao) +
       (no.cepExibicao ? " • CEP " + esc(no.cepExibicao) : "") +
-      (no.endereco ? "" : " <span class=\"fc-muted\">(" + (pai ? "herdado da Unidade" : "herdado do Fórum") + ")</span>") + "</div></div>" +
+      (no.endereco ? "" : " <span class=\"fc-muted\">(" + (pai ? "herdado da Unidade" : "herdado da Localidade") + ")</span>") + "</div></div>" +
       acoesLocalidade("UNIDADE", no, pode, tipoTela) +
       (pode ? "" : botaoSolicitar("UNIDADE", no.id)) +
       '<div class="fc-section"><div class="fc-section-title"><h3>Contatos ' + (tipoTela === "Setor" ? "deste setor" : "desta Unidade") + "</h3></div>" +
@@ -952,10 +956,12 @@
   function contatoPrint(c) {
     var tipo = fmtTipoContato(c.tipo);
     var descricao = String(c.descricao || "").trim();
+    var observacao = String(c.observacao || "").trim();
     var complemento = descricao && descricao.toLocaleLowerCase("pt-BR") !== String(tipo).toLocaleLowerCase("pt-BR")
       ? " — " + printEsc(descricao)
       : "";
-    return '<li><strong>' + printEsc(tipo) + ":</strong> " + printEsc(c.valor || "") + complemento + "</li>";
+    var nota = observacao ? '<small class="note">' + printEsc(observacao) + "</small>" : "";
+    return '<li><strong>' + printEsc(tipo) + ":</strong> " + printEsc(c.valor || "") + complemento + nota + "</li>";
   }
 
   function noPrint(no, nivel) {
@@ -993,7 +999,7 @@
       "body{font-family:Arial,Helvetica,sans-serif;color:#0f172a;margin:24px;line-height:1.45}" +
       "h1{font-size:22px;margin:0 0 4px}h2{font-size:18px;border-bottom:2px solid #0f172a;padding-bottom:5px;margin-top:24px}" +
       "h3,h4,h5,h6{font-size:15px;margin:16px 0 4px}.meta{color:#64748b;font-size:11px;margin:0 0 8px}.muted{color:#94a3b8;font-style:italic;font-size:12px}" +
-      "ul{margin:5px 0 10px;padding-left:20px}li{font-size:12px;margin:2px 0}.forum{break-before:auto}.unit{break-inside:auto;page-break-inside:auto;border-left:2px solid #e2e8f0;padding-left:10px;margin:9px 0}.unit>h3,.unit>h4,.unit>h5,.unit>h6{break-after:avoid-page;page-break-after:avoid}.unit>ul{break-inside:avoid-page;page-break-inside:avoid}" +
+      "ul{margin:5px 0 10px;padding-left:20px}li{font-size:12px;margin:2px 0}.note{display:block;color:#64748b;font-size:9px;margin-top:1px}.forum{break-before:auto}.unit{break-inside:auto;page-break-inside:auto;border-left:2px solid #e2e8f0;padding-left:10px;margin:9px 0}.unit>h3,.unit>h4,.unit>h5,.unit>h6{break-after:avoid-page;page-break-after:avoid}.unit>ul{break-inside:avoid-page;page-break-inside:avoid}" +
       "@media print{@page{size:A4 portrait;margin:12mm}html,body{margin:0;padding:0}.forum,.unit{break-before:auto;page-break-before:auto}}";
     var html = '<!doctype html><html><head><meta charset="utf-8"><title>' + printEsc(titulo) +
       "</title><style>" + css + "</style></head><body><h1>" + printEsc(titulo) +
