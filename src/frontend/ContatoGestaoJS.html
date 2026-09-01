@@ -174,8 +174,8 @@
     try {
       var btn = document.getElementById("btn-imprimir-dashboard");
       if (btn) {
-        btn.textContent = "🖨️ Imprimir contatos";
-        btn.title = "Imprimir todos os contatos por Fórum, Unidade e Setor";
+        btn.textContent = "🖨️ Imprimir / Salvar PDF";
+        btn.title = "Imprimir / Salvar PDF da tela Dashboard";
         btn.onclick = function () {
           if (typeof window.fcImprimirTudo === "function") window.fcImprimirTudo();
           else if (typeof imprimirDashboardView === "function") imprimirDashboardView();

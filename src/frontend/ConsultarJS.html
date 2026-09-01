@@ -41,7 +41,7 @@ function bloquearImpressaoSemPermissaoConsulta(comarca){
     try{
       if(typeof mostrarToast==="function") mostrarToast("Sem permissão para imprimir esta comarca","warning");
       else if(typeof notificarTabela==="function") notificarTabela("Sem permissão para imprimir esta comarca","warning");
-      else alert("Sem permissão para imprimir esta comarca");
+      else console.warn("Sem permissão para imprimir esta comarca");
     }catch(e2){}
     return true;
   }
@@ -81,7 +81,7 @@ function atualizarVisibilidadeBotoesImpressaoConsulta(){
           printBtn.style.display=p?"":"none";
           printBtn.disabled=!p;
           if(!p){ printBtn.title="Sem permissão para imprimir esta comarca"; printBtn.setAttribute("aria-disabled","true"); }
-          else { printBtn.title="Imprimir todos os setores desta comarca"; printBtn.removeAttribute("aria-disabled"); }
+          else { printBtn.title="Imprimir / Salvar PDF dos contatos desta Comarca"; printBtn.removeAttribute("aria-disabled"); }
         }
       }
     });
@@ -566,7 +566,7 @@ function renderizarListaComarcasMunicipio(compNomes, temComarcaReal, layer){
     try{
       var _isGC_empty = typeof usuarioAtual!=="undefined" && usuarioAtual && String(usuarioAtual.perfil||"").toUpperCase()==="GESTOR_CONTEUDO" && usuarioAtual.logado===true;
       if(_isGC_empty && (!compNomes || !compNomes.length)){
-        container.innerHTML='<div class="panel consulta-lista-vazio">Nenhuma comarca com permiss\u00e3o para este munic\u00edpio.</div>';
+        container.innerHTML='<div class="panel consulta-lista-vazio">Nenhuma Comarca com permiss\u00e3o para esta sele\u00e7\u00e3o.</div>';
         try{
           if(typeof camadaGeoJson!=="undefined" && camadaGeoJson && camadaGeoJson.resetStyle){
             camadaGeoJson.eachLayer(function(l){ if(l.feature) camadaGeoJson.resetStyle(l); });
@@ -588,7 +588,7 @@ function renderizarListaComarcasMunicipio(compNomes, temComarcaReal, layer){
           else if(typeof comarcasPermitidasDoUsuario==="function"){ var _al=comarcasPermitidasDoUsuario(); if(_al!==null){ var _ck=typeof normalizarChaveTabela==="function"?normalizarChaveTabela(comarca):String(comarca).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9]/g,"").toUpperCase(); podeImp=_al.indexOf(_ck)!==-1; } }
         }
       }catch(eP){}
-      var btnImpHtml = podeImp ? '<button type="button" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;white-space:nowrap;" onclick="event.stopPropagation(); imprimirTodosSetoresDaComarca(\''+escaparJs(comarca)+'\')" title="Imprimir todos os setores desta comarca">\uD83D\uDDA8\uFE0F Imprimir / PDF</button>' : '';
+      var btnImpHtml = podeImp ? '<button type="button" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;white-space:nowrap;" onclick="event.stopPropagation(); imprimirTodosSetoresDaComarca(\''+escaparJs(comarca)+'\')" title="Imprimir / Salvar PDF dos contatos desta Comarca">\uD83D\uDDA8\uFE0F Imprimir / Salvar PDF</button>' : '';
       var btnSolicitarHtml = "";
       try{
         var _ehGC2 = typeof usuarioAtual!=="undefined" && usuarioAtual && usuarioAtual.logado===true && String(usuarioAtual.perfil||"").toUpperCase()==="GESTOR_CONTEUDO";
@@ -718,7 +718,7 @@ function renderizarListaComarcasMunicipio(compNomes, temComarcaReal, layer){
                 containerLista.innerHTML="";
                 containerLista.appendChild(listGroup);
               }
-              var podeImpC = (function(_cc){ try{ if(typeof podeImprimirComarcaConsulta==="function") return podeImprimirComarcaConsulta(_cc); if(typeof podeEditarComarca==="function") return podeEditarComarca(_cc); if(typeof comarcasPermitidasDoUsuario==="function"){ var _al=comarcasPermitidasDoUsuario(); if(_al===null) return true; if(Array.isArray(_al)){ var _ck=typeof normalizarChaveTabela==="function"?normalizarChaveTabela(_cc):typeof normalizarChave==="function"?normalizarChave(_cc):String(_cc).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9]/g,"").toUpperCase(); return _al.indexOf(_ck)!==-1; } } }catch(e){} return true; })(nomeC); var btnImpC = podeImpC ? '<button type="button" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;white-space:nowrap;" onclick="event.stopPropagation(); imprimirTodosSetoresDaComarca(\''+escaparJs(nomeC)+'\')" title="Imprimir todos os setores desta comarca">\\uD83D\\uDDA8\\uFE0F Imprimir / PDF</button>' : ''; var htmlComarca='<div class="comarca-item" data-comarca="'+escaparConsulta(normalizarTexto(nomeC))+'" onclick="toggleComarca(\''+escaparJs(idC)+'\')"><span class="comarca-nome">'+escaparConsulta(nomeC)+'</span><span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;"><span class="setor-count">'+((typeof setoresPorComarca!=="undefined" && setoresPorComarca[nomeC])? setoresPorComarca[nomeC].length:0)+' setores</span>'+btnImpC+'</span></div><div class="setores-list" id="setores-'+idC+'">';
+              var podeImpC = (function(_cc){ try{ if(typeof podeImprimirComarcaConsulta==="function") return podeImprimirComarcaConsulta(_cc); if(typeof podeEditarComarca==="function") return podeEditarComarca(_cc); if(typeof comarcasPermitidasDoUsuario==="function"){ var _al=comarcasPermitidasDoUsuario(); if(_al===null) return true; if(Array.isArray(_al)){ var _ck=typeof normalizarChaveTabela==="function"?normalizarChaveTabela(_cc):typeof normalizarChave==="function"?normalizarChave(_cc):String(_cc).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9]/g,"").toUpperCase(); return _al.indexOf(_ck)!==-1; } } }catch(e){} return true; })(nomeC); var btnImpC = podeImpC ? '<button type="button" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;white-space:nowrap;" onclick="event.stopPropagation(); imprimirTodosSetoresDaComarca(\''+escaparJs(nomeC)+'\')" title="Imprimir / Salvar PDF dos contatos desta Comarca">\\uD83D\\uDDA8\\uFE0F Imprimir / Salvar PDF</button>' : ''; var htmlComarca='<div class="comarca-item" data-comarca="'+escaparConsulta(normalizarTexto(nomeC))+'" onclick="toggleComarca(\''+escaparJs(idC)+'\')"><span class="comarca-nome">'+escaparConsulta(nomeC)+'</span><span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;"><span class="setor-count">'+((typeof setoresPorComarca!=="undefined" && setoresPorComarca[nomeC])? setoresPorComarca[nomeC].length:0)+' setores</span>'+btnImpC+'</span></div><div class="setores-list" id="setores-'+idC+'">';
               var setoresC = (typeof setoresPorComarca!=="undefined" && setoresPorComarca[nomeC]) ? setoresPorComarca[nomeC] : [];
               for(var si=0; si<setoresC.length; si++){
                 var setorC=setoresC[si];
@@ -810,7 +810,7 @@ function construirTooltipMunicipio(nomeMunicipio){
   var dens = comarca ? obterDensidadeComarca(comarca) : 0;
   var micro = "";
   try{ if(comarca && typeof microrregioesPorComarca!=="undefined") micro = String(microrregioesPorComarca[comarca]||"").trim(); }catch(e){}
-  var linha2 = comarca ? (dens+" setor"+(dens===1?"":"es")+(micro?" \u00b7 "+micro:"")) : (micro||"Munic\u00edpio \u2014 sem comarca direta");
+  var linha2 = comarca ? (dens+" setor"+(dens===1?"":"es")+(micro?" \u00b7 "+micro:"")) : (micro||"Comarca sem correspond\u00eancia direta");
   return '<div class="tooltip-premium">'+ escaparConsulta(nomeMunicipio) + '<small>'+ escaparConsulta(linha2) +'</small></div>';
 }
 
@@ -1034,7 +1034,7 @@ function renderizarMapaConsulta(){
       '<div class="mapa-header">' +
         '<div>' +
           '<h3>Mapa Interativo</h3>' +
-          '<p>Clique em um munic\u00edpio para filtrar comarcas e setores. Passe o mouse para ver detalhes.</p>' +
+          '<p>Clique em uma Comarca para filtrar Fóruns, Unidades e Setores. Passe o mouse para ver detalhes.</p>' +
         '</div>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
           '<button type="button" class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="resetarMapaLeaflet()">\u21ba Redefinir</button>' +
@@ -1057,7 +1057,7 @@ function renderizarMapaConsulta(){
       '<div class="mapa-header">' +
         '<div>' +
           '<h3>Mapa Interativo</h3>' +
-          '<p>Clique em um munic\u00edpio para filtrar comarcas e setores. Passe o mouse para ver detalhes.</p>' +
+          '<p>Clique em uma Comarca para filtrar Fóruns, Unidades e Setores. Passe o mouse para ver detalhes.</p>' +
         '</div>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
           '<button type="button" class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="resetarMapaLeaflet()">\u21ba Redefinir</button>' +
@@ -1210,7 +1210,7 @@ function renderizarDetalhes(
       var _isGC_v = typeof usuarioAtual!=="undefined" && usuarioAtual && String(usuarioAtual.perfil||"").toUpperCase()==="GESTOR_CONTEUDO" && usuarioAtual.logado===true;
       if(_isGC_v && !_podeVazio) _mostrarImprimirVazio = false;
     }catch(e){}
-    var _btnImprimirVazio = _mostrarImprimirVazio ? '<button type="button" class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="imprimirDetalheSetor()" title="Imprimir este setor em PDF">\uD83D\uDDA8\uFE0F Imprimir/PDF</button>' : '';
+    var _btnImprimirVazio = _mostrarImprimirVazio ? '<button type="button" class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="imprimirDetalheSetor()" title="Imprimir / Salvar PDF dos contatos do Setor">\uD83D\uDDA8\uFE0F Imprimir / Salvar PDF</button>' : '';
     html +=
       '<div class="detalhe-contatos-cabecalho">' +
         '<div><h3>' + escaparConsulta(comarca) + '</h3><h4>' + escaparConsulta(setor) + '</h4></div>' +
@@ -1257,7 +1257,7 @@ function renderizarDetalhes(
     try{
       if(ehGestorConteudoDetalhe && !podeEditarDetalhe) _mostrarImprimirDetalhe = false;
     }catch(e){}
-    var _btnImprimirDetalhe = _mostrarImprimirDetalhe ? '<button type="button" class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="imprimirDetalheSetor()" title="Imprimir este setor em PDF">\uD83D\uDDA8\uFE0F Imprimir/PDF</button>' : '';
+    var _btnImprimirDetalhe = _mostrarImprimirDetalhe ? '<button type="button" class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="imprimirDetalheSetor()" title="Imprimir / Salvar PDF dos contatos do Setor">\uD83D\uDDA8\uFE0F Imprimir / Salvar PDF</button>' : '';
     html +=
       '<div class="detalhe-contatos-cabecalho">' +
         '<div>' +

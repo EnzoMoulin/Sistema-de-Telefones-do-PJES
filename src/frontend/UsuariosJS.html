@@ -40,7 +40,7 @@ function prepararSeletorLocalidadesUsuario(selecionados) {
   var select = document.getElementById("usuario-municipio"); if (!select) return; select.textContent = "";
   var municipios = [];
   escoposUsuarios.forEach(function(escopo) { if (escopo.municipio && municipios.indexOf(escopo.municipio) < 0) municipios.push(escopo.municipio); });
-  var inicial = document.createElement("option"); inicial.value = ""; inicial.textContent = "Selecione um Município"; select.appendChild(inicial);
+  var inicial = document.createElement("option"); inicial.value = ""; inicial.textContent = "Selecione uma Comarca"; select.appendChild(inicial);
   municipios.forEach(function(nome) { var opcao = document.createElement("option"); opcao.value = nome; opcao.textContent = nome; select.appendChild(opcao); });
   var primeiroSelecionado = escoposUsuarios.find(function(escopo) { return escoposUsuarioSelecionados.has(chaveEscopoUsuario(escopo)); });
   select.value = primeiroSelecionado ? primeiroSelecionado.municipio : (municipios[0] || "");
@@ -57,7 +57,7 @@ function marcarEscopoUsuario(escopo, marcado) {
 function renderizarSeletorLocalidadesUsuario() {
   var municipio = document.getElementById("usuario-municipio"); var holder = document.getElementById("usuario-localidades"); if (!municipio || !holder) return; holder.textContent = "";
   var foruns = escoposUsuarios.filter(function(item) { return item.tipo === "FORUM" && item.municipio === municipio.value; });
-  if (!foruns.length) { holder.textContent = "Selecione um Município para visualizar os Fóruns."; return; }
+  if (!foruns.length) { holder.textContent = "Selecione uma Comarca para visualizar os Fóruns."; return; }
   var titulo = document.createElement("strong"); titulo.textContent = "Fóruns"; holder.appendChild(titulo);
   foruns.forEach(function(forum) {
     var linha = document.createElement("div"); linha.style.marginTop = "10px";
@@ -112,8 +112,11 @@ function salvarUsuarioModal() {
 }
 
 function excluirUsuarioAtual() {
-  if (!usuarioEmEdicao || !confirm("Excluir o acesso de " + usuarioEmEdicao.email + "?")) return;
-  var botao = document.getElementById("btn-excluir-usuario"); botao.disabled = true;
-  API.excluirUsuario(usuarioEmEdicao.email, function(resp) { botao.disabled = false; if (resp && resp.sucesso === true) { fecharModalUsuario(); mostrarToast("Usuário excluído.", "success"); carregarUsuarios(); } else mostrarToast((resp && resp.erro) || "Falha ao excluir.", "error"); }, function(erro) { botao.disabled = false; mostrarToast((erro && erro.message) || "Falha de comunicação.", "error"); });
+  if (!usuarioEmEdicao) return;
+  confirmarAcaoSistema({ titulo: "Excluir acesso administrativo", mensagem: "Excluir o acesso de " + usuarioEmEdicao.email + "?", textoConfirmar: "Excluir acesso", perigo: true, icone: "🗑" }).then(function(confirmado) {
+    if (!confirmado || !usuarioEmEdicao) return;
+    var botao = document.getElementById("btn-excluir-usuario"); botao.disabled = true;
+    API.excluirUsuario(usuarioEmEdicao.email, function(resp) { botao.disabled = false; if (resp && resp.sucesso === true) { fecharModalUsuario(); mostrarToast("Usuário excluído.", "success"); carregarUsuarios(); } else mostrarToast((resp && resp.erro) || "Falha ao excluir.", "error"); }, function(erro) { botao.disabled = false; mostrarToast((erro && erro.message) || "Falha de comunicação.", "error"); });
+  });
 }
 </script>

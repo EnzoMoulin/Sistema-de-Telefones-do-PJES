@@ -64,6 +64,9 @@ const API = {
   atualizarEnderecoLocalidade(tipo, id, dados, sucesso, erro) {
     criarRunnerAPI(sucesso, erro).pjesAtualizarEnderecoLocalidade(tipo, id, dados);
   },
+  criarLocalidade(dados, sucesso, erro) {
+    criarRunnerAPI(sucesso, erro).pjesCriarLocalidadeOrganizacional(dados);
+  },
 
   solicitarAcesso(nome, nivel, justificativa, unidadeIds, sucesso, erro) {
     criarRunnerAPI(sucesso, erro).solicitarAcesso(nome, nivel, justificativa, unidadeIds);
@@ -109,6 +112,9 @@ const API = {
   },
   excluirUsuario(email, sucesso, erro) {
     criarRunnerAPI(sucesso, erro).excluirUsuario(email);
+  },
+  removerMeuAcesso(tipo, id, sucesso, erro) {
+    criarRunnerAPI(sucesso, erro).removerMeuAcesso(tipo, id);
   },
   logout(sucesso, erro) {
     criarRunnerAPI(sucesso, erro).encerrarSessao();

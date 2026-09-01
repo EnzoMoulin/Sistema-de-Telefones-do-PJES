@@ -105,17 +105,17 @@ button{touch-action:manipulation}
   box-shadow:0 8px 20px rgba(37,99,235,.3);
 }
 .sidebar-brand-copy{min-width:0}
-.sidebar-header h2{font-size:17px;line-height:1.15;letter-spacing:.02em}
-.sidebar-header span{display:block;margin-top:3px;font-size:11px;line-height:1.25;color:#cbd5e1;opacity:.78}
+.sidebar-header h2,.sidebar--admin .sidebar-header h2{font-size:17px;line-height:1.15;letter-spacing:.02em}
+.sidebar-header span,.sidebar--admin .sidebar-header span{display:block;margin-top:3px;font-size:11px;line-height:1.25;color:#cbd5e1;opacity:.78}
 .sidebar-menu{padding:14px 12px}
-.menu-item{
+.menu-item,.sidebar--admin .menu-item{
   min-height:43px;
   padding:10px 11px;
   margin-bottom:4px;
   border:1px solid transparent;
   border-radius:10px;
   color:#dbe4f0;
-  font-size:13px;
+  font-size:14px;
   font-weight:650;
   line-height:1.25;
   transition:background .15s ease,border-color .15s ease,color .15s ease,transform .15s ease;
@@ -130,6 +130,7 @@ button{touch-action:manipulation}
   background:rgba(255,255,255,.055);
   font-size:14px;
 }
+.menu-item .icon svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8}
 .menu-item:hover{
   background:rgba(255,255,255,.07);
   border-color:rgba(255,255,255,.08);
@@ -164,10 +165,21 @@ button{touch-action:manipulation}
   margin-top:10px;
   color:#94a3b8;
   text-align:center;
-  font-size:10px;
-  line-height:1.45;
+  font-size:12px;
+  line-height:1.5;
   white-space:pre-line;
   overflow-wrap:anywhere;
+}
+.sidebar--admin #sidebar-user{
+  font-size:12px!important;
+  line-height:1.5;
+}
+.sidebar-access-hint{
+  margin-top:7px;
+  color:#cbd5e1;
+  text-align:center;
+  font-size:11.5px;
+  line-height:1.4;
 }
 .sidebar-version{margin-top:4px;color:#64748b;text-align:center;font-size:9px;letter-spacing:.04em}
 
@@ -235,6 +247,9 @@ button{touch-action:manipulation}
   font-size:11px;
   font-weight:700;
 }
+.user-info-button{font-family:inherit;cursor:pointer;transition:border-color .15s ease,background .15s ease,transform .15s ease}
+.user-info-button:not(:disabled):hover{border-color:#93c5fd;background:#eff6ff;color:#1d4ed8;transform:translateY(-1px)}
+.user-info-button:disabled{cursor:default}
 .user-info::before{content:"●";color:#22c55e;font-size:8px}
 .topbar__print{padding:7px 10px!important;font-size:11px!important}
 
@@ -434,6 +449,24 @@ input:focus,select:focus,textarea:focus,
 .confirm-dialog__message{margin:0 0 20px;color:#64748b;font-size:13px;line-height:1.55}
 .confirm-dialog__actions{display:flex;gap:10px}
 .confirm-dialog__actions .btn{flex:1}
+.confirm-dialog__icon--warning{background:#fff7ed;color:#c2410c}
+.confirm-dialog__icon--info{background:#eff6ff;color:#1d4ed8}
+
+/* Perfil do usuário */
+.profile-dialog{z-index:10900;backdrop-filter:blur(5px)}
+.profile-dialog__panel{width:min(560px,100%);max-height:min(760px,90vh);overflow:auto;padding:0!important;border:1px solid var(--ui-border);border-radius:18px!important;background:#fff!important;box-shadow:var(--ui-shadow-lg)!important}
+.profile-dialog__header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:21px 22px 15px;border-bottom:1px solid #e2e8f0}
+.profile-dialog__header h3{margin:3px 0 0;color:#0f172a;font-size:20px}
+.profile-dialog__eyebrow{color:#2563eb;font-size:10px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+.profile-dialog__identity{display:flex;align-items:center;gap:13px;margin:20px 22px 14px;padding:14px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0}
+.profile-dialog__avatar{width:44px;height:44px;display:grid;place-items:center;flex:0 0 44px;border-radius:13px;background:#1e293b;color:#fff;font-size:19px}
+.profile-dialog__identity small,.profile-dialog__identity strong{display:block;overflow-wrap:anywhere}.profile-dialog__identity small{margin-bottom:3px;color:#64748b;font-size:10px;font-weight:750;letter-spacing:.06em;text-transform:uppercase}.profile-dialog__identity strong{color:#0f172a;font-size:15px}
+.profile-dialog__detail{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 22px;padding:11px 0;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:12px}.profile-dialog__detail strong{color:#0f172a;font-size:13px;text-align:right}
+.profile-dialog__access-head{display:flex;justify-content:space-between;gap:12px;margin:17px 22px 9px}.profile-dialog__access-head span{display:block;color:#0f172a;font-size:13px;font-weight:800}.profile-dialog__access-head small{display:block;margin-top:3px;color:#64748b;font-size:11px}
+.profile-dialog__access-list{display:grid;gap:8px;margin:0 22px 20px}
+.profile-access-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px;border:1px solid #e2e8f0;border-radius:11px;background:#fff}.profile-access-item__text{min-width:0}.profile-access-item__text strong,.profile-access-item__text span{display:block;overflow-wrap:anywhere}.profile-access-item__text strong{color:#0f172a;font-size:12.5px}.profile-access-item__text span{margin-top:3px;color:#64748b;font-size:11px}.profile-access-item .btn{flex:0 0 auto;padding:6px 9px;font-size:11px}
+.profile-access-total,.profile-access-empty{padding:15px;border-radius:11px;text-align:center;font-size:13px;font-weight:750}.profile-access-total{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46}.profile-access-empty{background:#f8fafc;border:1px dashed #cbd5e1;color:#64748b}
+.profile-dialog__footer{display:flex;justify-content:flex-end;padding:13px 22px;border-top:1px solid #e2e8f0}
 
 /* Toast */
 .toast-container{right:18px;bottom:18px}
@@ -480,6 +513,7 @@ input:focus,select:focus,textarea:focus,
 .dark-mode .confirm-dialog__panel{background:#111827!important;border-color:#334155!important}
 .dark-mode .confirm-dialog__title{color:#f8fafc}
 .dark-mode .confirm-dialog__message{color:#94a3b8}
+.dark-mode .profile-dialog__panel{background:#111827!important;border-color:#334155!important}.dark-mode .profile-dialog__header,.dark-mode .profile-dialog__detail,.dark-mode .profile-dialog__footer{border-color:#334155}.dark-mode .profile-dialog__header h3,.dark-mode .profile-dialog__identity strong,.dark-mode .profile-dialog__detail strong,.dark-mode .profile-dialog__access-head span,.dark-mode .profile-access-item__text strong{color:#f8fafc}.dark-mode .profile-dialog__identity,.dark-mode .profile-access-item{background:#0f172a;border-color:#334155}.dark-mode .profile-dialog__identity small,.dark-mode .profile-dialog__detail,.dark-mode .profile-dialog__access-head small,.dark-mode .profile-access-item__text span{color:#94a3b8}
 
 /* Navegação móvel */
 .nav-backdrop{
@@ -523,7 +557,7 @@ body.nav-open .nav-backdrop{opacity:1;pointer-events:auto}
   .sidebar-header{padding:20px 16px!important;text-align:left!important}
   .sidebar-header h2{font-size:17px!important}
   .sidebar-header span,.menu-item span:not(.icon){display:block!important}
-  .menu-item{justify-content:flex-start!important;padding:10px 11px!important;font-size:13px!important}
+  .menu-item{justify-content:flex-start!important;padding:10px 11px!important;font-size:14px!important}
   #texto-status-acesso{display:inline!important}
   #btn-status-acesso{padding:8px 10px!important}
   .main-container,.main-content{width:100%!important;padding:18px!important}

@@ -331,12 +331,12 @@
     var select = document.createElement("select");
     select.id = "fc-search";
     select.className = "fc-select fc-municipio-select";
-    select.setAttribute("aria-label", "Selecionar município");
+    select.setAttribute("aria-label", "Selecionar Comarca");
     select.setAttribute("data-pjes-municipio-v6", "true");
 
     var inicial = document.createElement("option");
     inicial.value = "";
-    inicial.textContent = "Selecione um município";
+    inicial.textContent = "Selecione uma Comarca";
     select.appendChild(inicial);
 
     municipiosPainelV6.forEach(function (opcao) {
@@ -367,7 +367,6 @@
 
   function aplicarAjustesContatos() {
     trocarTextoPainel();
-    garantirSeletorMunicipioPainel();
   }
 
   function observarPainel() {

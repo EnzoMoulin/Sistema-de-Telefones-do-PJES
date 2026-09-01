@@ -203,34 +203,36 @@ function sincronizarSolicitacoesPendentes(){
 
 function cancelarAcessoComarca(botao, comarca, chave) {
   if (!botao) return;
-  if (!confirm("Cancelar solicitação de acesso à comarca \"" + comarca + "\"?")) return;
-  botao.disabled = true;
-  botao.textContent = "Cancelando...";
-  function finalizarCancel(ok, msg){
-    if (ok) {
-      try{ sessionStorage.removeItem(chave); }catch(e){}
-      botao.textContent = "\uD83D\uDD13 Solicitar acesso";
-      botao.style.background = "";
-      botao.style.borderColor = "";
-      botao.style.color = "";
-      botao.disabled = false;
-      botao.title = "Você só pode editar telefones das suas comarcas. Solicite acesso a esta comarca.";
-      notificarTabela(msg || "Solicitação cancelada.", "success");
-    } else {
-      botao.textContent = "\u2713 Solicitado";
-      botao.disabled = false;
-      notificarTabela(msg || "Falha ao cancelar a solicitação.", "error");
+  confirmarAcaoSistema({ titulo: "Cancelar solicitação", mensagem: "Cancelar a solicitação de acesso à comarca \"" + comarca + "\"?", textoConfirmar: "Cancelar solicitação", perigo: true, icone: "×" }).then(function(confirmado) {
+    if (!confirmado) return;
+    botao.disabled = true;
+    botao.textContent = "Cancelando...";
+    function finalizarCancel(ok, msg){
+      if (ok) {
+        try{ sessionStorage.removeItem(chave); }catch(e){}
+        botao.textContent = "\uD83D\uDD13 Solicitar acesso";
+        botao.style.background = "";
+        botao.style.borderColor = "";
+        botao.style.color = "";
+        botao.disabled = false;
+        botao.title = "Você só pode editar telefones das suas comarcas. Solicite acesso a esta comarca.";
+        notificarTabela(msg || "Solicitação cancelada.", "success");
+      } else {
+        botao.textContent = "\u2713 Solicitado";
+        botao.disabled = false;
+        notificarTabela(msg || "Falha ao cancelar a solicitação.", "error");
+      }
     }
-  }
-  if (typeof API!=="undefined" && typeof API.cancelarSolicitacaoComarca==="function"){
-    API.cancelarSolicitacaoComarca(comarca, function(res){
-      if (res && res.sucesso===true) finalizarCancel(true, "Solicitação cancelada.");
-      else finalizarCancel(false, (res&&res.erro)||"Falha ao cancelar.");
-    }, function(err){ finalizarCancel(false, (err&&err.message)||"Falha ao cancelar."); });
-  } else {
-    try{ sessionStorage.removeItem(chave); }catch(e){}
-    finalizarCancel(true, "Solicitação cancelada (local).");
-  }
+    if (typeof API!=="undefined" && typeof API.cancelarSolicitacaoComarca==="function"){
+      API.cancelarSolicitacaoComarca(comarca, function(res){
+        if (res && res.sucesso===true) finalizarCancel(true, "Solicitação cancelada.");
+        else finalizarCancel(false, (res&&res.erro)||"Falha ao cancelar.");
+      }, function(err){ finalizarCancel(false, (err&&err.message)||"Falha ao cancelar."); });
+    } else {
+      try{ sessionStorage.removeItem(chave); }catch(e){}
+      finalizarCancel(true, "Solicitação cancelada (local).");
+    }
+  });
 }
 
 function solicitarAcessoComarca(comarca, botao) {
@@ -429,9 +431,7 @@ function notificarTabela(
       mensagem,
       tipo || "info"
     );
-  } else {
-    try{ alert(mensagem); }catch(e){ console.warn(mensagem); }
-  }
+  } else console.warn(mensagem);
 }
 
 function linkGoogleMapsEndereco(texto){
@@ -2015,8 +2015,9 @@ function renderizarTabelaHistorico(
               type="button"
               class="btn btn-secondary"
               onclick="imprimirHistorico()"
+              title="Imprimir / Salvar PDF do histórico"
             >
-              🖨️ Imprimir / PDF
+              🖨️ Imprimir / Salvar PDF
             </button>
 
             <button
