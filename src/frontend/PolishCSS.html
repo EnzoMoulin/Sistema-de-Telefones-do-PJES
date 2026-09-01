@@ -106,7 +106,7 @@ button{touch-action:manipulation}
 }
 .sidebar-brand-copy{min-width:0}
 .sidebar-header h2,.sidebar--admin .sidebar-header h2{font-size:17px;line-height:1.15;letter-spacing:.02em}
-.sidebar-header span,.sidebar--admin .sidebar-header span{display:block;margin-top:3px;font-size:11px;line-height:1.25;color:#cbd5e1;opacity:.78}
+.sidebar-header span,.sidebar--admin .sidebar-header span{display:block;margin-top:3px;font-size:12px;line-height:1.35;color:#cbd5e1;opacity:.86}
 .sidebar-menu{padding:14px 12px}
 .menu-item,.sidebar--admin .menu-item{
   min-height:43px;
@@ -160,6 +160,7 @@ button{touch-action:manipulation}
   font-weight:800;
   transition:filter .15s ease,transform .15s ease;
 }
+.sidebar-footer .sidebar-status-btn{margin-top:10px}
 .sidebar-status-btn:hover{filter:brightness(.985);transform:translateY(-1px)}
 .sidebar-user{
   margin-top:10px;
@@ -181,7 +182,6 @@ button{touch-action:manipulation}
   font-size:11.5px;
   line-height:1.4;
 }
-.sidebar-version{margin-top:4px;color:#64748b;text-align:center;font-size:9px;letter-spacing:.04em}
 
 /* Topbar */
 .topbar{
@@ -226,6 +226,7 @@ button{touch-action:manipulation}
   line-height:1.25;
   letter-spacing:-.02em;
 }
+.system-subtitle{margin:4px 0 0;color:#64748b;font-size:12px;font-weight:550;line-height:1.35}
 .topbar__actions{
   min-width:180px;
   display:flex;
@@ -409,6 +410,7 @@ input:focus,select:focus,textarea:focus,
 }
 .fc-title{font-size:19px!important;letter-spacing:-.025em!important}
 .fc-subtitle{font-size:12px!important}
+.fc-subtitle.fc-subtitle--intro{font-size:14px!important;line-height:1.65!important}
 .fc-search,.fc-select{border-radius:10px!important;border-color:#cbd5e1!important}
 .fc-card{
   border-color:#e2e8f0!important;
@@ -491,6 +493,7 @@ input:focus,select:focus,textarea:focus,
 .dark-mode .main-container,.dark-mode .main-content{background:radial-gradient(circle at 100% 0,rgba(37,99,235,.08),transparent 30rem)}
 .dark-mode .topbar{border-color:#263347}
 .dark-mode .system-title h1,.dark-mode .page-header h2,.dark-mode .dashboard-card .card-value,.dark-mode .dashboard-panel__header h3{color:#f8fafc}
+.dark-mode .system-subtitle{color:#94a3b8}
 .dark-mode .user-info{background:#111827;border-color:#334155;color:#cbd5e1}
 .dark-mode .topbar__mobile-menu{background:#111827;border-color:#334155;color:#e2e8f0}
 .dark-mode .btn-secondary{background:#111827;border-color:#475569;color:#e2e8f0}
@@ -505,7 +508,9 @@ input:focus,select:focus,textarea:focus,
 .dark-mode .fc-panel{background:#111827!important;border-color:#334155!important;color:#e2e8f0!important}
 .dark-mode .fc-title,.dark-mode .fc-card h4,.dark-mode .fc-contato h4{color:#f8fafc!important}
 .dark-mode .fc-subtitle,.dark-mode .fc-card p,.dark-mode .fc-muted,.dark-mode .fc-inherit{color:#94a3b8!important}
+.dark-mode .fc-breadcrumb-current{color:#cbd5e1!important}
 .dark-mode .fc-card,.dark-mode .fc-btn,.dark-mode .fc-icon-btn{background:#111827!important;border-color:#334155!important;color:#e2e8f0!important}
+.dark-mode .fc-breadcrumb button,.dark-mode .fc-copy-btn{color:#93c5fd!important}
 .dark-mode .fc-card[data-nav]:hover{background:#172033!important;border-color:#3b82f6!important}
 .dark-mode .fc-contato,.dark-mode .fc-empty,.dark-mode .fc-inherit{background:#0f172a!important;border-color:#334155!important}
 .dark-mode .fc-search,.dark-mode .fc-select,.dark-mode .fc-field input,.dark-mode .fc-field select,.dark-mode .fc-field textarea{background:#0f172a!important;border-color:#475569!important;color:#e2e8f0!important}
@@ -575,6 +580,7 @@ body.nav-open .nav-backdrop{opacity:1;pointer-events:auto}
   .topbar{gap:10px;margin-bottom:16px;padding-bottom:12px}
   .topbar__eyebrow{font-size:9px}
   .system-title h1{font-size:13px!important;line-height:1.3}
+  .system-subtitle{font-size:10.5px;line-height:1.3}
   .topbar__actions{display:none}
   .dashboard-cards{grid-template-columns:1fr;gap:10px}
   .dashboard-card{min-height:96px;grid-template-columns:38px 1fr;padding:13px}

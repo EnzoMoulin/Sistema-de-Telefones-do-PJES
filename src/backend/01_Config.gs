@@ -7,7 +7,7 @@
 
 const CONFIG = {
   SISTEMA: {
-    NOME: "Sistema Inteligente de Consulta e Gerenciamento de Contatos do Poder Judiciário do Estado do Espírito Santo",
+    NOME: "Diretório Institucional de Contatos - PJES",
     VERSAO: "5.0"
   },
 

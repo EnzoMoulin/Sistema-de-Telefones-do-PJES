@@ -856,7 +856,7 @@ function imprimirDashboardView(){
     var tituloOriginal = document.title;
     var tituloInterface = "";
     try{ var el=document.querySelector(".system-title h1"); tituloInterface = el ? el.textContent.replace(/\s+/g," ").trim() : ""; }catch(e){}
-    if(!tituloInterface) tituloInterface = "SISTEMA INTELIGENTE DE GESTÃO DE TELEFONES DO PJES";
+    if(!tituloInterface) tituloInterface = "Diretório Institucional de Contatos - PJES";
     document.title = tituloInterface + " \u2014 Dashboard";
     document.body.classList.add("print-dashboard");
     function limpar(){
