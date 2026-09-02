@@ -185,6 +185,12 @@ Arquivo: index.html
             var texto = String(badge.textContent || "").trim().toLowerCase();
             if (/^0\s+unidade(?:s)?$/.test(texto)) badge.remove();
           });
+
+          var tipoAtual = painel.querySelector('.fc-meta .fc-pill-type');
+          var voltarTopo = painel.querySelector('[data-scroll-top]');
+          if (voltarTopo && tipoAtual && /^setor$/i.test(String(tipoAtual.textContent || "").trim())) {
+            voltarTopo.remove();
+          }
         }
 
         function observarBadgesForum() {
