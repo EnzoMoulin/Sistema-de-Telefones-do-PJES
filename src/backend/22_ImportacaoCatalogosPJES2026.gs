@@ -15,7 +15,7 @@ function catalogoPJES2026Dados_() {
   const orgaoPalacioId = "MUN0000";
 
   function adicionarNo(id, forumId, paiId, tipo, nome, ordem, observacao, selecionavel) {
-    const ehPalacio = forumId === "FOR0073";
+    const ehPalacio = forumId === "FOR0003";
     nos.push({
       id: id, forumId: ehPalacio ? "" : forumId, municipioId: ehPalacio ? orgaoPalacioId : "",
       paiId: paiId || "", tipo: tipo, nome: nome,
@@ -25,7 +25,7 @@ function catalogoPJES2026Dados_() {
   }
 
   function adicionarLinhas(forumId, noId, linhas, observacao) {
-    const ehPalacio = forumId === "FOR0073";
+    const ehPalacio = forumId === "FOR0003";
     let ordem = 1;
     (linhas || []).forEach(function(linha) {
       const tipo = linha[0];
@@ -54,20 +54,20 @@ function catalogoPJES2026Dados_() {
     observacao: obsPalacio
   };
 
-  adicionarLinhas("FOR0073", "", [
+  adicionarLinhas("FOR0003", "", [
     T("Geral", "(27) 3334-2000"),
     R("Telefonista", "2000", "2001", "9"),
     R("Recepção", "2060")
   ], obsPalacio);
 
-  adicionarNo("UNI0204", "FOR0073", "", "UNIDADE", "Presidência", 1, "Des. Janete Vargas Simões", true);
-  adicionarLinhas("FOR0073", "UNI0204", [
+  adicionarNo("UNI0204", "FOR0003", "", "UNIDADE", "Presidência", 1, "Des. Janete Vargas Simões", true);
+  adicionarLinhas("FOR0003", "UNI0204", [
     R("Chefia de Gabinete", "2021"), R("Gabinete da Presidência (Apoio)", "2030"),
     R("Recepção", "2006"), R("Copa", "2237")
   ], obsPalacio);
 
-  adicionarNo("UNI0205", "FOR0073", "", "ASSESSORIA", "Assessorias da Presidência", 2, "", true);
-  adicionarLinhas("FOR0073", "UNI0205", [
+  adicionarNo("UNI0205", "FOR0003", "", "ASSESSORIA", "Assessorias da Presidência", 2, "", true);
+  adicionarLinhas("FOR0003", "UNI0205", [
     R("Assessoria Especial CNJ", "2166"),
     R("Gabinete do Juiz Assessor Especial de Magistrados", "2011"),
     R("Assessoria Especial de Magistrados", "2011"), R("Secretaria de Precatório", "2760"),
@@ -84,14 +84,14 @@ function catalogoPJES2026Dados_() {
     R("Núcleo Permanente de Gestão da Qualidade", "2208")
   ], obsPalacio);
 
-  adicionarNo("UNI0206", "FOR0073", "", "UNIDADE", "Vice-Presidência", 3, "", true);
-  adicionarLinhas("FOR0073", "UNI0206", [
+  adicionarNo("UNI0206", "FOR0003", "", "UNIDADE", "Vice-Presidência", 3, "", true);
+  adicionarLinhas("FOR0003", "UNI0206", [
     R("Chefia de Gabinete", "2225"), R("Núcleo de Processamento de Recursos Eletrônicos", "2039"),
     R("Núcleo de Precedentes e Ações Coletivas", "2283", "2284")
   ], obsPalacio);
 
-  adicionarNo("UNI0207", "FOR0073", "", "UNIDADE", "Corregedoria-Geral de Justiça", 4, "", true);
-  adicionarLinhas("FOR0073", "UNI0207", [
+  adicionarNo("UNI0207", "FOR0003", "", "UNIDADE", "Corregedoria-Geral de Justiça", 4, "", true);
+  adicionarLinhas("FOR0003", "UNI0207", [
     T("Geral", "(27) 3145-3100"), R("Geral", "3101", "3102"),
     R("Chefia de Gabinete", "3111", "3112", "3113"),
     R("Núcleo de Juízes Corregedores", "3105", "3106", "3107", "3108"),
@@ -103,21 +103,21 @@ function catalogoPJES2026Dados_() {
     R("Monitoramento de Magistrados (Coordenadoria)", "3145", "3130", "3131", "3132", "3133", "3134")
   ], obsPalacio);
 
-  adicionarNo("UNI0208", "FOR0073", "", "ESCOLA", "Escola da Magistratura", 5, "", true);
-  adicionarLinhas("FOR0073", "UNI0208", [T("Geral", "(27) 3145-3153", "(27) 3145-3155")], obsPalacio);
-  adicionarNo("UNI0209", "FOR0073", "", "OUVIDORIA", "Ouvidoria", 6, "", true);
-  adicionarLinhas("FOR0073", "UNI0209", [T("Geral", "0800 970 2442")], obsPalacio);
+  adicionarNo("UNI0208", "FOR0003", "", "ESCOLA", "Escola da Magistratura", 5, "", true);
+  adicionarLinhas("FOR0003", "UNI0208", [T("Geral", "(27) 3145-3153", "(27) 3145-3155")], obsPalacio);
+  adicionarNo("UNI0209", "FOR0003", "", "OUVIDORIA", "Ouvidoria", 6, "", true);
+  adicionarLinhas("FOR0003", "UNI0209", [T("Geral", "0800 970 2442")], obsPalacio);
 
-  adicionarNo("UNI0210", "FOR0073", "", "COORDENADORIA", "Coordenadorias", 7, "", true);
-  adicionarLinhas("FOR0073", "UNI0210", [
+  adicionarNo("UNI0210", "FOR0003", "", "COORDENADORIA", "Coordenadorias", 7, "", true);
+  adicionarLinhas("FOR0003", "UNI0210", [
     R("Criminal e Execução Penal", "2724", "2725"), T("Infância e Juventude", "(27) 3134-7008"),
     R("Juizado Especial (Seção de Apoio)", "2751", "2838"),
     R("Violência Doméstica e Familiar contra a Mulher", "2709", "2174"),
     R("NUPEMEC - 1º CEJUSC", "2151", "2354")
   ], obsPalacio);
 
-  adicionarNo("UNI0211", "FOR0073", "", "GABINETE", "Desembargadores", 8, "", true);
-  adicionarLinhas("FOR0073", "UNI0211", [
+  adicionarNo("UNI0211", "FOR0003", "", "GABINETE", "Desembargadores", 8, "", true);
+  adicionarLinhas("FOR0003", "UNI0211", [
     R("Alexandre Puppim", "2194"), R("Arthur José Neiva Almeida", "2168", "2167"),
     R("Aldary Nunes Júnior", "2219"), R("Dair José Bregunce de Oliveira", "2255"),
     R("Débora Maria Ambos C. da Silva", "2202", "2068"), R("Eder Pontes da Silva", "2215"),
@@ -135,13 +135,13 @@ function catalogoPJES2026Dados_() {
     R("Walace Pandolpho Kiffer", "2267", "2268"), R("Willian Silva", "2256")
   ], obsPalacio);
 
-  adicionarNo("UNI0212", "FOR0073", "", "UNIDADE", "Tribunal do Pleno", 9, "", true);
-  adicionarLinhas("FOR0073", "UNI0212", [R("Geral", "2123", "2057", "2124"), R("Diretora", "2053")], obsPalacio);
-  adicionarNo("UNI0213", "FOR0073", "", "UNIDADE", "Conselho Superior da Magistratura", 10, "", true);
-  adicionarLinhas("FOR0073", "UNI0213", [R("Geral", "2120", "2121", "2031")], obsPalacio);
+  adicionarNo("UNI0212", "FOR0003", "", "UNIDADE", "Tribunal do Pleno", 9, "", true);
+  adicionarLinhas("FOR0003", "UNI0212", [R("Geral", "2123", "2057", "2124"), R("Diretora", "2053")], obsPalacio);
+  adicionarNo("UNI0213", "FOR0003", "", "UNIDADE", "Conselho Superior da Magistratura", 10, "", true);
+  adicionarLinhas("FOR0003", "UNI0213", [R("Geral", "2120", "2121", "2031")], obsPalacio);
 
-  adicionarNo("UNI0214", "FOR0073", "", "SECAO", "Seção Cível", 11, "", true);
-  adicionarLinhas("FOR0073", "UNI0214", [
+  adicionarNo("UNI0214", "FOR0003", "", "SECAO", "Seção Cível", 11, "", true);
+  adicionarLinhas("FOR0003", "UNI0214", [
     R("1ª Cível", "2114", "2115"), R("2ª Cível", "2196", "2159", "2235"),
     R("2ª Cível - Diretoria", "2163"), R("3ª Cível", "2113", "2034"),
     R("3ª Cível - Diretoria", "2113"), R("4ª Cível", "2176", "2117", "2118"),
@@ -149,24 +149,24 @@ function catalogoPJES2026Dados_() {
     R("Cíveis Reunidas - Diretoria", "2125")
   ], obsPalacio);
 
-  adicionarNo("UNI0215", "FOR0073", "", "SECAO", "Seção Criminal", 12, "", true);
-  adicionarLinhas("FOR0073", "UNI0215", [
+  adicionarNo("UNI0215", "FOR0003", "", "SECAO", "Seção Criminal", 12, "", true);
+  adicionarLinhas("FOR0003", "UNI0215", [
     R("1ª Criminal", "2127", "2137"), R("1ª Criminal - Diretoria", "2037"),
     R("2ª Criminal", "2160", "2161", "2260", "2258"), R("Criminais Reunidas", "2112", "2250")
   ], obsPalacio);
 
-  adicionarNo("UNI0216", "FOR0073", "", "SECRETARIA", "Secretaria de Controle Interno", 13, "", true);
-  adicionarLinhas("FOR0073", "UNI0216", [R("Geral", "2707", "2708")], obsPalacio);
-  adicionarNo("UNI0217", "FOR0073", "", "SECRETARIA", "Secretaria Geral", 14, "", true);
-  adicionarLinhas("FOR0073", "UNI0217", [
+  adicionarNo("UNI0216", "FOR0003", "", "SECRETARIA", "Secretaria de Controle Interno", 13, "", true);
+  adicionarLinhas("FOR0003", "UNI0216", [R("Geral", "2707", "2708")], obsPalacio);
+  adicionarNo("UNI0217", "FOR0003", "", "SECRETARIA", "Secretaria Geral", 14, "", true);
+  adicionarLinhas("FOR0003", "UNI0217", [
     R("Geral", "2210"), R("Subsecretaria Geral", "2217"),
     R("Assessoria de Gestão de Processos Judiciais", "2158"),
     R("Assessoria Jurídica (Secretaria Geral)", "2270"),
     R("Núcleo de Planejamento das Contratações", "2216")
   ], obsPalacio);
 
-  adicionarNo("UNI0218", "FOR0073", "", "SECRETARIA", "Secretaria Judiciária", 15, "", true);
-  adicionarLinhas("FOR0073", "UNI0218", [
+  adicionarNo("UNI0218", "FOR0003", "", "SECRETARIA", "Secretaria Judiciária", 15, "", true);
+  adicionarLinhas("FOR0003", "UNI0218", [
     R("Secretaria Judiciária", "2221", "2110"), R("Plantão e Mandados (Seção)", "2195"),
     R("Contadoria Judicial (Seção)", "2116"), R("Protocolo, Registro e Distribuição (Coord.)", "2186", "2197", "2087"),
     R("Protocolo (Seção)", "2094"), R("Gestão da Informação Documental (Coordenadoria)", "2099"),
@@ -177,8 +177,8 @@ function catalogoPJES2026Dados_() {
     T("Taquigrafia", "(27) 3334-2051", "(27) 3334-2276", "(27) 3334-2278")
   ], obsPalacio);
 
-  adicionarNo("UNI0219", "FOR0073", "", "SECRETARIA", "Secretaria de Engenharia, Gestão Predial e Manutenção de Equipamentos", 16, "", true);
-  adicionarLinhas("FOR0073", "UNI0219", [
+  adicionarNo("UNI0219", "FOR0003", "", "SECRETARIA", "Secretaria de Engenharia, Gestão Predial e Manutenção de Equipamentos", 16, "", true);
+  adicionarLinhas("FOR0003", "UNI0219", [
     T("Secretário", "(27) 3334-2724"), T("Projetos (Coordenadora)", "(27) 3334-2845"),
     T("Projetos Arquitetônicos e outros (Seção)", "(27) 3334-2846"), R("Projetos Arquitetônicos e outros (Seção)", "2807"),
     T("Projetos - Custos (Seção)", "(27) 3334-2808"), R("Projetos - Custos (Seção)", "2848"),
@@ -190,8 +190,8 @@ function catalogoPJES2026Dados_() {
     T("Instalações Elétricas", "(27) 3334-2729"), R("Instalações Elétricas", "2750")
   ], obsPalacio);
 
-  adicionarNo("UNI0220", "FOR0073", "", "SECRETARIA", "Secretaria de Infraestrutura", 17, "", true);
-  adicionarLinhas("FOR0073", "UNI0220", [
+  adicionarNo("UNI0220", "FOR0003", "", "SECRETARIA", "Secretaria de Infraestrutura", 17, "", true);
+  adicionarLinhas("FOR0003", "UNI0220", [
     T("Secretária", "(27) 3334-2811"), T("Serviços Gerais (edifício-sede)", "(27) 3334-2045"),
     T("Zeladoria (Seção)", "(27) 3334-2796"), T("Reserva de sala", "(27) 3334-2796"),
     T("Coordenador", "(27) 3334-2861"), T("Suprimento e Controle Patrimonial (Coord.)", "(27) 3334-2868"),
@@ -208,14 +208,14 @@ function catalogoPJES2026Dados_() {
     T("Logística", "(27) 3442-8937", "(27) 99903-5910")
   ], obsPalacio);
 
-  adicionarNo("UNI0221", "FOR0073", "", "SECRETARIA", "Secretaria de Tecnologia da Informação", 18, "", true);
-  adicionarLinhas("FOR0073", "UNI0221", [
+  adicionarNo("UNI0221", "FOR0003", "", "SECRETARIA", "Secretaria de Tecnologia da Informação", 18, "", true);
+  adicionarLinhas("FOR0003", "UNI0221", [
     T("Atendimento - Help Desk", "(27) 3334-2201", "(27) 3441-5050"),
     R("Administrativo", "2818"), R("Suporte e Manutenção (Seção)", "2754")
   ], obsPalacio);
 
-  adicionarNo("UNI0222", "FOR0073", "", "SECRETARIA", "Secretaria de Gestão de Pessoas", 19, "", true);
-  adicionarLinhas("FOR0073", "UNI0222", [
+  adicionarNo("UNI0222", "FOR0003", "", "SECRETARIA", "Secretaria de Gestão de Pessoas", 19, "", true);
+  adicionarLinhas("FOR0003", "UNI0222", [
     T("Secretária SGP", "(27) 3334-2883"), T("Assessoria Jurídica SGP", "(27) 3334-2776"),
     R("Suporte SIARHES", "2136"), T("Pagamento de Pessoal (Coord.)", "(27) 3334-2775"),
     T("Recursos Humanos (Coordenadoria)", "(27) 3334-2887"),
@@ -229,8 +229,8 @@ function catalogoPJES2026Dados_() {
     R("Enfermagem (CSPS)", "2368"), R("Serviço Psicossocial (CSPS)", "2129", "2783", "2130", "2165", "2138", "2089", "2016")
   ], obsPalacio);
 
-  adicionarNo("UNI0223", "FOR0073", "", "SECRETARIA", "Secretaria de Finanças e Execução Orçamentária", 20, "", true);
-  adicionarLinhas("FOR0073", "UNI0223", [
+  adicionarNo("UNI0223", "FOR0003", "", "SECRETARIA", "Secretaria de Finanças e Execução Orçamentária", 20, "", true);
+  adicionarLinhas("FOR0003", "UNI0223", [
     T("Secretária", "(27) 3334-2857"), T("Contabilidade (Coordenadoria)", "(27) 3334-2786"),
     T("Escrituração, Análise Contábil e Acompanhamento Patrimonial (Seção)", "(27) 3334-2789"),
     R("Escrituração, Análise Contábil e Acompanhamento Patrimonial (Seção)", "2790"),
@@ -241,8 +241,8 @@ function catalogoPJES2026Dados_() {
     T("Tesouraria (Seção)", "(27) 3334-2852")
   ], obsPalacio);
 
-  adicionarNo("UNI0224", "FOR0073", "", "COMISSAO", "Comissões", 21, "", true);
-  adicionarLinhas("FOR0073", "UNI0224", [
+  adicionarNo("UNI0224", "FOR0003", "", "COMISSAO", "Comissões", 21, "", true);
+  adicionarLinhas("FOR0003", "UNI0224", [
     R("Núcleo de Comissões", "2350", "2712", "2713"), R("Segurança Institucional (Seção)", "2101"),
     R("Mensageria", "2351", "2352")
   ], obsPalacio);
