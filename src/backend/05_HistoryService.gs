@@ -119,84 +119,94 @@ class HistoryService {
    * ID | TELEFONE_ID | ACAO | ANTES | DEPOIS | USUARIO | DATA
    */
   registrar(telefoneId, acao, antes, depois) {
-    const id =
-      Utilities.getUuid();
-
     const usuario =
       this.obterUsuarioAtual();
+    const lock = LockService.getScriptLock();
+    let precisaLiberar = false;
+    if (!lock.hasLock()) {
+      lock.waitLock(30000);
+      precisaLiberar = true;
+    }
 
-    const registro = {
-      ID: id,
-      TELEFONE_ID:
-        textoSeguro(telefoneId),
+    try {
+      const id =
+        new IdService().novoHistorico(this.sheet);
 
-      ACAO:
-        this.normalizarAcao(acao),
+      const registro = {
+        ID: id,
+        TELEFONE_ID:
+          textoSeguro(telefoneId),
 
-      ANTES:
-        JSON.stringify(
-          antes || {}
-        ),
+        ACAO:
+          this.normalizarAcao(acao),
 
-      DEPOIS:
-        JSON.stringify(
-          depois || {}
-        ),
+        ANTES:
+          JSON.stringify(
+            antes || {}
+          ),
 
-      USUARIO:
-        usuario,
+        DEPOIS:
+          JSON.stringify(
+            depois || {}
+          ),
 
-      DATA:
-        new Date()
-    };
+        USUARIO:
+          usuario,
 
-    const linha =
-      this.headers.map(header => {
-        switch (
-          normalizarChave(header)
-        ) {
-          case "ID":
-            return registro.ID;
+        DATA:
+          new Date()
+      };
 
-          case "TELEFONEID":
-          case "TELEFONE_ID":
-            return registro.TELEFONE_ID;
+      const linha =
+        this.headers.map(header => {
+          switch (
+            normalizarChave(header)
+          ) {
+            case "ID":
+              return registro.ID;
 
-          case "ACAO":
-            return registro.ACAO;
+            case "TELEFONEID":
+            case "TELEFONE_ID":
+              return registro.TELEFONE_ID;
 
-          case "ANTES":
-            return registro.ANTES;
+            case "ACAO":
+              return registro.ACAO;
 
-          case "DEPOIS":
-            return registro.DEPOIS;
+            case "ANTES":
+              return registro.ANTES;
 
-          case "USUARIO":
-          case "USUARIOS":
-            return registro.USUARIO;
+            case "DEPOIS":
+              return registro.DEPOIS;
 
-          case "DATA":
-          case "DATACRIACAO":
-            return registro.DATA;
+            case "USUARIO":
+            case "USUARIOS":
+              return registro.USUARIO;
 
-          default:
-            return "";
-        }
-      });
+            case "DATA":
+            case "DATACRIACAO":
+              return registro.DATA;
 
-    const linhaDestino =
-      this.sheet.getLastRow() + 1;
+            default:
+              return "";
+          }
+        });
 
-    this.sheet
-      .getRange(
-        linhaDestino,
-        1,
-        1,
-        linha.length
-      )
-      .setValues([linha]);
+      const linhaDestino =
+        this.sheet.getLastRow() + 1;
 
-    return id;
+      this.sheet
+        .getRange(
+          linhaDestino,
+          1,
+          1,
+          linha.length
+        )
+        .setValues([linha]);
+
+      return id;
+    } finally {
+      if (precisaLiberar) lock.releaseLock();
+    }
   }
 
   /**

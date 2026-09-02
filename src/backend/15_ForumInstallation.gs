@@ -89,6 +89,7 @@ function migrarAutenticacaoGoogleV5(ss) {
   const mapa = DB.map(sheet);
   const dados = DB.read(sheet);
   const linhas = [["ID", "NOME", "EMAIL", "NIVEL", "ATIVO"]];
+  let novosIds = 0;
 
   dados.forEach(function(linha) {
     const email = normalizarEmail(mapa.EMAIL ? linha[mapa.EMAIL - 1] : "");
@@ -100,7 +101,9 @@ function migrarAutenticacaoGoogleV5(ss) {
       ] || 0;
     }
     linhas.push([
-      mapa.ID ? textoSeguro(linha[mapa.ID - 1]) || Utilities.getUuid() : Utilities.getUuid(),
+      mapa.ID
+        ? textoSeguro(linha[mapa.ID - 1]) || new IdService().novoUsuario(sheet, novosIds++)
+        : new IdService().novoUsuario(sheet, novosIds++),
       mapa.NOME ? textoSeguro(linha[mapa.NOME - 1]) : email.split("@")[0],
       email,
       nivel,

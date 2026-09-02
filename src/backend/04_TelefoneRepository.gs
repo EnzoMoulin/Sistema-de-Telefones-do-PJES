@@ -231,7 +231,7 @@ class TelefoneRepository {
     lock.waitLock(30000);
     try {
       const entrada = ehObjeto(dados) ? dados : {};
-      const id = new IdService().novoTelefone();
+      const id = new IdService().novoTelefone(this.sheet);
       const momento = new Date();
 
       const registro = {
@@ -368,7 +368,7 @@ class TelefoneRepository {
       const tipo = textoSeguro(valorObjeto(entrada, "tipo", "Tipo")) || "Telefone";
       const valor = textoSeguro(valorObjeto(entrada, "valor", "VALOR", "numero", "Numero", "telefone", "Telefone", "ramal", "Ramal", "whatsapp", "Whatsapp", "email", "EMAIL")) || textoSeguro(valorObjeto(entrada, "numero"));
       const descricao = textoSeguro(valorObjeto(entrada, "descricao", "DESCRICAO", "observacao", "Observacao"));
-      const id = new IdService().novoTelefone();
+      const id = new IdService().novoContato(DB.contatos());
       const momento = new Date();
       const shCon = DB.contatos();
       const headers = DB.headers(shCon);

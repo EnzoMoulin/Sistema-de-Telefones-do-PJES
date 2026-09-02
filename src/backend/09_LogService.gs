@@ -53,10 +53,26 @@ class LogService {
       usuario = "SISTEMA";
     }
 
-    this.obterAbaLog()
-      .appendRow([Utilities.getUuid(), new Date(), usuario, textoSeguro(tipo), textoSeguro(acao),
+    const lock = LockService.getScriptLock();
+    let precisaLiberar = false;
+    if (!lock.hasLock()) {
+      lock.waitLock(30000);
+      precisaLiberar = true;
+    }
+
+    try {
+      const sheet = this.obterAbaLog();
+      sheet.appendRow([
+        new IdService().novoLog(sheet),
+        new Date(),
+        usuario,
+        textoSeguro(tipo),
+        textoSeguro(acao),
         String(mensagem === null || mensagem === undefined ? "" : mensagem)
       ]);
+    } finally {
+      if (precisaLiberar) lock.releaseLock();
+    }
   }
 }
 

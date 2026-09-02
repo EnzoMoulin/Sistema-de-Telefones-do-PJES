@@ -966,7 +966,7 @@ function enviarFormularioAcesso(dados) {
     });
     if (pendente) throw new Error("Já existe uma solicitação pendente para esta conta.");
 
-    const id = Utilities.getUuid();
+    const id = new IdService().novaSolicitacaoAcesso(sheet);
     const linha = montarLinhaSolicitacao(indices, {
       ID: id,
       EMAIL: usuario.email,
@@ -1024,6 +1024,7 @@ function substituirAcessosUnidades(usuarioId, escopos) {
   const mapa = indicesAcessosUnidades(sheet);
   const dados = DB.read(sheet);
   const normalizados = normalizarEscoposAcesso(escopos);
+  let novosGerados = 0;
   const linhasAtualizadas = dados.map(function(linha) {
     const nova = linha.slice();
     if (textoSeguro(linha[mapa.usuarioId - 1]) === usuarioId) nova[mapa.ativo - 1] = "NÃO";
@@ -1039,7 +1040,7 @@ function substituirAcessosUnidades(usuarioId, escopos) {
       linhasAtualizadas[existente][mapa.ativo - 1] = "SIM";
     } else {
       const nova = new Array(sheet.getLastColumn()).fill("");
-      nova[mapa.id - 1] = Utilities.getUuid();
+      nova[mapa.id - 1] = new IdService().novoAcessoUnidade(sheet, novosGerados++);
       nova[mapa.usuarioId - 1] = usuarioId;
       nova[mapa.tipo - 1] = escopo.tipo;
       nova[mapa.escopoId - 1] = escopo.id;
@@ -1055,6 +1056,7 @@ function adicionarAcessosUnidades(usuarioId, escopos) {
   const mapa = indicesAcessosUnidades(sheet);
   const dados = DB.read(sheet);
   const linhasAtualizadas = dados.map(function(linha) { return linha.slice(); });
+  let novosGerados = 0;
   normalizarEscoposAcesso(escopos).forEach(function(escopo) {
     const existente = dados.findIndex(function(linha) {
       return textoSeguro(linha[mapa.usuarioId - 1]) === usuarioId &&
@@ -1065,7 +1067,7 @@ function adicionarAcessosUnidades(usuarioId, escopos) {
       linhasAtualizadas[existente][mapa.ativo - 1] = "SIM";
     } else {
       const nova = new Array(sheet.getLastColumn()).fill("");
-      nova[mapa.id - 1] = Utilities.getUuid();
+      nova[mapa.id - 1] = new IdService().novoAcessoUnidade(sheet, novosGerados++);
       nova[mapa.usuarioId - 1] = usuarioId;
       nova[mapa.tipo - 1] = escopo.tipo;
       nova[mapa.escopoId - 1] = escopo.id;
@@ -1121,8 +1123,8 @@ function processarSolicitacaoAPI(id, novoStatus) {
       }
       let usuarioId = indice >= 0
         ? textoSeguro(dadosU[indice][mapaU.ID - 1])
-        : Utilities.getUuid();
-      if (!usuarioId) usuarioId = Utilities.getUuid();
+        : new IdService().novoUsuario(sheetUsuarios);
+      if (!usuarioId) usuarioId = new IdService().novoUsuario(sheetUsuarios);
 
       const nova = new Array(headersU.length).fill("");
       nova[mapaU.ID - 1] = usuarioId;
@@ -1953,7 +1955,7 @@ function criarNotificacao(destinatarioEmail, tipo, mensagem, referencia) {
       indices.DATA === undefined ||
       indices.REFERENCIA === undefined
     ) {
-      const id = Utilities.getUuid();
+      const id = new IdService().novaNotificacao(sheet);
       sheet.appendRow([
         id,
         destinatario,
@@ -1965,7 +1967,7 @@ function criarNotificacao(destinatarioEmail, tipo, mensagem, referencia) {
       ]);
       return id;
     }
-    const id = Utilities.getUuid();
+    const id = new IdService().novaNotificacao(sheet);
     const linha = montarLinhaNotificacao(indices, {
       ID: id,
       DESTINATARIO: destinatario,
@@ -2518,7 +2520,7 @@ function criarUsuario(dados) {
     })) throw new Error("Já existe um usuário com este e-mail.");
 
     const headers = DB.headers(sheet);
-    const id = Utilities.getUuid();
+    const id = new IdService().novoUsuario(sheet);
     const nova = new Array(headers.length).fill("");
     nova[mapa.ID - 1] = id;
     nova[mapa.NOME - 1] = nome;
