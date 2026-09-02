@@ -202,20 +202,19 @@
 
     painel.querySelectorAll(".fc-section h3").forEach(function (titulo) {
       var texto = String(titulo.textContent || "").trim();
-      if (/^Unidades\s+e\s+Setores$/i.test(texto)) titulo.textContent = "Unidades";
-      if (/^Setores\s*\/\s*(?:Sub)?(?:Localidades?|Fóruns?)$/i.test(texto)) titulo.textContent = "Setores";
+      if (/^Setores\s*\/\s*(?:Sub)?Localidades?$/i.test(texto)) titulo.textContent = "Setores / Fóruns";
     });
 
     painel.querySelectorAll(".fc-pill").forEach(function (badge) {
       var texto = String(badge.textContent || "").trim();
-      var match = texto.match(/^(\d+)\s+(?:localidades?|fóruns?)$/i);
+      var match = texto.match(/^(\d+)\s+localidades?$/i);
       if (!match) return;
       var quantidade = Number(match[1]);
       if (!quantidade) {
         badge.remove();
         return;
       }
-      badge.textContent = quantidade + (quantidade === 1 ? " setor" : " setores");
+      badge.textContent = quantidade + (quantidade === 1 ? " Fórum" : " Fóruns");
     });
   }
 
