@@ -22,22 +22,8 @@ function _v4Rows(sheet) {
   return DB.read(sheet).map((linha, i) => ({ linha, mapa, indice: i }));
 }
 
-function _v4IdNumero(id) {
-  const m = String(id || "").match(/(\d+)$/);
-  return m ? Number(m[1]) : 0;
-}
-
-function _v4NovoContatoId(tipo) {
-  const rows = _v4Rows(DB.contatos());
-  const prefixo = normalizarChave(tipo) === "EMAIL" ? "EML" : "T";
-  let maior = 0;
-  rows.forEach(item => {
-    const id = textoSeguro(_v4Col(item.mapa, item.linha, ["ID"]));
-    if ((prefixo === "EML" && id.indexOf("EML") === 0) || (prefixo === "T" && id.indexOf("T") === 0)) {
-      maior = Math.max(maior, _v4IdNumero(id));
-    }
-  });
-  return prefixo + String(maior + 1).padStart(6, "0");
+function _v4NovoContatoId() {
+  return new IdService().novoContato(DB.contatos());
 }
 
 function _v4TipoNormalizado(tipo) {
@@ -230,22 +216,31 @@ function _v4DadosContatoPorId(id) {
 }
 
 function _v4HistoricoRegistrar(contatoId, acao, antes, depois) {
-  const sh = DB.historico();
-  const headers = DB.headers(sh);
-  const mapa = DB.map(sh);
-  const linha = headers.map(h => {
-    const k = normalizarChave(h);
-    if (k === "ID") return Utilities.getUuid();
-    if (k === "CONTATOID" || k === "CONTATO_ID") return contatoId;
-    if (k === "TELEFONEID" || k === "TELEFONE_ID") return contatoId;
-    if (k === "ACAO") return acao;
-    if (k === "ANTES") return JSON.stringify(antes || {});
-    if (k === "DEPOIS") return JSON.stringify(depois || {});
-    if (k === "USUARIO") return _v4Usuario().email || "SISTEMA";
-    if (k === "DATA" || k === "DATACRIACAO") return new Date();
-    return "";
-  });
-  sh.getRange(sh.getLastRow() + 1, 1, 1, linha.length).setValues([linha]);
+  const lock = LockService.getScriptLock();
+  let precisaLiberar = false;
+  if (!lock.hasLock()) {
+    lock.waitLock(30000);
+    precisaLiberar = true;
+  }
+  try {
+    const sh = DB.historico();
+    const headers = DB.headers(sh);
+    const linha = headers.map(h => {
+      const k = normalizarChave(h);
+      if (k === "ID") return new IdService().novoHistorico(sh);
+      if (k === "CONTATOID" || k === "CONTATO_ID") return contatoId;
+      if (k === "TELEFONEID" || k === "TELEFONE_ID") return contatoId;
+      if (k === "ACAO") return acao;
+      if (k === "ANTES") return JSON.stringify(antes || {});
+      if (k === "DEPOIS") return JSON.stringify(depois || {});
+      if (k === "USUARIO") return _v4Usuario().email || "SISTEMA";
+      if (k === "DATA" || k === "DATACRIACAO") return new Date();
+      return "";
+    });
+    sh.getRange(sh.getLastRow() + 1, 1, 1, linha.length).setValues([linha]);
+  } finally {
+    if (precisaLiberar) lock.releaseLock();
+  }
 }
 
 function v4ObterContato(id) {
@@ -256,6 +251,9 @@ function v4ObterContato(id) {
 
 function v4CriarContato(dados) {
   new AuthService().exigirPermissao(CONFIG.PERMISSOES.EDITAR);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
   const entrada = ehObjeto(dados) ? dados : {};
   const contexto = _v4ResolverContexto(entrada);
   const usuario = _v4Usuario();
@@ -273,7 +271,7 @@ function v4CriarContato(dados) {
   const sh = DB.contatos();
   const headers = DB.headers(sh);
   const agora = new Date();
-  const id = _v4NovoContatoId(tipo);
+  const id = _v4NovoContatoId();
   const linha = headers.map(h => {
     const k = normalizarChave(h);
     if (k === "ID") return id;
@@ -295,6 +293,9 @@ function v4CriarContato(dados) {
   _v4HistoricoRegistrar(id, "CRIACAO", {}, { id, ...contexto, tipo, descricao, valor });
   try { CACHE.limparTudo(); } catch (e) {}
   return v4ObterContato(id);
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function v4AtualizarContato(id, dados) {

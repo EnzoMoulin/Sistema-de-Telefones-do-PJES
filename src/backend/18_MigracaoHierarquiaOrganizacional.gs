@@ -29,6 +29,7 @@ function migrarHierarquiaOrganizacionalV5() {
     const id = textoSeguro(_fcCampo(mapaDestino, linha, ["ID"]));
     if (id) nosExistentes.add(id);
   });
+  const importarLegado = nosExistentes.size === 0;
 
   const unidadesLegadas = DB.unidadesOuNulo();
   const setoresLegados = DB.setoresOuNulo();
@@ -43,7 +44,7 @@ function migrarHierarquiaOrganizacionalV5() {
     });
   };
 
-  if (unidadesLegadas) {
+  if (importarLegado && unidadesLegadas) {
     const mapa = DB.map(unidadesLegadas);
     DB.read(unidadesLegadas).forEach(function(linha, indice) {
       const id = textoSeguro(_fcCampo(mapa, linha, ["ID"]));
@@ -68,7 +69,7 @@ function migrarHierarquiaOrganizacionalV5() {
     });
   }
 
-  if (setoresLegados) {
+  if (importarLegado && setoresLegados) {
     const mapa = DB.map(setoresLegados);
     DB.read(setoresLegados).forEach(function(linha, indice) {
       const id = textoSeguro(_fcCampo(mapa, linha, ["ID"]));
@@ -102,7 +103,7 @@ function migrarHierarquiaOrganizacionalV5() {
   const dadosContatos = DB.read(contatos);
   let contatosAtualizados = 0;
 
-  if (idxNo && dadosContatos.length) {
+  if (importarLegado && idxNo && dadosContatos.length) {
     const valores = dadosContatos.map(function(linha) {
       const atual = textoSeguro(linha[idxNo - 1]);
       const legado = textoSeguro(idxSetor ? linha[idxSetor - 1] : "") || textoSeguro(idxUnidade ? linha[idxUnidade - 1] : "");
@@ -120,6 +121,7 @@ function migrarHierarquiaOrganizacionalV5() {
     sucesso: true,
     nosInseridos: novasLinhas.length,
     contatosAtualizados: contatosAtualizados,
+    migracaoIgnorada: !importarLegado,
     abasLegadasPreservadas: [CONFIG.SHEETS.UNIDADES, CONFIG.SHEETS.SETORES]
   };
 }

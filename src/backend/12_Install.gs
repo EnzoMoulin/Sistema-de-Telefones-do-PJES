@@ -483,7 +483,7 @@ function garantirGestorInicial(
 
   const headers = DB.headers(sheet);
   const linha = new Array(headers.length).fill("");
-  linha[mapa.ID - 1] = Utilities.getUuid();
+  linha[mapa.ID - 1] = new IdService().novoUsuario(sheet);
   linha[mapa.NOME - 1] = emailAtual.split("@")[0];
   linha[mapa.EMAIL - 1] = emailAtual;
   linha[mapa.NIVEL - 1] = CONFIG.NIVEIS.GESTOR_SISTEMA;

@@ -451,11 +451,11 @@ function importarCatalogosPJES2026() {
     }
 
     const agora = new Date();
-    const proximoId = { T: 0, EML: 0 };
+    let proximoIdContato = 0;
     base.contatos.forEach(function(linha) {
       const id = textoSeguro(_cat2026Campo_(base.mapaContatos, linha, "ID"));
-      const match = id.match(/^(T|EML)(\d+)$/);
-      if (match) proximoId[match[1]] = Math.max(proximoId[match[1]], Number(match[2]));
+      const match = id.match(/^C(\d+)$/);
+      if (match) proximoIdContato = Math.max(proximoIdContato, Number(match[1]));
     });
 
     plano.novosForums.forEach(function(item) {
@@ -507,8 +507,7 @@ function importarCatalogosPJES2026() {
     });
 
     plano.novosContatos.forEach(function(item) {
-      const prefixo = normalizarChave(item.tipo) === "EMAIL" ? "EML" : "T";
-      const id = prefixo + String(++proximoId[prefixo]).padStart(6, "0");
+      const id = "C" + String(++proximoIdContato).padStart(6, "0");
       const linha = base.headersContatos.map(function() { return ""; });
       _cat2026Definir_(base.mapaContatos, linha, "ID", id);
       _cat2026Definir_(base.mapaContatos, linha, "FORUM_ID", item.forumId);
@@ -534,10 +533,10 @@ function importarCatalogosPJES2026() {
       const shHistorico = DB.historico();
       const headers = DB.headers(shHistorico);
       const usuario = new AuthService().usuarioAtual();
-      const linhas = historico.map(function(item) {
+      const linhas = historico.map(function(item, indiceHistorico) {
         return headers.map(function(header) {
           const chave = normalizarChave(header);
-          if (chave === "ID") return Utilities.getUuid();
+          if (chave === "ID") return new IdService().novoHistorico(shHistorico, indiceHistorico);
           if (chave === "CONTATOID") return item.id;
           if (chave === "ACAO") return "MIGRACAO_CATALOGOS_2026";
           if (chave === "ANTES") return JSON.stringify(item.antes);

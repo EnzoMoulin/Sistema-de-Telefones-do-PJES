@@ -20,29 +20,13 @@ function _cgIdsAba(sheet) {
 
 function _cgPrecisaSincronizarV5() {
   const v5 = DB.unidadesOrganizacionaisOuNulo();
-  const unidades = DB.unidadesOuNulo();
-  const setores = DB.setoresOuNulo();
   const idsV5 = new Set(_cgIdsAba(v5));
-  const idsLegado = _cgIdsAba(unidades).concat(_cgIdsAba(setores));
 
-  if (!v5) return idsLegado.length > 0;
-  if (idsLegado.some(function(id) { return !idsV5.has(id); })) return true;
-
-  const contatos = DB.contatosOuNulo();
-  if (!contatos) return false;
-  const mapa = DB.map(contatos);
-  const idxNo = mapa.UNIDADEORGANIZACIONALID;
-  const idxUnidade = mapa.UNIDADEID;
-  const idxSetor = mapa.SETORID;
-  if (!idxNo && (idxUnidade || idxSetor)) return true;
-  if (!idxNo) return false;
-
-  return DB.read(contatos).some(function(linha) {
-    const noId = textoSeguro(linha[idxNo - 1]);
-    const legado = textoSeguro(idxSetor ? linha[idxSetor - 1] : "") ||
-      textoSeguro(idxUnidade ? linha[idxUnidade - 1] : "");
-    return !noId && !!legado;
-  });
+  // A árvore V5 é a fonte operacional. As abas legadas possuem outro espaço
+  // de IDs e não podem disparar migração durante login, consulta ou navegação.
+  if (v5 && idsV5.size > 0) return false;
+  return _cgIdsAba(DB.unidadesOuNulo()).length > 0 ||
+    _cgIdsAba(DB.setoresOuNulo()).length > 0;
 }
 
 function _cgValidarAbasBasicas() {
@@ -58,29 +42,14 @@ function _cgValidarAbasBasicas() {
 function _cgGarantirModeloOperacional() {
   _cgValidarAbasBasicas();
 
-  let v5 = DB.unidadesOrganizacionaisOuNulo();
-  const possuiLegado = _cgIdsAba(DB.unidadesOuNulo()).length > 0 ||
-    _cgIdsAba(DB.setoresOuNulo()).length > 0;
+  const v5 = DB.unidadesOrganizacionaisOuNulo();
   const precisaSincronizar = _cgPrecisaSincronizarV5();
 
-  if (precisaSincronizar && possuiLegado) {
-    if (!AuthService.ehContextoPrivado()) {
-      throw new Error(
-        "A base pública ainda não recebeu a hierarquia organizacional V5. " +
-        "Abra a implantação administrativa para concluir a sincronização e publique novamente os dados."
-      );
-    }
-
-    const lock = LockService.getScriptLock();
-    let bloqueado = false;
-    try {
-      lock.waitLock(30000);
-      bloqueado = true;
-      if (_cgPrecisaSincronizarV5()) migrarHierarquiaOrganizacionalV5();
-    } finally {
-      if (bloqueado) lock.releaseLock();
-    }
-    v5 = DB.unidadesOrganizacionaisOuNulo();
+  if (precisaSincronizar) {
+    throw new Error(
+      "A hierarquia V5 ainda não foi criada. Execute explicitamente " +
+      "migrarHierarquiaOrganizacionalV5() no ambiente privado e valide os dados antes de publicar."
+    );
   }
 
   if (!v5) {
@@ -91,7 +60,7 @@ function _cgGarantirModeloOperacional() {
   }
 
   return {
-    fonte: precisaSincronizar && possuiLegado ? "V5_SINCRONIZADA" : "V5",
+    fonte: "V5",
     nos: _cgIdsAba(v5).length,
     contatos: DB.count(DB.contatos())
   };
