@@ -1,7 +1,7 @@
 /**
  * Ajustes de escopo do painel V6.
  * Mantém a consulta pública/global e restringe apenas GESTOR_CONTEUDO
- * às localidades (Fórum/Unidade) cobertas pelos acessos ativos.
+ * aos Fóruns/Unidades cobertos pelos acessos ativos.
  */
 
 function _pjesEhGestorConteudoEscopoV6(usuario) {
@@ -79,6 +79,9 @@ function _pjesFiltrarHierarquiaEscopoV6(hierarquia, usuario) {
 
   const ids = _pjesIdsUnidadesEscopoV6(usuario);
   const municipios = (Array.isArray(base.municipios) ? base.municipios : []).map(function(municipio) {
+    const nosDiretos = (Array.isArray(municipio.nos) ? municipio.nos : [])
+      .map(function(no) { return _pjesFiltrarNoHierarquiaV6(no, ids); })
+      .filter(Boolean);
     const foruns = (Array.isArray(municipio.foruns) ? municipio.foruns : []).map(function(forum) {
       if (_pjesTemAcessoForumExplicitoV6(usuario, forum.id)) {
         return forum;
@@ -96,8 +99,24 @@ function _pjesFiltrarHierarquiaEscopoV6(hierarquia, usuario) {
       });
     }).filter(Boolean);
 
-    if (!foruns.length) return null;
-    return Object.assign({}, municipio, { foruns: foruns });
+    if (!foruns.length && !nosDiretos.length) return null;
+    const contatosDiretos = [];
+    const qtdNosDiretos = nosDiretos.reduce(function(total, no) { return total + Number(no.qtdNos || 1); }, 0);
+    const contarUnidades = function(lista) {
+      return (lista || []).reduce(function(total, no) {
+        return total + (no.selecionavelAcesso ? 1 : 0) + contarUnidades(no.filhos || []);
+      }, 0);
+    };
+    const qtdContatosDiretos = nosDiretos.reduce(function(total, no) { return total + Number(no.qtdContatos || 0); }, 0);
+    return Object.assign({}, municipio, {
+      contatos: contatosDiretos,
+      nos: nosDiretos,
+      foruns: foruns,
+      qtdForuns: foruns.length,
+      qtdNos: qtdNosDiretos + foruns.reduce(function(total, forum) { return total + Number(forum.qtdNos || 0); }, 0),
+      qtdUnidades: contarUnidades(nosDiretos) + foruns.reduce(function(total, forum) { return total + Number(forum.qtdUnidades || 0); }, 0),
+      qtdContatos: qtdContatosDiretos + foruns.reduce(function(total, forum) { return total + Number(forum.qtdContatos || 0); }, 0)
+    });
   }).filter(Boolean);
 
   return Object.assign({}, base, { municipios: municipios });

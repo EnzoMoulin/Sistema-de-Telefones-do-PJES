@@ -130,6 +130,10 @@
     return (estado.dados.municipios || []).find(function (m) { return m.id === id; }) || null;
   }
 
+  function ehOrgao(municipio) {
+    return String(municipio && municipio.tipo || "").toUpperCase() === "ORGAO";
+  }
+
   function encontrarForum(id) {
     var achado = null;
     (estado.dados.municipios || []).some(function (m) {
@@ -151,9 +155,13 @@
 
   function municipioAtual() { return encontrarMunicipio(estado.municipioId); }
   function forumAtual() { return encontrarForum(estado.forumId); }
+  function raizAtual() {
+    var m = municipioAtual();
+    return ehOrgao(m) ? m : forumAtual();
+  }
   function noAtual() {
-    var f = forumAtual();
-    return f ? encontrarNo(f.nos || [], estado.noId) : null;
+    var raiz = raizAtual();
+    return raiz ? encontrarNo(raiz.nos || [], estado.noId) : null;
   }
 
   function caminhoAteNo(lista, id, caminho) {
@@ -168,17 +176,15 @@
   }
 
   function breadcrumbHtml(municipio, forum, no) {
-    var itens = [
-      { tipo: "MUNICIPIO", id: municipio.id, nome: municipio.nome },
-      { tipo: "FORUM", id: forum.id, nome: forum.nome }
-    ];
+    var itens = [{ tipo: "MUNICIPIO", id: municipio.id, nome: municipio.nome }];
+    if (forum) itens.push({ tipo: "FORUM", id: forum.id, nome: forum.nome });
     if (no) {
-      (caminhoAteNo(forum.nos || [], no.id, []) || []).forEach(function (item) {
+      (caminhoAteNo((forum || municipio).nos || [], no.id, []) || []).forEach(function (item) {
         itens.push({ tipo: "NO", id: item.id, nome: item.nome });
       });
     }
 
-    return '<nav class="fc-breadcrumb" aria-label="Caminho da localidade">' + itens.map(function (item, indice) {
+    return '<nav class="fc-breadcrumb" aria-label="Caminho da estrutura">' + itens.map(function (item, indice) {
       var ultimo = indice === itens.length - 1;
       var conteudo = ultimo
         ? '<span class="fc-breadcrumb-current" aria-current="page">' + esc(item.nome) + "</span>"
@@ -197,7 +203,8 @@
           estado.municipioId = id;
           estado.forumId = "";
           estado.noId = "";
-          renderForuns();
+          if (ehOrgao(municipioAtual())) renderOrgao();
+          else renderForuns();
         } else if (tipo === "FORUM") {
           estado.forumId = id;
           estado.noId = "";
@@ -239,8 +246,11 @@
   function municipioTemAcesso(municipio) {
     if (ehGS()) return true;
     if (!ehGC()) return false;
-    return (municipio.foruns || []).some(forumTemAlgumAcesso);
+    return (municipio.foruns || []).some(forumTemAlgumAcesso) ||
+      todosNos(municipio.nos || [], []).some(function (no) { return possuiAcessoNo(no.id); });
   }
+
+  function podeGerenciarOrgao() { return ehGS(); }
 
   function podeGerenciarForum(forum) {
     return ehGS() || (ehGC() && forum && possuiAcessoForumExplicito(forum.id));
@@ -329,7 +339,7 @@
       .fc-empty{padding:20px;border:1px dashed #cbd5e1;border-radius:12px;color:#64748b;text-align:center}.fc-error{padding:16px;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:12px;line-height:1.5}
       .fc-access{margin-top:10px;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:8px;padding:7px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
       .fc-map-legenda{padding:7px 9px;background:rgba(255,255,255,.94);border:1px solid #cbd5e1;border-radius:7px;box-shadow:0 2px 8px rgba(15,23,42,.12);font-size:11px;color:#334155}.fc-map-legenda span{display:block;margin:2px 0}.fc-map-legenda .tem-contato{color:#2563eb}.fc-map-legenda .sem-contato{color:#94a3b8}
-      .fc-total-comarcas{display:inline-flex;margin:12px 0 8px;background:#dbeafe;color:#1e40af;font-weight:800}.fc-print-all{width:100%;min-height:44px;display:flex;align-items:center;justify-content:center;line-height:1.2;margin-bottom:12px}.fc-print-footer{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin-top:22px;padding-top:16px;border-top:1px solid #e2e8f0}.fc-print-footer .fc-btn{min-height:42px;display:inline-flex;align-items:center;justify-content:center;padding-inline:18px}.fc-address-row{margin-top:10px}.fc-address-row .fc-inherit{margin-top:0}
+      .fc-catalog-counts{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:12px 0 8px}.fc-total-comarcas{display:inline-flex;background:#dbeafe;color:#1e40af;font-weight:800}.fc-total-orgaos{display:inline-flex;background:#ede9fe;color:#5b21b6;font-weight:800}.fc-municipios-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}.fc-municipios-grid .fc-card{margin-top:0}.fc-print-all{width:100%;min-height:44px;display:flex;align-items:center;justify-content:center;line-height:1.2;margin-bottom:12px}.fc-print-footer{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin-top:22px;padding-top:16px;border-top:1px solid #e2e8f0}.fc-print-footer .fc-btn{min-height:42px;display:inline-flex;align-items:center;justify-content:center;padding-inline:18px}.fc-address-row{margin-top:10px}.fc-address-row .fc-inherit{margin-top:0}
       .fc-dialog-backdrop{position:fixed;inset:0;z-index:10050;background:rgba(15,23,42,.52);display:flex;align-items:center;justify-content:center;padding:18px}
       .fc-dialog{width:min(560px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:16px;padding:20px;box-shadow:0 24px 64px rgba(15,23,42,.28)}
       .fc-dialog h3{margin:0 0 4px;color:#0f172a}.fc-dialog p{margin:0 0 16px;color:#64748b;font-size:13px}.fc-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.fc-field{display:grid;gap:5px}.fc-field--full{grid-column:1/-1}.fc-field label{font-size:12px;font-weight:700;color:#334155}.fc-field input,.fc-field select,.fc-field textarea{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:9px;padding:9px 10px;font:inherit}.fc-field textarea{min-height:86px;resize:vertical}
@@ -388,7 +398,7 @@
   function restaurarNavegacao() {
     if (estado.noId && noAtual()) return renderNo();
     if (estado.forumId && forumAtual()) return renderForum();
-    if (estado.municipioId && municipioAtual()) return renderForuns();
+    if (estado.municipioId && municipioAtual()) return ehOrgao(municipioAtual()) ? renderOrgao() : renderForuns();
     estado.municipioId = "";
     estado.forumId = "";
     estado.noId = "";
@@ -445,17 +455,17 @@
     var botoes = [];
     if (ehGestor() && pode) {
       botoes.push('<button type="button" class="fc-btn" data-edit-address="' + esc(tipo) + '" data-local-id="' + esc(item.id) + '">✎ Endereço</button>');
-      botoes.push('<button type="button" class="fc-btn" data-add-locality="' + (tipo === "FORUM" ? "UNIDADE" : "SETOR") + '">' +
-        (tipo === "FORUM" ? "＋ Unidade" : "＋ Setor") + "</button>");
+      botoes.push('<button type="button" class="fc-btn" data-add-locality="' + (tipo === "FORUM" || tipo === "MUNICIPIO" ? "UNIDADE" : "SETOR") + '">' +
+        (tipo === "FORUM" || tipo === "MUNICIPIO" ? "＋ Unidade" : "＋ Setor") + "</button>");
       botoes.push('<button type="button" class="fc-btn fc-btn--primary" data-add-contact="' + esc(tipo) + '" data-local-id="' + esc(item.id) + '">＋ Contato</button>');
     }
     return botoes.length ? '<div class="fc-toolbar">' + botoes.join("") + "</div>" : "";
   }
 
   function botaoImpressaoLocalidade(tipo, tipoNo) {
-    var rotulo = tipo === "FORUM" ? "Localidade" : (tipoNo === "Setor" ? "Setor" : "Unidade");
+    var rotulo = tipo === "MUNICIPIO" ? "Órgão" : (tipo === "FORUM" ? "Fórum" : (tipoNo === "Setor" ? "Setor" : "Unidade"));
     var artigo = rotulo === "Unidade" ? "da" : "do";
-    var id = tipo === "FORUM" ? "fc-print-forum" : "fc-print-unit";
+    var id = tipo === "FORUM" || tipo === "MUNICIPIO" ? "fc-print-forum" : "fc-print-unit";
     return '<div class="fc-print-footer"><button type="button" class="fc-btn" data-scroll-top title="Voltar ao início deste painel">↑ Voltar ao topo</button>' +
       '<button type="button" class="fc-btn" id="' + id + '" title="Imprimir / Salvar PDF dos contatos ' +
       artigo + " " + rotulo + '">🖨 Imprimir / Salvar PDF</button></div>';
@@ -463,7 +473,8 @@
 
   function contatosCards(contatos, contexto) {
     if (!contatos || !contatos.length) return '<div class="fc-empty">Nenhum contato cadastrado.</div>';
-    var pode = contexto.tipo === "FORUM" ? podeGerenciarForum(contexto.item) : podeGerenciarNo(contexto.item);
+    var pode = contexto.tipo === "MUNICIPIO" ? podeGerenciarOrgao() :
+      (contexto.tipo === "FORUM" ? podeGerenciarForum(contexto.item) : podeGerenciarNo(contexto.item));
     return '<div class="fc-contatos">' + contatos.map(function (c) {
       var tipo = fmtTipoContato(c.tipo);
       var valor = fmtValor(c.tipo, c.valor);
@@ -546,7 +557,7 @@
   }
 
   function opcoesComarcas(municipios, selecionado) {
-    return '<option value="">Selecione a Comarca</option>' + (municipios || []).map(function (m) {
+    return '<option value="">Selecione a Comarca/Órgão</option>' + (municipios || []).map(function (m) {
       return '<option value="' + esc(m.id) + '"' + (m.id === selecionado ? " selected" : "") + ">" + esc(m.nome) + "</option>";
     }).join("");
   }
@@ -559,11 +570,29 @@
     estado.noId = "";
 
     var municipios = (estado.dados && estado.dados.municipios) || [];
+    var totalOrgaos = municipios.filter(ehOrgao).length;
+    var totalComarcas = municipios.length - totalOrgaos;
+    var cardsMunicipios = municipios.map(function (m) {
+      var setores = ehOrgao(m)
+        ? qtdSetores(m.nos || [])
+        : (m.foruns || []).reduce(function (total, f) { return total + qtdSetores(f.nos || []); }, 0);
+      return '<div class="fc-card" data-nav="municipio" data-mun="' + esc(m.id) + '">' +
+        '<div class="fc-card-head"><div><h4>' + esc(m.nome) + '</h4></div>' +
+        (ehOrgao(m) ? '<span class="fc-pill fc-total-orgaos">Órgão</span>' : '') + '</div>' +
+        '<div class="fc-meta">' +
+        (ehOrgao(m) ? '' : badgeQuantidade(m.qtdForuns, "Fórum", "Fóruns")) +
+        badgeQuantidade(m.qtdUnidades, "Unidade", "Unidades") +
+        badgeQuantidade(setores, "Setor", "Setores") +
+        badgeQuantidade(m.qtdContatos, "Contato", "Contatos") + '</div></div>';
+    }).join("");
     var conteudo = '<div class="fc-head"><div><h2 class="fc-title">Contatos do PJES</h2>' +
-      '<p class="fc-subtitle fc-subtitle--intro">Consulte a estrutura completa por Comarca, Localidade, Unidade e Setor. Selecione uma Comarca no mapa ao lado ou no menu suspenso abaixo.</p></div></div>' +
-      (municipios.length ? '<span class="fc-pill fc-total-comarcas">' + esc(rotuloQuantidade(municipios.length, "Comarca", "Comarcas")) + "</span>" : "") +
+      '<p class="fc-subtitle fc-subtitle--intro">Consulte a estrutura completa por Comarca/Órgão, Fórum, Unidade e Setor. Selecione uma Comarca/Órgão no mapa, no menu suspenso ou na lista abaixo.</p></div></div>' +
+      (municipios.length ? '<div class="fc-catalog-counts">' +
+        (totalOrgaos ? '<span class="fc-pill fc-total-orgaos">' + esc(rotuloQuantidade(totalOrgaos, "Órgão", "Órgãos")) + '</span>' : '') +
+        (totalComarcas ? '<span class="fc-pill fc-total-comarcas">' + esc(rotuloQuantidade(totalComarcas, "Comarca", "Comarcas")) + '</span>' : '') + '</div>' : '') +
       '<select id="fc-comarca" class="fc-select">' + opcoesComarcas(municipios, "") + "</select>" +
-      '<button type="button" class="fc-btn fc-print-all" id="fc-print-all" title="Imprimir / Salvar PDF de todos os contatos">🖨 Imprimir / Salvar PDF</button>';
+      '<button type="button" class="fc-btn fc-print-all" id="fc-print-all" title="Imprimir / Salvar PDF de todos os contatos">🖨 Imprimir / Salvar PDF</button>' +
+      '<div class="fc-section"><h3>Comarcas e Órgãos</h3><div class="fc-municipios-grid">' + cardsMunicipios + '</div></div>';
 
     c.innerHTML = conteudo;
 
@@ -572,6 +601,9 @@
 
     var imprimir = document.getElementById("fc-print-all");
     if (imprimir) imprimir.onclick = imprimirTudo;
+    document.querySelectorAll("[data-mun]").forEach(function (el) {
+      el.onclick = function () { abrirMunicipio(el.getAttribute("data-mun")); };
+    });
   }
 
   function abrirMunicipio(id) {
@@ -580,7 +612,8 @@
     estado.noId = "";
     var m = municipioAtual();
     if (!m) return;
-    renderForuns();
+    if (ehOrgao(m)) renderOrgao();
+    else renderForuns();
     if (estado.mapa && estado.geojson) destacarMunicipio(m.codigoIbge);
   }
 
@@ -588,18 +621,19 @@
     var c = host();
     var m = municipioAtual();
     if (!c || !m) return;
+    if (ehOrgao(m)) return renderOrgao();
 
     var resumo = resumoQuantidades([
-      rotuloQuantidade(m.qtdForuns, "Localidade", "Localidades"),
+      rotuloQuantidade(m.qtdForuns, "Fórum", "Fóruns"),
       rotuloQuantidade(m.qtdUnidades, "Unidade", "Unidades"),
       rotuloQuantidade((m.foruns || []).reduce(function (total, f) { return total + qtdSetores(f.nos || []); }, 0), "Setor", "Setores"),
       rotuloQuantidade(m.qtdContatos, "Contato", "Contatos")
     ]);
-    c.innerHTML = '<button class="fc-back" id="fc-back-home">← Comarcas</button>' +
+    c.innerHTML = '<button class="fc-back" id="fc-back-home">← Comarcas/Órgãos</button>' +
       '<div class="fc-head"><div><h2 class="fc-title">' + esc(m.nome) + "</h2>" +
       '<p class="fc-subtitle">' + esc(resumo) + "</p></div></div>" +
       '<select id="fc-comarca" class="fc-select">' + opcoesComarcas(estado.dados.municipios || [], m.id) + "</select>" +
-      '<div class="fc-section"><h3>Fóruns e órgãos</h3>' +
+      '<div class="fc-section"><h3>Fóruns</h3>' +
       (m.foruns || []).map(function (f) {
         var acesso = forumTemAlgumAcesso(f);
         var podeForum = podeGerenciarForum(f);
@@ -625,6 +659,46 @@
     });
     vincularSolicitacoes();
     vincularCopias();
+  }
+
+  function renderOrgao() {
+    var c = host();
+    var m = municipioAtual();
+    if (!c || !m || !ehOrgao(m)) return;
+
+    var pode = podeGerenciarOrgao();
+    var contexto = { tipo: "MUNICIPIO", item: m, municipioId: m.id, forumId: "", noId: "" };
+    var resumo = resumoQuantidades([
+      rotuloQuantidade(m.qtdUnidades, "Unidade", "Unidades"),
+      rotuloQuantidade(qtdSetores(m.nos || []), "Setor", "Setores"),
+      rotuloQuantidade(m.qtdContatos, "Contato", "Contatos")
+    ]);
+
+    c.innerHTML = '<button class="fc-back" id="fc-back-home">← Comarcas/Órgãos</button>' +
+      '<div class="fc-head"><div><h2 class="fc-title">' + esc(m.nome) + '</h2>' +
+      '<p class="fc-subtitle">' + esc(resumo) + '</p>' + breadcrumbHtml(m, null, null) + '</div></div>' +
+      '<select id="fc-comarca" class="fc-select">' + opcoesComarcas(estado.dados.municipios || [], m.id) + '</select>' +
+      '<div class="fc-meta"><span class="fc-pill fc-total-orgaos">Órgão</span>' +
+      badgeQuantidade(m.qtdUnidades, "Unidade", "Unidades") + '</div>' +
+      '<div class="fc-address-row"><div class="fc-inherit"><strong>Endereço do órgão:</strong> ' + linkEndereco(m.endereco) +
+      (m.cep ? ' • CEP ' + esc(m.cep) : '') + '</div></div>' +
+      acoesLocalidade("MUNICIPIO", m, pode) +
+      '<div class="fc-section"><div class="fc-section-title"><h3>Contatos gerais</h3></div>' +
+      contatosCards(m.contatos || [], contexto) + '</div>' +
+      '<div class="fc-section"><div class="fc-section-title"><h3>Unidades e Setores</h3></div>' +
+      ((m.nos || []).length ? (m.nos || []).map(cardNo).join("") : '<div class="fc-empty">Nenhuma Unidade cadastrada.</div>') +
+      '</div>' + botaoImpressaoLocalidade("MUNICIPIO");
+
+    document.getElementById("fc-back-home").onclick = renderInicio;
+    document.getElementById("fc-comarca").onchange = function () {
+      if (this.value && this.value !== estado.municipioId) abrirMunicipio(this.value);
+    };
+    document.getElementById("fc-print-forum").onclick = imprimirForum;
+    document.querySelectorAll("[data-no]").forEach(function (el) {
+      el.onclick = function () { abrirNo(el.getAttribute("data-no")); };
+    });
+    vincularBreadcrumbs();
+    bindAcoesContexto(contexto);
   }
 
   function abrirForum(id) {
@@ -660,9 +734,9 @@
     c.innerHTML = '<button class="fc-back" id="fc-back-municipio">← ' + esc(m.nome) + "</button>" +
       '<div class="fc-head"><div><h2 class="fc-title">' + esc(f.nome) + "</h2>" +
       breadcrumbHtml(m, f, null) + "</div></div>" +
-      '<div class="fc-meta"><span class="fc-pill fc-pill-type">Localidade</span>' +
+      '<div class="fc-meta"><span class="fc-pill fc-pill-type">Fórum</span>' +
       badgeQuantidade(f.qtdUnidades, "Unidade", "Unidades") + "</div>" +
-      '<div class="fc-address-row"><div class="fc-inherit"><strong>Endereço da localidade:</strong> ' + linkEndereco(f.endereco) +
+      '<div class="fc-address-row"><div class="fc-inherit"><strong>Endereço do Fórum:</strong> ' + linkEndereco(f.endereco) +
       (f.cep ? " • CEP " + esc(f.cep) : "") + "</div></div>" +
       acoesLocalidade("FORUM", f, pode) +
       (pode ? "" : botaoSolicitar("FORUM", f.id)) +
@@ -699,24 +773,25 @@
     var c = host();
     var f = forumAtual();
     var m = municipioAtual();
+    var raiz = raizAtual();
     var no = noAtual();
-    if (!c || !f || !m || !no) return;
+    if (!c || !raiz || !m || !no) return;
 
-    var pai = encontrarPai(f.nos || [], no.id, null);
+    var pai = encontrarPai(raiz.nos || [], no.id, null);
     var tipo = fmtTipoNo(no.tipo);
     var tipoTela = String(no.tipo || "").toUpperCase() === "SETOR" ? "Setor" : "Unidade";
     var pode = podeGerenciarNo(no);
-    var contexto = { tipo: "UNIDADE", item: no, forumId: f.id, noId: no.id };
+    var contexto = { tipo: "UNIDADE", item: no, municipioId: ehOrgao(m) ? m.id : "", forumId: f ? f.id : "", noId: no.id };
 
     c.innerHTML =
-      '<button class="fc-back" id="fc-back-no">← ' + esc(pai ? pai.nome : f.nome) + "</button>" +
+      '<button class="fc-back" id="fc-back-no">← ' + esc(pai ? pai.nome : raiz.nome) + "</button>" +
       '<div class="fc-head"><div><h2 class="fc-title">' + esc(no.nome) + "</h2>" +
       breadcrumbHtml(m, f, no) + "</div></div>" +
       '<div class="fc-meta"><span class="fc-pill fc-pill-type">' + esc(tipo) + "</span>" +
       badgeQuantidade(qtdSetores(no.filhos || []), "Setor", "Setores") + "</div>" +
       '<div class="fc-address-row"><div class="fc-inherit"><strong>Endereço:</strong> ' + linkEndereco(no.enderecoExibicao) +
       (no.cepExibicao ? " • CEP " + esc(no.cepExibicao) : "") +
-      (no.endereco ? "" : " <span class=\"fc-muted\">(" + (pai ? "herdado da Unidade" : "herdado da Localidade") + ")</span>") + "</div></div>" +
+      (no.endereco ? "" : " <span class=\"fc-muted\">(" + (pai ? "herdado da Unidade" : (ehOrgao(m) ? "herdado do Órgão" : "herdado do Fórum")) + ")</span>") + "</div></div>" +
       acoesLocalidade("UNIDADE", no, pode, tipoTela) +
       (pode ? "" : botaoSolicitar("UNIDADE", no.id)) +
       '<div class="fc-section"><div class="fc-section-title"><h3>Contatos ' + (tipoTela === "Setor" ? "deste setor" : "desta Unidade") + "</h3></div>" +
@@ -729,7 +804,7 @@
 
     document.getElementById("fc-back-no").onclick = function () {
       if (pai) abrirNo(pai.id);
-      else { estado.noId = ""; renderForum(); }
+      else { estado.noId = ""; if (ehOrgao(m)) renderOrgao(); else renderForum(); }
     };
     document.getElementById("fc-print-unit").onclick = imprimirUnidade;
     document.querySelectorAll("[data-no]").forEach(function (el) {
@@ -761,6 +836,7 @@
   function contextoPayload(contexto) {
     return {
       forumId: contexto.forumId || "",
+      municipioId: contexto.municipioId || "",
       unidadeOrganizacionalId: contexto.noId || ""
     };
   }
@@ -783,7 +859,7 @@
 
     dialogBase(
       editando ? "Editar contato" : "Adicionar contato",
-      contexto.item.nome || "Localidade",
+      contexto.item.nome || "Fórum ou Unidade",
       corpo,
       '<button type="button" class="fc-btn" id="fc-dialog-cancel">Cancelar</button>' +
       '<button type="button" class="fc-btn fc-btn--primary" id="fc-dialog-save">Salvar</button>'
@@ -861,6 +937,7 @@
       var btn = this;
       var dados = {
         forumId: contexto.forumId,
+        municipioId: contexto.municipioId || "",
         paiId: ehSetor ? contexto.noId : "",
         tipo: tipoNovo,
         nome: document.getElementById("fc-locality-name").value.trim(),
@@ -886,12 +963,12 @@
         } else {
           btn.disabled = false;
           btn.textContent = "Salvar";
-          mostrarToastSeguro((resp && resp.erro) || "Não foi possível adicionar a localidade.", "error");
+          mostrarToastSeguro((resp && resp.erro) || "Não foi possível adicionar a estrutura.", "error");
         }
       }, function (erro) {
         btn.disabled = false;
         btn.textContent = "Salvar";
-        mostrarToastSeguro((erro && erro.message) || "Falha ao adicionar a localidade.", "error");
+        mostrarToastSeguro((erro && erro.message) || "Falha ao adicionar a estrutura.", "error");
       });
     };
   }
@@ -904,11 +981,11 @@
       '<div class="fc-field fc-field--full"><label for="fc-address">Endereço</label><input id="fc-address" value="' +
       esc(enderecoAtual) + '" placeholder="Logradouro, número, bairro, cidade"></div>' +
       '<div class="fc-field"><label for="fc-cep">CEP</label><input id="fc-cep" value="' + esc(cepAtual) + '" placeholder="00000-000"></div>' +
-      '</div><p style="margin-top:10px">Para remover o endereço próprio e voltar à herança da localidade superior, deixe Endereço e CEP vazios.</p>';
+      '</div><p style="margin-top:10px">Para remover o endereço próprio e voltar à herança da estrutura superior, deixe Endereço e CEP vazios.</p>';
 
     dialogBase(
       enderecoAtual ? "Editar endereço" : "Adicionar endereço",
-      item.nome || "Localidade",
+      item.nome || "Fórum ou Unidade",
       corpo,
       '<button type="button" class="fc-btn fc-btn--danger" id="fc-address-clear">Limpar endereço</button>' +
       '<button type="button" class="fc-btn" id="fc-dialog-cancel">Cancelar</button>' +
@@ -1013,6 +1090,7 @@
   function imprimirTudo() {
     var municipios = estado.dados.municipios || [];
     var corpo = municipios.map(function (m) {
+      if (ehOrgao(m)) return forumPrint(m, "");
       return '<section><h2>' + printEsc(m.nome) + "</h2>" +
         (m.foruns || []).map(function (f) { return forumPrint(f, m.nome); }).join("") + "</section>";
     }).join("");
@@ -1020,16 +1098,16 @@
   }
 
   function imprimirForum() {
-    var f = forumAtual();
+    var f = raizAtual();
     var m = municipioAtual();
     if (!f || !m) return;
-    abrirImpressao("Contatos — " + f.nome, forumPrint(f, m.nome));
+    abrirImpressao("Contatos — " + f.nome, forumPrint(f, ehOrgao(m) ? "Órgão" : m.nome));
   }
 
   function imprimirUnidade() {
     var no = noAtual();
-    var f = forumAtual();
-    if (!no || !f) return;
+    var raiz = raizAtual();
+    if (!no || !raiz) return;
     abrirImpressao("Contatos — " + no.nome, noPrint(no, 0));
   }
 
@@ -1052,7 +1130,11 @@
   }
 
   function destacarMunicipio(codigo) {
-    if (!estado.mapa || !estado.geojson || !codigo) return;
+    if (!estado.mapa || !estado.geojson) return;
+    if (!codigo) {
+      estado.geojson.eachLayer(function (layer) { layer.setStyle(estiloMunicipio(layer.feature)); });
+      return;
+    }
     estado.geojson.eachLayer(function (layer) {
       var cod = codigoMunicipio(layer.feature);
       var alvo = String(codigo).replace(/\D/g, "");

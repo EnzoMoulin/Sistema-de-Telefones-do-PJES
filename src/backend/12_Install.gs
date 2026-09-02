@@ -367,7 +367,7 @@ function garantirConfiguracao(
  * V4 — Cria aba MUNICIPIOS.
  */
 function criarAbaMunicipios(spreadsheet) {
-  return garantirAbaComCabecalho(spreadsheet, CONFIG.SHEETS.MUNICIPIOS, ["ID","NOME","CODIGO_IBGE","MICRORREGIAO","ATIVO"]);
+  return garantirAbaComCabecalho(spreadsheet, CONFIG.SHEETS.MUNICIPIOS, ["ID","NOME","CODIGO_IBGE","ATIVO","MICRORREGIAO","TIPO","ENDERECO","CEP","EMAIL","OBSERVACAO"]);
 }
 
 /**
@@ -379,7 +379,7 @@ function criarAbaForum(spreadsheet) {
 
 /** V5 — Cria a árvore auto-relacionada de unidades organizacionais. */
 function criarAbaUnidadesOrganizacionais(spreadsheet) {
-  return garantirAbaComCabecalho(spreadsheet, CONFIG.SHEETS.UNIDADES_ORGANIZACIONAIS, ["ID","FORUM_ID","PAI_ID","TIPO","NOME","ENDERECO","CEP","OBSERVACAO","SELECIONAVEL_ACESSO","ATIVO","ORDEM"]);
+  return garantirAbaComCabecalho(spreadsheet, CONFIG.SHEETS.UNIDADES_ORGANIZACIONAIS, ["ID","FORUM_ID","PAI_ID","TIPO","NOME","ENDERECO","CEP","OBSERVACAO","SELECIONAVEL_ACESSO","ATIVO","ORDEM","MUNICIPIO_ID"]);
 }
 
 /**
@@ -400,7 +400,7 @@ function criarAbaSetores(spreadsheet) {
  * V4 — Cria aba CONTATOS (FORUM/UNIDADE/SETOR -> CONTATOS).
  */
 function criarAbaContatos(spreadsheet) {
-  return garantirAbaComCabecalho(spreadsheet, CONFIG.SHEETS.CONTATOS, ["ID","FORUM_ID","UNIDADE_ORGANIZACIONAL_ID","UNIDADE_ID","SETOR_ID","TIPO","DESCRICAO","VALOR","ORDEM","DATA_CRIACAO","DATA_ATUALIZACAO","ATIVO","OBSERVACAO"]);
+  return garantirAbaComCabecalho(spreadsheet, CONFIG.SHEETS.CONTATOS, ["ID","FORUM_ID","UNIDADE_ORGANIZACIONAL_ID","UNIDADE_ID","SETOR_ID","TIPO","DESCRICAO","VALOR","ORDEM","DATA_CRIACAO","DATA_ATUALIZACAO","ATIVO","OBSERVACAO","MUNICIPIO_ID"]);
 }
 
 /**

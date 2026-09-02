@@ -15,12 +15,12 @@ function migrarHierarquiaOrganizacionalV5() {
   const destino = garantirAbaForumV4(
     ss,
     CONFIG.SHEETS.UNIDADES_ORGANIZACIONAIS,
-    ["ID","FORUM_ID","PAI_ID","TIPO","NOME","ENDERECO","CEP","OBSERVACAO","SELECIONAVEL_ACESSO","ATIVO","ORDEM"]
+    ["ID","FORUM_ID","PAI_ID","TIPO","NOME","ENDERECO","CEP","OBSERVACAO","SELECIONAVEL_ACESSO","ATIVO","ORDEM","MUNICIPIO_ID"]
   );
   const contatos = garantirAbaForumV4(
     ss,
     CONFIG.SHEETS.CONTATOS,
-    ["ID","FORUM_ID","UNIDADE_ORGANIZACIONAL_ID","UNIDADE_ID","SETOR_ID","TIPO","DESCRICAO","VALOR","ORDEM","DATA_CRIACAO","DATA_ATUALIZACAO","ATIVO","OBSERVACAO"]
+    ["ID","FORUM_ID","UNIDADE_ORGANIZACIONAL_ID","UNIDADE_ID","SETOR_ID","TIPO","DESCRICAO","VALOR","ORDEM","DATA_CRIACAO","DATA_ATUALIZACAO","ATIVO","OBSERVACAO","MUNICIPIO_ID"]
   );
 
   const nosExistentes = new Set();
@@ -139,18 +139,26 @@ function validarIntegridadeHierarquiaOrganizacionalV5() {
   if (ausentes.length) return { ok: false, problemas: problemas, abasAusentes: ausentes };
 
   const shForum = DB.forum();
+  const shMunicipios = DB.municipios();
   const shNos = DB.unidadesOrganizacionais();
   const shContatos = DB.contatos();
   const mapaForum = DB.map(shForum);
+  const mapaMunicipios = DB.map(shMunicipios);
   const mapaNos = DB.map(shNos);
   const mapaContatos = DB.map(shContatos);
   const foruns = new Set();
+  const municipios = new Set();
   const nos = {};
   const duplicados = new Set();
 
   DB.read(shForum).forEach(function(linha) {
     const id = textoSeguro(_fcCampo(mapaForum, linha, ["ID"]));
     if (id) foruns.add(id);
+  });
+
+  DB.read(shMunicipios).forEach(function(linha) {
+    const id = textoSeguro(_fcCampo(mapaMunicipios, linha, ["ID"]));
+    if (id) municipios.add(id);
   });
 
   DB.read(shNos).forEach(function(linha, indice) {
@@ -160,18 +168,23 @@ function validarIntegridadeHierarquiaOrganizacionalV5() {
     nos[id] = {
       id: id,
       paiId: textoSeguro(_fcCampo(mapaNos, linha, ["PAI_ID"])),
-      forumId: textoSeguro(_fcCampo(mapaNos, linha, ["FORUM_ID"]))
+      forumId: textoSeguro(_fcCampo(mapaNos, linha, ["FORUM_ID"])),
+      municipioId: textoSeguro(_fcCampo(mapaNos, linha, ["MUNICIPIO_ID"]))
     };
   });
   if (duplicados.size) problemas.push("Nós com ID duplicado: " + Array.from(duplicados).join(", "));
 
   Object.keys(nos).forEach(function(id) {
     const no = nos[id];
-    if (!foruns.has(no.forumId)) problemas.push("Nó " + id + " aponta para Fórum inexistente: " + no.forumId);
+    if (!no.forumId && !no.municipioId) problemas.push("Nó " + id + " não possui Fórum ou Órgão.");
+    if (no.forumId && !foruns.has(no.forumId)) problemas.push("Nó " + id + " aponta para Fórum inexistente: " + no.forumId);
+    if (no.municipioId && !municipios.has(no.municipioId)) problemas.push("Nó " + id + " aponta para Município/Órgão inexistente: " + no.municipioId);
+    if (no.forumId && no.municipioId) problemas.push("Nó " + id + " possui Fórum e Órgão simultaneamente.");
     if (no.paiId === id) problemas.push("Nó " + id + " aponta para si próprio.");
     if (no.paiId && !nos[no.paiId]) problemas.push("Nó " + id + " aponta para pai inexistente: " + no.paiId);
-    if (no.paiId && nos[no.paiId] && nos[no.paiId].forumId !== no.forumId) {
-      problemas.push("Nó " + id + " e seu pai pertencem a Fóruns diferentes.");
+    if (no.paiId && nos[no.paiId] &&
+        (nos[no.paiId].forumId !== no.forumId || nos[no.paiId].municipioId !== no.municipioId)) {
+      problemas.push("Nó " + id + " e seu pai pertencem a estruturas diferentes.");
     }
 
     const visitados = new Set();
@@ -190,14 +203,18 @@ function validarIntegridadeHierarquiaOrganizacionalV5() {
   DB.read(shContatos).forEach(function(linha, indice) {
     const id = textoSeguro(_fcCampo(mapaContatos, linha, ["ID"]));
     const forumId = textoSeguro(_fcCampo(mapaContatos, linha, ["FORUM_ID"]));
+    const municipioId = textoSeguro(_fcCampo(mapaContatos, linha, ["MUNICIPIO_ID"]));
     const noId = _fcPrimeiroValor(mapaContatos, linha, ["UNIDADE_ORGANIZACIONAL_ID", "SETOR_ID", "UNIDADE_ID"]);
     if (!id) problemas.push("CONTATOS linha " + (indice + 2) + " sem ID.");
     else if (idsContatos.has(id)) problemas.push("Contato duplicado: " + id);
     else idsContatos.add(id);
-    if (!forumId && !noId) problemas.push("CONTATOS linha " + (indice + 2) + " sem Fórum ou nó organizacional.");
+    if (!forumId && !municipioId && !noId) problemas.push("CONTATOS linha " + (indice + 2) + " sem Fórum, Órgão ou nó organizacional.");
     if (forumId && !foruns.has(forumId)) problemas.push("Contato " + id + " aponta para Fórum inexistente: " + forumId);
+    if (municipioId && !municipios.has(municipioId)) problemas.push("Contato " + id + " aponta para Município/Órgão inexistente: " + municipioId);
+    if (forumId && municipioId) problemas.push("Contato " + id + " possui Fórum e Órgão simultaneamente.");
     if (noId && !nos[noId]) problemas.push("Contato " + id + " aponta para nó inexistente: " + noId);
     if (noId && forumId && nos[noId] && nos[noId].forumId !== forumId) problemas.push("Contato " + id + " possui Fórum diferente do nó vinculado.");
+    if (noId && municipioId && nos[noId] && nos[noId].municipioId !== municipioId) problemas.push("Contato " + id + " possui Órgão diferente do nó vinculado.");
   });
 
   return {

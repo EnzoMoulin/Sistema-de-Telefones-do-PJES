@@ -93,7 +93,7 @@ function _cgPodeGerenciar(usuario, forumId, noId) {
 
 function _cgExigirGerencia(usuario, forumId, noId) {
   if (!_cgPodeGerenciar(usuario, forumId, noId)) {
-    throw new Error("Seu perfil não possui acesso de edição a esta localidade.");
+    throw new Error("Seu perfil não possui acesso de edição a este Fórum ou Unidade.");
   }
   return true;
 }
@@ -210,7 +210,7 @@ function _cgAtualizarEnderecoNaAba(sheet, id, endereco, cep) {
   const idxCep = mapa.CEP;
   const idxAtualizacao = mapa.DATAATUALIZACAO;
 
-  if (!idxEndereco) throw new Error("A localidade selecionada não possui coluna ENDERECO.");
+  if (!idxEndereco) throw new Error("A estrutura selecionada não possui coluna ENDERECO.");
   linha[idxEndereco - 1] = endereco;
   if (idxCep) linha[idxCep - 1] = cep;
   if (idxAtualizacao) linha[idxAtualizacao - 1] = new Date();
@@ -228,10 +228,13 @@ function pjesAtualizarEnderecoLocalidade(tipo, id, dados) {
     const endereco = textoSeguro(valorObjeto(entrada, "endereco", "ENDERECO", "endereço", "ENDEREÇO"));
     const cep = textoSeguro(valorObjeto(entrada, "cep", "CEP"));
 
-    if (!localidadeId) throw new Error("Localidade não informada.");
+    if (!localidadeId) throw new Error("Fórum, Órgão ou Unidade não informado.");
 
     let atualizado = false;
-    if (tipoNormalizado === CONFIG.ACESSOS.FORUM) {
+    if (tipoNormalizado === "MUNICIPIO" || tipoNormalizado === "ORGAO") {
+      _cgExigirGerencia(usuario, "", "");
+      atualizado = _cgAtualizarEnderecoNaAba(DB.municipios(), localidadeId, endereco, cep);
+    } else if (tipoNormalizado === CONFIG.ACESSOS.FORUM) {
       _cgExigirGerencia(usuario, localidadeId, "");
       atualizado = _cgAtualizarEnderecoNaAba(DB.forum(), localidadeId, endereco, cep);
     } else if (tipoNormalizado === CONFIG.ACESSOS.UNIDADE) {
@@ -244,10 +247,10 @@ function pjesAtualizarEnderecoLocalidade(tipo, id, dados) {
       if (!atualizado) atualizado = _cgAtualizarEnderecoNaAba(DB.unidadesOuNulo(), localidadeId, endereco, cep);
       if (!atualizado) atualizado = _cgAtualizarEnderecoNaAba(DB.setoresOuNulo(), localidadeId, endereco, cep);
     } else {
-      throw new Error("Tipo de localidade inválido.");
+      throw new Error("Tipo de estrutura inválido.");
     }
 
-    if (!atualizado) throw new Error("Não foi possível localizar a linha da localidade para atualização.");
+    if (!atualizado) throw new Error("Não foi possível localizar a linha da estrutura para atualização.");
     try { CACHE.limparTudo(); } catch (e) {}
     try { registrarInfoAPI("ATUALIZAR_ENDERECO", tipoNormalizado + ":" + localidadeId); } catch (e) {}
     return respostaSucesso({ tipo: tipoNormalizado, id: localidadeId, endereco: endereco, cep: cep });
@@ -259,17 +262,25 @@ function pjesCriarLocalidadeOrganizacional(dados) {
     new AuthService().exigirPermissao(CONFIG.PERMISSOES.EDITAR);
     const usuario = new AuthService().usuarioAtual();
     const entrada = ehObjeto(dados) ? dados : {};
-    const forumId = textoSeguro(valorObjeto(entrada, "forumId", "FORUM_ID"));
+    let forumId = textoSeguro(valorObjeto(entrada, "forumId", "FORUM_ID"));
+    let municipioId = textoSeguro(valorObjeto(entrada, "municipioId", "MUNICIPIO_ID"));
     const paiId = textoSeguro(valorObjeto(entrada, "paiId", "PAI_ID"));
     const tipo = normalizarChave(valorObjeto(entrada, "tipo", "TIPO"));
     const nome = textoSeguro(valorObjeto(entrada, "nome", "NOME"));
     const endereco = textoSeguro(valorObjeto(entrada, "endereco", "ENDERECO"));
     const cep = textoSeguro(valorObjeto(entrada, "cep", "CEP"));
 
-    if (!forumId || !nome) throw new Error("Fórum e nome são obrigatórios.");
-    if (["UNIDADE", "SETOR"].indexOf(tipo) === -1) throw new Error("Tipo de localidade inválido.");
-    if (tipo === "UNIDADE" && paiId) throw new Error("Uma nova Unidade deve ser vinculada diretamente ao Fórum.");
+    if (!nome) throw new Error("Nome é obrigatório.");
+    if (["UNIDADE", "SETOR"].indexOf(tipo) === -1) throw new Error("Tipo de estrutura inválido.");
+    if (tipo === "UNIDADE" && paiId) throw new Error("Uma nova Unidade deve ser vinculada diretamente ao Fórum ou Órgão.");
     if (tipo === "SETOR" && !paiId) throw new Error("Informe a Unidade pai do novo Setor.");
+    const nosIniciais = _fcIndiceOrganizacional();
+    if (paiId && nosIniciais[paiId]) {
+      forumId = forumId || nosIniciais[paiId].forumId;
+      municipioId = municipioId || nosIniciais[paiId].municipioId;
+    }
+    if (!forumId && !municipioId) throw new Error("Fórum ou Órgão é obrigatório.");
+    if (forumId && municipioId) throw new Error("A Unidade deve pertencer a um Fórum ou a um Órgão, não a ambos.");
     _cgExigirGerencia(usuario, forumId, paiId);
 
     const lock = LockService.getScriptLock();
@@ -277,18 +288,19 @@ function pjesCriarLocalidadeOrganizacional(dados) {
     try {
       _cgExigirGerencia(new AuthService().usuarioAtual(), forumId, paiId);
       const nos = _fcIndiceOrganizacional();
-      if (paiId && (!nos[paiId] || nos[paiId].forumId !== forumId)) {
-        throw new Error("A localidade pai não pertence ao Fórum informado.");
+      if (paiId && (!nos[paiId] || nos[paiId].forumId !== forumId || nos[paiId].municipioId !== municipioId)) {
+        throw new Error("A estrutura pai não pertence ao Fórum ou Órgão informado.");
       }
       const duplicadoId = Object.keys(nos).find(function(id) {
         const no = nos[id];
-        return no.forumId === forumId && no.paiId === paiId &&
+        return no.forumId === forumId && no.municipioId === municipioId && no.paiId === paiId &&
           no.tipo === tipo && no.ativo && limparTexto(no.nome) === limparTexto(nome);
       });
       if (duplicadoId) {
         return respostaSucesso({
           id: duplicadoId,
           forumId: forumId,
+          municipioId: municipioId,
           paiId: paiId,
           tipo: tipo,
           nome: nos[duplicadoId].nome,
@@ -304,6 +316,7 @@ function pjesCriarLocalidadeOrganizacional(dados) {
         const chave = normalizarChave(header);
         if (chave === "ID") return id;
         if (chave === "FORUMID") return forumId;
+        if (chave === "MUNICIPIOID") return municipioId;
         if (chave === "PAIID") return paiId;
         if (chave === "TIPO") return tipo;
         if (chave === "NOME") return nome;
@@ -316,7 +329,7 @@ function pjesCriarLocalidadeOrganizacional(dados) {
       });
       sheet.getRange(ultimaLinha + 1, 1, 1, linha.length).setValues([linha]);
       try { CACHE.limparTudo(); } catch (e) {}
-      return respostaSucesso({ id: id, forumId: forumId, paiId: paiId, tipo: tipo, nome: nome });
+      return respostaSucesso({ id: id, forumId: forumId, municipioId: municipioId, paiId: paiId, tipo: tipo, nome: nome });
     } finally {
       lock.releaseLock();
     }

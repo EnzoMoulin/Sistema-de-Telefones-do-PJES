@@ -160,16 +160,21 @@ function listarComarcas() {
       const comarca =
         textoSeguro(item.comarca);
 
-      if (comarca && !comarcas[comarca]) {
-        comarcas[comarca] = true;
+      if (comarca && !comarcas[normalizarChave(comarca)]) {
+        comarcas[normalizarChave(comarca)] = comarca;
       }
     });
 
-    const lista =
-      Object.keys(comarcas)
-        .sort((a, b) =>
-          a.localeCompare(b, "pt-BR")
-        );
+    // Mantém a ordem do catálogo MUNICIPIOS (o órgão vem antes de Vitória),
+    // em vez de reordenar alfabeticamente os nomes derivados dos contatos.
+    let lista = [];
+    try {
+      const hierarquia = construirHierarquiaForumContatos({});
+      lista = (hierarquia.municipios || []).map(item => item.nome)
+        .filter(nome => comarcas[normalizarChave(nome)]);
+    } catch (e) {
+      lista = Object.keys(comarcas).map(chave => comarcas[chave]);
+    }
 
     return respostaSucesso(lista);
   } catch (erro) {
@@ -653,13 +658,15 @@ function montarCatalogoEscoposAcesso() {
 
   Object.keys(nos).forEach(function(id) {
     const no = nos[id];
-    const forum = foruns[no.forumId];
-    if (!forum || !no.ativo) return;
+    const forum = foruns[no.forumId] || null;
+    const municipio = forum ? municipios[forum.municipioId] : municipios[no.municipioId];
+    if (!municipio || !no.ativo) return;
     const caminho = _fcResolverAncestros(nos, id);
     if (caminho.some(function(item) { return !item.ativo; })) return;
-    const municipio = municipios[forum.municipioId];
-    const chaveForum = CONFIG.ACESSOS.FORUM + ":" + forum.id;
-    unidadesPorEscopo[chaveForum].push(id);
+    if (forum) {
+      const chaveForum = CONFIG.ACESSOS.FORUM + ":" + forum.id;
+      unidadesPorEscopo[chaveForum].push(id);
+    }
     caminho.forEach(function(ancestral) {
       const chaveUnidade = CONFIG.ACESSOS.UNIDADE + ":" + ancestral.id;
       if (!unidadesPorEscopo[chaveUnidade]) unidadesPorEscopo[chaveUnidade] = [];
@@ -671,8 +678,8 @@ function montarCatalogoEscoposAcesso() {
       id: id,
       nome: no.nome || id,
       municipio: municipio.nome,
-      forumId: forum.id,
-      forum: forum.nome,
+      forumId: forum ? forum.id : "",
+      forum: forum ? forum.nome : "",
       caminhoTexto: caminho.map(function(ancestral) { return ancestral.nome; }).join(" › ")
     };
     porChave[item.tipo + ":" + id] = item;
@@ -812,6 +819,7 @@ function listarUnidadesParaAcesso() {
         const id = textoSeguro(linha[mapaU.ID - 1]);
         const forumId = mapaU.FORUMID ? textoSeguro(linha[mapaU.FORUMID - 1]) : "";
         const forum = foruns[forumId] || {};
+        const municipioId = mapaU.MUNICIPIOID ? textoSeguro(linha[mapaU.MUNICIPIOID - 1]) : "";
         const caminho = id && nos[id] ? _fcResolverAncestros(nos, id) : [];
         if (caminho.some(function(no) { return !no.ativo; })) return null;
         return {
@@ -822,7 +830,7 @@ function listarUnidadesParaAcesso() {
           caminhoTexto: caminho.map(function(no) { return no.nome; }).join(" › "),
           forumId: forumId,
           forum: forum.nome || "",
-          municipio: municipios[forum.municipioId] || ""
+          municipio: municipios[forum.municipioId || municipioId] || ""
         };
       })
       .filter(function(item) { return item && item.id && item.nome; })
@@ -925,7 +933,7 @@ function enviarFormularioAcesso(dados) {
       throw new Error("Informe o nível de acesso desejado.");
     }
     if (!nivel && escopos.length === 0) {
-      throw new Error("Selecione uma alteração de nível, localidades adicionais ou ambos.");
+      throw new Error("Selecione uma alteração de nível, Fóruns/Unidades adicionais ou ambos.");
     }
     if (!usuario.cadastrado && nivel === CONFIG.NIVEIS.GESTOR_CONTEUDO && escopos.length === 0) {
       throw new Error("Selecione ao menos um Município, Fórum ou Unidade para o Gestor de Conteúdo.");
@@ -1119,7 +1127,7 @@ function processarSolicitacaoAPI(id, novoStatus) {
         throw new Error("A solicitação não define um nível de acesso válido.");
       }
       if (indice < 0 && nivelFinal === CONFIG.NIVEIS.GESTOR_CONTEUDO && solicitacao.escopos.length === 0) {
-        throw new Error("Novo Gestor de Conteúdo deve possuir ao menos uma localidade.");
+        throw new Error("Novo Gestor de Conteúdo deve possuir ao menos um Fórum ou Unidade.");
       }
       let usuarioId = indice >= 0
         ? textoSeguro(dadosU[indice][mapaU.ID - 1])
@@ -2344,7 +2352,7 @@ function removerMeuAcesso(tipo, id) {
   const tipoNormalizado = tipoEscopoAcesso(tipo);
   const idNormalizado = textoSeguro(id);
   if (!tipoNormalizado || !idNormalizado) {
-    return respostaErro(new Error("Localidade de acesso inválida."));
+    return respostaErro(new Error("Fórum ou Unidade de acesso inválido."));
   }
 
   const lock = LockService.getScriptLock();

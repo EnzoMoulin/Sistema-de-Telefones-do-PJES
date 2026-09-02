@@ -5,10 +5,11 @@ Sistema Web App do **Poder Judiciário do Estado do Espírito Santo (TJES)** par
 ## Arquitetura atual
 
 ```text
-        MUNICIPIOS
-            ↓
-          FORUM
-            ↓
+   MUNICIPIOS / ORGAOS
+        ↓          ↓
+ FORUM (opcional)  │
+        └────┬─────┘
+             ↓
  UNIDADES_ORGANIZACIONAIS
             ↳ (UNIDADES E SETORES)
                         ↓
@@ -17,12 +18,13 @@ Sistema Web App do **Poder Judiciário do Estado do Espírito Santo (TJES)** par
 
 ## Regras principais
 
-- Município pode possuir um ou vários Fóruns.
-- Município com um único Fórum pode abrir diretamente o Fórum na consulta.
+- Comarca pode possuir um ou vários Fóruns.
+- Órgão pode possuir Unidades diretamente, sem Fórum intermediário.
+- O Tribunal de Justiça é catalogado como Órgão independente e aparece antes de Vitória.
 - Fórum possui Endereço, E-mail (não necessariamente) e Contatos Gerais próprios.
-- Cada estrutura organizacional (Unidades e Setores) pertence a um Fórum.
+- Cada estrutura organizacional (Unidades e Setores) pertence a um Fórum ou diretamente a um Órgão.
 - E-mail e Endereço são herdados para visualização apenas quando não houver dado próprio.
 
 ## Consulta pública
 
-O mapa responsivo do Espírito Santo permanece na consulta. No desktop ele integra o layout; no mobile é apresentado no topo. A navegação é Município → Fórum → árvore organizacional (Unidade e Setor) → Contato, com busca por Unidade, Setor, Telefone, Ramal, WhatsApp e E-mail.
+O mapa responsivo do Espírito Santo permanece na consulta. No desktop ele integra o layout; no mobile é apresentado no topo. A navegação é Comarca/Órgão → Fórum opcional → árvore organizacional (Unidade e Setor) → Contato, com busca por Unidade, Setor, Telefone, Ramal, WhatsApp e E-mail.

@@ -40,7 +40,7 @@ function prepararSeletorLocalidadesUsuario(selecionados) {
   var select = document.getElementById("usuario-municipio"); if (!select) return; select.textContent = "";
   var municipios = [];
   escoposUsuarios.forEach(function(escopo) { if (escopo.municipio && municipios.indexOf(escopo.municipio) < 0) municipios.push(escopo.municipio); });
-  var inicial = document.createElement("option"); inicial.value = ""; inicial.textContent = "Selecione uma Comarca"; select.appendChild(inicial);
+  var inicial = document.createElement("option"); inicial.value = ""; inicial.textContent = "Selecione a Comarca/Órgão"; select.appendChild(inicial);
   municipios.forEach(function(nome) { var opcao = document.createElement("option"); opcao.value = nome; opcao.textContent = nome; select.appendChild(opcao); });
   var primeiroSelecionado = escoposUsuarios.find(function(escopo) { return escoposUsuarioSelecionados.has(chaveEscopoUsuario(escopo)); });
   select.value = primeiroSelecionado ? primeiroSelecionado.municipio : (municipios[0] || "");
@@ -57,8 +57,9 @@ function marcarEscopoUsuario(escopo, marcado) {
 function renderizarSeletorLocalidadesUsuario() {
   var municipio = document.getElementById("usuario-municipio"); var holder = document.getElementById("usuario-localidades"); if (!municipio || !holder) return; holder.textContent = "";
   var foruns = escoposUsuarios.filter(function(item) { return item.tipo === "FORUM" && item.municipio === municipio.value; });
-  if (!foruns.length) { holder.textContent = "Selecione uma Comarca para visualizar os Fóruns."; return; }
-  var titulo = document.createElement("strong"); titulo.textContent = "Fóruns"; holder.appendChild(titulo);
+  var unidadesOrgao = escoposUsuarios.filter(function(item) { return item.tipo === "UNIDADE" && !item.forumId && item.municipio === municipio.value; });
+  if (!foruns.length && !unidadesOrgao.length) { holder.textContent = "Selecione uma Comarca/Órgão para visualizar os Fóruns ou Unidades."; return; }
+  if (foruns.length) { var titulo = document.createElement("strong"); titulo.textContent = "Fóruns"; holder.appendChild(titulo); }
   foruns.forEach(function(forum) {
     var linha = document.createElement("div"); linha.style.marginTop = "10px";
     var check = document.createElement("input"); check.type = "checkbox"; check.checked = escoposUsuarioSelecionados.has(chaveEscopoUsuario(forum)); check.onchange = function() { marcarEscopoUsuario(forum, check.checked); };
@@ -73,6 +74,14 @@ function renderizarSeletorLocalidadesUsuario() {
       });
     }
   });
+  if (unidadesOrgao.length) {
+    var tituloOrgao = document.createElement("strong"); tituloOrgao.textContent = "Unidades do Órgão"; tituloOrgao.style.cssText = "display:block;margin-top:14px"; holder.appendChild(tituloOrgao);
+    unidadesOrgao.forEach(function(unidade) {
+      var linha = document.createElement("label"); linha.style.cssText = "display:block;margin:5px 0";
+      var check = document.createElement("input"); check.type = "checkbox"; check.checked = escoposUsuarioSelecionados.has(chaveEscopoUsuario(unidade)); check.onchange = function() { marcarEscopoUsuario(unidade, check.checked); };
+      linha.appendChild(check); linha.appendChild(document.createTextNode(" " + textoEscopoUsuario(unidade))); holder.appendChild(linha);
+    });
+  }
 }
 
 function abrirModalAdicionarUsuario() {
@@ -80,7 +89,7 @@ function abrirModalAdicionarUsuario() {
   document.getElementById("titulo-modal-usuario").textContent = "Adicionar usuário";
   document.getElementById("usuario-email").value = ""; document.getElementById("usuario-email").disabled = false;
   document.getElementById("usuario-nome").value = ""; document.getElementById("usuario-nivel").value = "1"; document.getElementById("usuario-ativo").checked = true;
-  document.getElementById("btn-excluir-usuario").classList.add("hidden"); document.getElementById("btn-salvar-usuario").textContent = "Selecionar localidades";
+  document.getElementById("btn-excluir-usuario").classList.add("hidden"); document.getElementById("btn-salvar-usuario").textContent = "Selecionar Fóruns/Unidades";
   prepararSeletorLocalidadesUsuario([]); alternarEscoposUsuario(); document.getElementById("modal-usuario").classList.remove("hidden");
 }
 
@@ -89,15 +98,15 @@ function abrirModalEditarUsuario(usuario) {
   document.getElementById("titulo-modal-usuario").textContent = "Gerenciar usuário";
   document.getElementById("usuario-email").value = usuario.email || ""; document.getElementById("usuario-email").disabled = true;
   document.getElementById("usuario-nome").value = usuario.nome || ""; document.getElementById("usuario-nivel").value = String(usuario.nivel || 1); document.getElementById("usuario-ativo").checked = usuario.ativo === true;
-  document.getElementById("btn-excluir-usuario").classList.remove("hidden"); document.getElementById("btn-salvar-usuario").textContent = "Gerenciar localidades";
+  document.getElementById("btn-excluir-usuario").classList.remove("hidden"); document.getElementById("btn-salvar-usuario").textContent = "Gerenciar Fóruns/Unidades";
   prepararSeletorLocalidadesUsuario(usuario.escopos || []); alternarEscoposUsuario(); document.getElementById("modal-usuario").classList.remove("hidden");
 }
 
 function fecharModalUsuario() { document.getElementById("modal-usuario").classList.add("hidden"); document.getElementById("modal-localidades-usuario").classList.add("hidden"); usuarioEmEdicao = null; }
-function alternarEscoposUsuario() { var nivel = Number(document.getElementById("usuario-nivel").value || 0); var botao = document.getElementById("btn-salvar-usuario"); if (botao) botao.textContent = nivel === 1 ? (usuarioEmEdicao ? "Gerenciar localidades" : "Selecionar localidades") : (usuarioEmEdicao ? "Salvar" : "Adicionar"); }
+function alternarEscoposUsuario() { var nivel = Number(document.getElementById("usuario-nivel").value || 0); var botao = document.getElementById("btn-salvar-usuario"); if (botao) botao.textContent = nivel === 1 ? (usuarioEmEdicao ? "Gerenciar Fóruns/Unidades" : "Selecionar Fóruns/Unidades") : (usuarioEmEdicao ? "Salvar" : "Adicionar"); }
 function obterEscoposSelecionadosUsuario() { return Array.from(escoposUsuarioSelecionados).map(function(chave) { var partes = chave.split(":"); return { tipo: partes[0], id: partes.slice(1).join(":") }; }); }
 function acaoPrincipalUsuario() { if (Number(document.getElementById("usuario-nivel").value || 0) === 1) abrirEtapaLocalidadesUsuario(); else salvarUsuarioModal(); }
-function abrirEtapaLocalidadesUsuario() { var nome = String(document.getElementById("usuario-nome").value || "").trim(); var email = document.getElementById("usuario-email"); if (!nome) { mostrarToast("Informe o nome do usuário antes de selecionar localidades.", "warning"); document.getElementById("usuario-nome").focus(); return; } if (!email.value.trim() || !email.checkValidity()) { mostrarToast("Informe um e-mail válido antes de selecionar localidades.", "warning"); email.focus(); return; } document.getElementById("modal-usuario").classList.add("hidden"); document.getElementById("btn-confirmar-localidades-usuario").textContent = usuarioEmEdicao ? "Salvar" : "Concluir cadastro"; document.getElementById("modal-localidades-usuario").classList.remove("hidden"); }
+function abrirEtapaLocalidadesUsuario() { var nome = String(document.getElementById("usuario-nome").value || "").trim(); var email = document.getElementById("usuario-email"); if (!nome) { mostrarToast("Informe o nome do usuário antes de selecionar Fóruns/Unidades.", "warning"); document.getElementById("usuario-nome").focus(); return; } if (!email.value.trim() || !email.checkValidity()) { mostrarToast("Informe um e-mail válido antes de selecionar Fóruns/Unidades.", "warning"); email.focus(); return; } document.getElementById("modal-usuario").classList.add("hidden"); document.getElementById("btn-confirmar-localidades-usuario").textContent = usuarioEmEdicao ? "Salvar" : "Concluir cadastro"; document.getElementById("modal-localidades-usuario").classList.remove("hidden"); }
 function voltarParaDadosUsuario() { document.getElementById("modal-localidades-usuario").classList.add("hidden"); document.getElementById("modal-usuario").classList.remove("hidden"); }
 
 function salvarUsuarioModal() {

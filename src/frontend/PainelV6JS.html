@@ -203,12 +203,12 @@
     painel.querySelectorAll(".fc-section h3").forEach(function (titulo) {
       var texto = String(titulo.textContent || "").trim();
       if (/^Unidades\s+e\s+Setores$/i.test(texto)) titulo.textContent = "Unidades";
-      if (/^Setores\s*\/\s*Sublocalidades$/i.test(texto)) titulo.textContent = "Setores";
+      if (/^Setores\s*\/\s*(?:Sub)?(?:Localidades?|Fóruns?)$/i.test(texto)) titulo.textContent = "Setores";
     });
 
     painel.querySelectorAll(".fc-pill").forEach(function (badge) {
       var texto = String(badge.textContent || "").trim();
-      var match = texto.match(/^(\d+)\s+sublocalidade\(s\)$/i);
+      var match = texto.match(/^(\d+)\s+(?:localidades?|fóruns?)$/i);
       if (!match) return;
       var quantidade = Number(match[1]);
       if (!quantidade) {
@@ -234,7 +234,6 @@
     });
 
     if (opcoes.length) {
-      opcoes.sort(function (a, b) { return a.nome.localeCompare(b.nome, "pt-BR"); });
       municipiosPainelV6 = opcoes;
     }
   }
@@ -251,9 +250,7 @@
         : [];
       municipiosPainelV6 = lista.map(function (m) {
         return { id: String(m.id || ""), nome: String(m.nome || m.id || "") };
-      }).filter(function (m) { return m.id; }).sort(function (a, b) {
-        return a.nome.localeCompare(b.nome, "pt-BR");
-      });
+      }).filter(function (m) { return m.id; });
       garantirSeletorMunicipioPainel();
     }, function () {
       carregandoMunicipiosPainelV6 = false;
@@ -331,12 +328,12 @@
     var select = document.createElement("select");
     select.id = "fc-search";
     select.className = "fc-select fc-municipio-select";
-    select.setAttribute("aria-label", "Selecionar Comarca");
+    select.setAttribute("aria-label", "Selecionar Comarca/Órgão");
     select.setAttribute("data-pjes-municipio-v6", "true");
 
     var inicial = document.createElement("option");
     inicial.value = "";
-    inicial.textContent = "Selecione uma Comarca";
+    inicial.textContent = "Selecione a Comarca/Órgão";
     select.appendChild(inicial);
 
     municipiosPainelV6.forEach(function (opcao) {

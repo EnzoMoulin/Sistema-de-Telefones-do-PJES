@@ -318,7 +318,7 @@ function atualizarInterfaceUsuario() {
         chipSemEscopo.textContent = "Nenhuma Unidade vinculada";
         comarcasList.appendChild(chipSemEscopo);
         comarcasWrap.classList.remove("hidden");
-        if (escopoHint) escopoHint.textContent = "Gestor de Conteúdo — sem localidades vinculadas.";
+        if (escopoHint) escopoHint.textContent = "Gestor de Conteúdo — sem Fóruns ou Unidades vinculados.";
       } else {
         comarcasWrap.classList.add("hidden");
       }
@@ -895,7 +895,7 @@ function fecharPerfilUsuario() {
 }
 
 function textoAcessoPerfil(acesso) {
-  return acesso.caminhoTexto || acesso.nome || acesso.id || "Localidade";
+  return acesso.caminhoTexto || acesso.nome || acesso.id || "Fórum";
 }
 
 function abrirPerfilUsuario() {
@@ -915,7 +915,7 @@ function abrirPerfilUsuario() {
   const ajuda = document.getElementById("perfil-usuario-acessos-ajuda");
   ajuda.textContent = ehGestorSistema
     ? "Permissão global do sistema"
-    : "Você pode remover uma localidade quando não precisar mais dela";
+    : "Você pode remover um Fórum ou uma Unidade quando não precisar mais deles";
 
   if (ehGestorSistema) {
     const total = document.createElement("div");
@@ -927,7 +927,7 @@ function abrirPerfilUsuario() {
     if (!acessos.length) {
       const vazio = document.createElement("div");
       vazio.className = "profile-access-empty";
-      vazio.textContent = "Nenhum acesso por localidade vinculado.";
+      vazio.textContent = "Nenhum acesso por Fórum ou Unidade vinculado.";
       lista.appendChild(vazio);
     } else {
       acessos.forEach(function(acesso) {
@@ -958,7 +958,7 @@ function abrirPerfilUsuario() {
 function confirmarRemocaoMeuAcesso(acesso, botao) {
   confirmarAcaoSistema({
     titulo: "Remover acesso",
-    mensagem: 'Você deixará de acessar e editar a localidade "' + textoAcessoPerfil(acesso) + '". Deseja continuar?',
+    mensagem: 'Você deixará de acessar e editar o Fórum ou a Unidade "' + textoAcessoPerfil(acesso) + '". Deseja continuar?',
     textoConfirmar: "Remover acesso",
     perigo: true,
     icone: "−"

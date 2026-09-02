@@ -1,6 +1,6 @@
 <div class="usuarios-container">
   <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-    <div><h2>Usuários</h2><p>Selecione um usuário para gerenciar seu nível e as localidades sob sua responsabilidade.</p></div>
+    <div><h2>Usuários</h2><p>Selecione um usuário para gerenciar seu nível e os Fóruns/Unidades sob sua responsabilidade.</p></div>
     <div style="display:flex;gap:8px">
       <button type="button" class="btn btn-secondary" onclick="carregarUsuarios()">Atualizar</button>
       <button type="button" class="btn btn-primary" onclick="abrirModalAdicionarUsuario()">+ Adicionar</button>
@@ -36,7 +36,7 @@
 
 <div id="modal-localidades-usuario" class="modal hidden" onclick="if(event.target===this)voltarParaDadosUsuario()">
   <div class="modal-content" style="width:min(720px,95vw)">
-    <div class="modal-header"><h2>Localidades sob gestão</h2><button type="button" class="modal-close" onclick="voltarParaDadosUsuario()">×</button></div>
+    <div class="modal-header"><h2>Fóruns e Unidades sob gestão</h2><button type="button" class="modal-close" onclick="voltarParaDadosUsuario()">×</button></div>
     <div class="modal-body"><p style="margin-top:0;color:#475569">Escolha uma Comarca para navegar pelos Fóruns e suas Unidades. Um Fórum selecionado concede acesso a todas as suas Unidades.</p><select id="usuario-municipio" onchange="renderizarSeletorLocalidadesUsuario()" style="width:100%"></select><div id="usuario-localidades" style="margin-top:12px;max-height:420px;overflow:auto;border:1px solid #cbd5e1;border-radius:8px;padding:12px"></div></div>
     <div class="modal-footer"><button type="button" class="btn" onclick="voltarParaDadosUsuario()">← Voltar</button><button id="btn-confirmar-localidades-usuario" type="button" class="btn btn-primary" onclick="salvarUsuarioModal()">Concluir cadastro</button></div>
   </div>

@@ -52,7 +52,7 @@ class TelefoneRepository {
   }
 
   listarNormalizado() {
-    // V4: MUNICIPIOS -> FORUM -> UNIDADES -> SETORES -> CONTATOS
+    // V4: MUNICIPIOS/ORGAOS -> FORUM opcional -> UNIDADES -> SETORES -> CONTATOS
     const shMun = DB.municipiosOuNulo();
     const shForum = DB.forumOuNulo();
     const shUni = DB.unidadesOuNulo();
@@ -72,6 +72,7 @@ class TelefoneRepository {
     // Indices CONTATOS
     const idxConId = mapCon.ID;
     const idxConForum = mapCon.FORUMID || mapCon.FORUM;
+    const idxConMunicipio = mapCon.MUNICIPIOID || mapCon.MUNICIPIO;
     const idxConUnidade = mapCon.UNIDADEID || mapCon.UNIDADE;
     const idxConSetor = mapCon.SETORID || mapCon.SETOR;
     const idxConTipo = mapCon.TIPO;
@@ -123,12 +124,16 @@ class TelefoneRepository {
     }
     const mapMunById = {};
     const idxMunId = mapMun.ID; const idxMunNome = mapMun.NOME; const idxMunMicro = mapMun.MICRORREGIAO;
+    const idxMunEnd = mapMun.ENDERECO; const idxMunCep = mapMun.CEP; const idxMunEmail = mapMun.EMAIL;
     for (const r of dadosMun) {
       const id = idxMunId !== undefined ? textoSeguro(r[idxMunId - 1]) : "";
       if (!id) continue;
       mapMunById[id] = {
         nome: idxMunNome !== undefined ? textoSeguro(r[idxMunNome - 1]) : "",
-        microrregiao: idxMunMicro !== undefined ? textoSeguro(r[idxMunMicro - 1]) : ""
+        microrregiao: idxMunMicro !== undefined ? textoSeguro(r[idxMunMicro - 1]) : "",
+        endereco: idxMunEnd !== undefined ? textoSeguro(r[idxMunEnd - 1]) : "",
+        cep: idxMunCep !== undefined ? textoSeguro(r[idxMunCep - 1]) : "",
+        email: idxMunEmail !== undefined ? textoSeguro(r[idxMunEmail - 1]) : ""
       };
     }
     const resultado = [];
@@ -136,6 +141,7 @@ class TelefoneRepository {
       const id = idxConId !== undefined ? textoSeguro(r[idxConId - 1]) : "";
       if (!id) continue;
       const forumIdRaw = idxConForum !== undefined ? textoSeguro(r[idxConForum - 1]) : "";
+      const municipioIdRaw = idxConMunicipio !== undefined ? textoSeguro(r[idxConMunicipio - 1]) : "";
       const unidadeIdRaw = idxConUnidade !== undefined ? textoSeguro(r[idxConUnidade - 1]) : "";
       const setorIdRaw = idxConSetor !== undefined ? textoSeguro(r[idxConSetor - 1]) : "";
       const tipoRaw = idxConTipo !== undefined ? textoSeguro(r[idxConTipo - 1]) : "";
@@ -153,10 +159,11 @@ class TelefoneRepository {
       let forum = forumIdEfetivo ? (mapForumById[forumIdEfetivo] || { nome: forumIdEfetivo, municipioId: "", endereco: "", cep: "", email: "" }) : null;
       let municipioIdEfetivo = forum ? forum.municipioId : "";
       if (!municipioIdEfetivo && uni && uni.municipioId) municipioIdEfetivo = uni.municipioId;
-      let mun = municipioIdEfetivo ? (mapMunById[municipioIdEfetivo] || { nome: municipioIdEfetivo, microrregiao: "" }) : { nome: "", microrregiao: "" };
+      if (!municipioIdEfetivo && municipioIdRaw) municipioIdEfetivo = municipioIdRaw;
+      let mun = municipioIdEfetivo ? (mapMunById[municipioIdEfetivo] || { nome: municipioIdEfetivo, microrregiao: "", endereco: "", cep: "", email: "" }) : { nome: "", microrregiao: "", endereco: "", cep: "", email: "" };
       const munNome = mun.nome || municipioIdEfetivo || "";
       const microrregiao = mun.microrregiao || "";
-      const endereco = (setor && setor.endereco) ? setor.endereco : (uni && uni.endereco ? uni.endereco : (forum ? forum.endereco : ""));
+      const endereco = (setor && setor.endereco) ? setor.endereco : (uni && uni.endereco ? uni.endereco : (forum ? forum.endereco : (mun.endereco || "")));
       const forumNome = forum ? forum.nome : "";
       const uniNome = uni ? uni.nome : "";
       const setorNome = setor ? setor.nome : (setorIdRaw && !setor ? setorIdRaw : "");
@@ -169,7 +176,7 @@ class TelefoneRepository {
       }
       const ativoBool = paraBoolean(ativoRaw);
       const tipo = textoSeguro(tipoRaw);
-      let numero = "", ramal = "", whatsapp = "", email = "";
+      let numero = "", ramal = "", whatsapp = "", email = forum ? (forum.email || "") : (uni && uni.email ? uni.email : (mun.email || ""));
       const valor = textoSeguro(valorRaw);
       const tipoNorm = normalizarChave(tipo);
       if (tipoNorm === "TELEFONE") numero = valor;
@@ -271,6 +278,7 @@ class TelefoneRepository {
       const entrada = ehObjeto(dados) ? dados : {};
       // V4: aceita FORUM_ID, UNIDADE_ID ou SETOR_ID (pelo menos um)
       let forumId = textoSeguro(valorObjeto(entrada, "forumId", "FORUM_ID", "forum_id", "forum"));
+      let municipioId = textoSeguro(valorObjeto(entrada, "municipioId", "MUNICIPIO_ID", "municipio_id", "municipio"));
       let unidadeId = textoSeguro(valorObjeto(entrada, "unidadeId", "UNIDADE_ID", "unidade_id", "unidade"));
       let setorId = textoSeguro(valorObjeto(entrada, "setorId", "SETOR_ID", "setor_id", "setor"));
       // Compat: tenta resolver SETOR_ID por nome se veio nome em vez de ID (comarca+setor ou unidade+setor)
@@ -318,7 +326,7 @@ class TelefoneRepository {
           } catch(e){}
         }
       }
-      // Auto-complete: se tem setor, deriva unidade/forum; se tem unidade, deriva forum
+      // Auto-complete: se tem setor, deriva unidade/forum/órgão; se tem unidade, deriva forum/órgão
       if (setorId && (!unidadeId || !forumId)) {
         try {
           const shSet = DB.setoresOuNulo(); const shUni = DB.unidadesOuNulo();
@@ -342,6 +350,8 @@ class TelefoneRepository {
                 if (uId === unidadeId) {
                   const uForum = mapUni.FORUMID !== undefined ? textoSeguro(u[mapUni.FORUMID - 1]) : "";
                   if (uForum) forumId = uForum;
+                  const uMunicipio = mapUni.MUNICIPIOID !== undefined ? textoSeguro(u[mapUni.MUNICIPIOID - 1]) : "";
+                  if (!forumId && uMunicipio) municipioId = uMunicipio;
                   break;
                 }
               }
@@ -358,13 +368,16 @@ class TelefoneRepository {
               if (uId === unidadeId) {
                 const uForum = mapUni.FORUMID !== undefined ? textoSeguro(u[mapUni.FORUMID - 1]) : "";
                 if (uForum) forumId = uForum;
+                const uMunicipio = mapUni.MUNICIPIOID !== undefined ? textoSeguro(u[mapUni.MUNICIPIOID - 1]) : "";
+                if (!forumId && uMunicipio) municipioId = uMunicipio;
                 break;
               }
             }
           }
         } catch(e){}
       }
-      if (!forumId && !unidadeId && !setorId) throw new Error("Informe Fórum, Unidade ou Setor (FORUM_ID, UNIDADE_ID ou SETOR_ID).");
+      if (forumId) municipioId = "";
+      if (!forumId && !municipioId && !unidadeId && !setorId) throw new Error("Informe Órgão, Fórum, Unidade ou Setor (MUNICIPIO_ID, FORUM_ID, UNIDADE_ID ou SETOR_ID).");
       const tipo = textoSeguro(valorObjeto(entrada, "tipo", "Tipo")) || "Telefone";
       const valor = textoSeguro(valorObjeto(entrada, "valor", "VALOR", "numero", "Numero", "telefone", "Telefone", "ramal", "Ramal", "whatsapp", "Whatsapp", "email", "EMAIL")) || textoSeguro(valorObjeto(entrada, "numero"));
       const descricao = textoSeguro(valorObjeto(entrada, "descricao", "DESCRICAO", "observacao", "Observacao"));
@@ -378,6 +391,7 @@ class TelefoneRepository {
         const k = normalizarChave(h);
         if (k === "ID") linhaObj[h] = id;
         else if (k === "FORUMID") linhaObj[h] = forumId;
+        else if (k === "MUNICIPIOID") linhaObj[h] = municipioId;
         else if (k === "UNIDADEID") linhaObj[h] = unidadeId;
         else if (k === "SETORID" || k === "SETOR") linhaObj[h] = setorId;
         else if (k === "TIPO") linhaObj[h] = tipo;
@@ -393,7 +407,7 @@ class TelefoneRepository {
       const linha = headers.map(h => linhaObj[h] !== undefined ? linhaObj[h] : "");
       shCon.getRange(shCon.getLastRow() + 1, 1, 1, linha.length).setValues([linha]);
       SpreadsheetApp.flush(); CACHE.limparTelefones();
-      const registro = { ID: id, id: id, forumId: forumId, unidadeId: unidadeId, setorId: setorId, tipo: tipo, valor: valor, descricao: descricao, status: "ATIVO", DATA_CRIACAO: momento, DATA_ATUALIZACAO: momento };
+      const registro = { ID: id, id: id, forumId: forumId, municipioId: municipioId, unidadeId: unidadeId, setorId: setorId, tipo: tipo, valor: valor, descricao: descricao, status: "ATIVO", DATA_CRIACAO: momento, DATA_ATUALIZACAO: momento };
       this.registrarHistoricoSeguro(id, "CRIACAO", {}, registro);
       return serializarParaCliente(registro);
     } finally { lock.releaseLock(); }
@@ -484,6 +498,7 @@ class TelefoneRepository {
       const descr = possuiCampo(entrada, "descricao") ? textoSeguro(valorObjeto(entrada, "descricao", "DESCRICAO")) : (mapCon.DESCRICAO !== undefined ? textoSeguro(atualRow[mapCon.DESCRICAO - 1]) : "");
       const ativo = possuiCampo(entrada, "status") ? (paraBoolean(valorObjeto(entrada, "status")) ? "TRUE" : "FALSE") : textoSeguro(atualRow[mapCon.ATIVO - 1]) || "TRUE";
       let forumId = possuiCampo(entrada, "forumId", "FORUM_ID") ? textoSeguro(valorObjeto(entrada, "forumId", "FORUM_ID")) : (mapCon.FORUMID !== undefined ? textoSeguro(atualRow[mapCon.FORUMID - 1]) : "");
+      let municipioId = possuiCampo(entrada, "municipioId", "MUNICIPIO_ID") ? textoSeguro(valorObjeto(entrada, "municipioId", "MUNICIPIO_ID")) : (mapCon.MUNICIPIOID !== undefined ? textoSeguro(atualRow[mapCon.MUNICIPIOID - 1]) : "");
       let unidadeId = possuiCampo(entrada, "unidadeId", "UNIDADE_ID") ? textoSeguro(valorObjeto(entrada, "unidadeId", "UNIDADE_ID")) : (mapCon.UNIDADEID !== undefined ? textoSeguro(atualRow[mapCon.UNIDADEID - 1]) : "");
       let setorId = possuiCampo(entrada, "setorId", "SETOR_ID", "setor", "setor_id") ? textoSeguro(valorObjeto(entrada, "setorId", "SETOR_ID", "setor", "setor_id")) : (mapCon.SETORID !== undefined ? textoSeguro(atualRow[mapCon.SETORID - 1]) : (mapCon.SETOR !== undefined ? textoSeguro(atualRow[mapCon.SETOR - 1]) : ""));
       if (possuiCampo(entrada, "setorId", "SETOR_ID") && setorId) {
@@ -505,6 +520,8 @@ class TelefoneRepository {
                       if (uId === sUni) {
                         const uForum = mUni.FORUMID !== undefined ? textoSeguro(u[mUni.FORUMID - 1]) : "";
                         if (uForum && !forumId) forumId = uForum;
+                        const uMunicipio = mUni.MUNICIPIOID !== undefined ? textoSeguro(u[mUni.MUNICIPIOID - 1]) : "";
+                        if (!forumId && uMunicipio && !municipioId) municipioId = uMunicipio;
                         break;
                       }
                     }
@@ -525,6 +542,8 @@ class TelefoneRepository {
               if (uId === unidadeId) {
                 const uForum = mUni.FORUMID !== undefined ? textoSeguro(u[mUni.FORUMID - 1]) : "";
                 if (uForum) forumId = uForum;
+                const uMunicipio = mUni.MUNICIPIOID !== undefined ? textoSeguro(u[mUni.MUNICIPIOID - 1]) : "";
+                if (!forumId && uMunicipio && !municipioId) municipioId = uMunicipio;
                 break;
               }
             }
@@ -532,11 +551,13 @@ class TelefoneRepository {
         } catch(e){}
       }
       const momento = new Date();
+      if (forumId) municipioId = "";
       const linhaObj = {};
       headers.forEach(h => {
         const k = normalizarChave(h);
         if (k === "ID") linhaObj[h] = idBusca;
         else if (k === "FORUMID") linhaObj[h] = forumId;
+        else if (k === "MUNICIPIOID") linhaObj[h] = municipioId;
         else if (k === "UNIDADEID") linhaObj[h] = unidadeId;
         else if (k === "SETORID" || k === "SETOR") linhaObj[h] = setorId;
         else if (k === "TIPO") linhaObj[h] = tipo;
@@ -552,7 +573,7 @@ class TelefoneRepository {
       const linha = headers.map(h => linhaObj[h] !== undefined ? linhaObj[h] : "");
       shCon.getRange(linhaNum, 1, 1, linha.length).setValues([linha]);
       SpreadsheetApp.flush(); CACHE.limparTelefones();
-      const novo = { ID: idBusca, id: idBusca, forumId: forumId, unidadeId: unidadeId, setorId: setorId, tipo: tipo, valor: valor, descricao: descr, status: ativo === "TRUE" ? "ATIVO" : "INATIVO" };
+      const novo = { ID: idBusca, id: idBusca, forumId: forumId, municipioId: municipioId, unidadeId: unidadeId, setorId: setorId, tipo: tipo, valor: valor, descricao: descr, status: ativo === "TRUE" ? "ATIVO" : "INATIVO" };
       this.registrarHistoricoSeguro(idBusca, "EDICAO", {ID:idBusca}, novo);
       return serializarParaCliente(novo);
     } finally { lock.releaseLock(); }

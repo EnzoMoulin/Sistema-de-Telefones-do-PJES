@@ -3,7 +3,7 @@
  * SERVIÇO V5 — HIERARQUIA ORGANIZACIONAL DINÂMICA
  * ==========================================================
  *
- * MUNICIPIOS -> FORUM -> UNIDADES_ORGANIZACIONAIS (árvore) -> CONTATOS.
+ * MUNICIPIOS/ORGAOS -> FORUM opcional -> UNIDADES_ORGANIZACIONAIS (árvore) -> CONTATOS.
  * A planilha é lida em blocos e a árvore é montada em memória por mapas
  * de adjacência. Não existem leituras N+1 nem profundidade de negócio fixa.
  */
@@ -62,6 +62,7 @@ function _fcContatoPublico(c) {
   return {
     id: c.id,
     forumId: c.forumId,
+    municipioId: c.municipioId,
     unidadeOrganizacionalId: c.noId,
     tipo: c.tipo,
     descricao: c.descricao,
@@ -88,6 +89,7 @@ function _fcIndiceOrganizacional() {
     nos[id] = {
       id: id,
       forumId: _fcTexto(_fcCampo(mapa, linha, ["FORUM_ID"])),
+      municipioId: _fcTexto(_fcCampo(mapa, linha, ["MUNICIPIO_ID"])),
       paiId: _fcTexto(_fcCampo(mapa, linha, ["PAI_ID"])),
       tipo: _fcTipoNo(_fcCampo(mapa, linha, ["TIPO"], "GENERICO")),
       nome: _fcTexto(_fcCampo(mapa, linha, ["NOME"])),
@@ -106,13 +108,21 @@ function _fcIndiceOrganizacional() {
   return nos;
 }
 
-function _fcValidarArvore(nos, foruns) {
+function _fcValidarArvore(nos, foruns, municipios) {
   const erros = [];
   Object.keys(nos).forEach(function(id) {
     const no = nos[id];
-    if (!foruns[no.forumId]) erros.push("Nó " + id + " aponta para Fórum inexistente.");
+    const forumValido = no.forumId && !!foruns[no.forumId];
+    const municipioValido = no.municipioId && !!municipios[no.municipioId];
+    if (!forumValido && !municipioValido) erros.push("Nó " + id + " não possui Fórum ou Órgão válido.");
+    if (no.forumId && !forumValido) erros.push("Nó " + id + " aponta para Fórum inexistente.");
+    if (no.municipioId && !municipioValido) erros.push("Nó " + id + " aponta para Município/Órgão inexistente.");
+    if (no.forumId && no.municipioId) erros.push("Nó " + id + " não pode pertencer simultaneamente a Fórum e Órgão.");
     if (no.paiId && !nos[no.paiId]) erros.push("Nó " + id + " aponta para pai inexistente: " + no.paiId);
-    if (no.paiId && nos[no.paiId] && nos[no.paiId].forumId !== no.forumId) erros.push("Nó " + id + " e seu pai pertencem a Fóruns diferentes.");
+    if (no.paiId && nos[no.paiId] &&
+        (nos[no.paiId].forumId !== no.forumId || nos[no.paiId].municipioId !== no.municipioId)) {
+      erros.push("Nó " + id + " e seu pai pertencem a estruturas diferentes.");
+    }
     const vistos = new Set();
     let atual = no;
     let profundidade = 0;
@@ -149,7 +159,7 @@ function _fcAncoraAcesso(nos, noId) {
   return caminho.length ? caminho[0] : null;
 }
 
-function _fcSerializarNo(no, ancestrais, forum) {
+function _fcSerializarNo(no, ancestrais, raiz) {
   const caminho = ancestrais.concat([no]);
   let ancoraAcesso = null;
   for (let i = caminho.length - 1; i >= 0; i--) {
@@ -157,15 +167,16 @@ function _fcSerializarNo(no, ancestrais, forum) {
   }
   if (!ancoraAcesso && caminho.length) ancoraAcesso = caminho[0];
   const pai = ancestrais.length ? ancestrais[ancestrais.length - 1] : null;
-  const enderecoExibicao = no.endereco || (pai ? pai.enderecoExibicao : "") || forum.endereco || "";
-  const cepExibicao = no.cep || (pai ? pai.cepExibicao : "") || forum.cep || "";
+  const enderecoExibicao = no.endereco || (pai ? pai.enderecoExibicao : "") || raiz.endereco || "";
+  const cepExibicao = no.cep || (pai ? pai.cepExibicao : "") || raiz.cep || "";
   const atual = Object.assign({}, no, { enderecoExibicao: enderecoExibicao, cepExibicao: cepExibicao });
   const filhos = _fcOrdenar(no.filhos).filter(function(filho) { return filho.ativo; }).map(function(filho) {
-    return _fcSerializarNo(filho, ancestrais.concat([atual]), forum);
+    return _fcSerializarNo(filho, ancestrais.concat([atual]), raiz);
   });
   return {
     id: no.id,
     forumId: no.forumId,
+    municipioId: no.municipioId,
     paiId: no.paiId,
     tipo: no.tipo,
     nome: no.nome,
@@ -228,10 +239,17 @@ function construirHierarquiaForumContatos(opcoes) {
       nome: _fcTexto(_fcCampo(item.mapa, item.linha, ["NOME", "MUNICIPIO"])),
       codigoIbge: _fcTexto(_fcCampo(item.mapa, item.linha, ["CODIGO_IBGE", "IBGE"])),
       microrregiao: _fcTexto(_fcCampo(item.mapa, item.linha, ["MICRORREGIAO", "MICRORREGIÃO"])),
+      tipo: normalizarChave(_fcCampo(item.mapa, item.linha, ["TIPO"], "COMARCA")) || "COMARCA",
+      endereco: _fcTexto(_fcCampo(item.mapa, item.linha, ["ENDERECO", "ENDEREÇO"])),
+      cep: _fcTexto(_fcCampo(item.mapa, item.linha, ["CEP"])),
+      email: _fcTexto(_fcCampo(item.mapa, item.linha, ["EMAIL", "E-MAIL"])),
+      observacao: _fcTexto(_fcCampo(item.mapa, item.linha, ["OBSERVACAO", "OBSERVAÇÃO"])),
       ativo: paraBoolean(_fcCampo(item.mapa, item.linha, ["ATIVO"], true)),
       __ordem: _fcOrdem(_fcCampo(item.mapa, item.linha, ["ORDEM"]), item.indice),
       __indice: item.indice,
-      foruns: []
+      foruns: [],
+      contatos: [],
+      nosRaiz: []
     };
   });
 
@@ -254,11 +272,12 @@ function construirHierarquiaForumContatos(opcoes) {
     };
   });
 
-  _fcValidarArvore(nos, foruns);
+  _fcValidarArvore(nos, foruns, municipios);
   Object.keys(nos).forEach(function(id) {
     const no = nos[id];
     if (no.paiId) nos[no.paiId].filhos.push(no);
     else if (foruns[no.forumId]) foruns[no.forumId].nosRaiz.push(no);
+    else if (municipios[no.municipioId]) municipios[no.municipioId].nosRaiz.push(no);
   });
 
   const mapaContatos = DB.map(shContatos);
@@ -270,10 +289,13 @@ function construirHierarquiaForumContatos(opcoes) {
       .filter(Boolean);
     const noId = candidatosNo.find(function(candidato) { return !!nos[candidato]; }) || candidatosNo[0] || "";
     const forumIdInformado = _fcTexto(_fcCampo(mapaContatos, linha, ["FORUM_ID"]));
+    const municipioIdInformado = _fcTexto(_fcCampo(mapaContatos, linha, ["MUNICIPIO_ID"]));
     const forumId = noId && nos[noId] ? nos[noId].forumId : forumIdInformado;
+    const municipioId = noId && nos[noId] ? nos[noId].municipioId : municipioIdInformado;
     const contato = {
       id: id,
       forumId: forumId,
+      municipioId: municipioId,
       noId: noId,
       tipo: _fcTexto(_fcCampo(mapaContatos, linha, ["TIPO", "TIPO_CONTATO"])),
       descricao: _fcTexto(_fcCampo(mapaContatos, linha, ["DESCRICAO", "DESCRIÇÃO"])),
@@ -288,6 +310,7 @@ function construirHierarquiaForumContatos(opcoes) {
     };
     if (noId && nos[noId]) nos[noId].contatos.push(contato);
     else if (foruns[forumId]) foruns[forumId].contatos.push(contato);
+    else if (municipios[municipioId]) municipios[municipioId].contatos.push(contato);
   });
 
   Object.keys(foruns).forEach(function(id) {
@@ -304,6 +327,8 @@ function construirHierarquiaForumContatos(opcoes) {
     listaMunicipios = listaMunicipios.map(function(municipio) {
       const municipioCasa = limparTexto([municipio.nome, municipio.codigoIbge, municipio.microrregiao, municipio.id].join(" ")).includes(termo);
       const copia = Object.assign({}, municipio);
+      const contatosMunicipio = municipio.contatos.filter(function(contato) { return _fcTextoContatoBusca(contato).includes(termo); });
+      const raizesMunicipio = municipio.nosRaiz.map(function(no) { return _fcFiltrarNo(no, termo, []); }).filter(Boolean);
       copia.foruns = municipio.foruns.map(function(forum) {
         const forumCasa = limparTexto([forum.nome, forum.email, forum.endereco, forum.id].join(" ")).includes(termo);
         const contatos = forum.contatos.filter(function(contato) { return _fcTextoContatoBusca(contato).includes(termo); });
@@ -314,20 +339,25 @@ function construirHierarquiaForumContatos(opcoes) {
           nosRaiz: forumCasa || municipioCasa ? forum.nosRaiz : raizes
         });
       }).filter(Boolean);
-      return copia.foruns.length || municipioCasa ? copia : null;
+      copia.contatos = municipioCasa ? municipio.contatos : contatosMunicipio;
+      copia.nosRaiz = municipioCasa ? municipio.nosRaiz : raizesMunicipio;
+      return copia.foruns.length || copia.contatos.length || copia.nosRaiz.length || municipioCasa ? copia : null;
     }).filter(Boolean);
   }
 
   const retorno = listaMunicipios.map(function(municipio) {
+    const contarSelecionaveis = function(lista) {
+      return lista.reduce(function(total, no) {
+        return total + (no.selecionavelAcesso ? 1 : 0) + contarSelecionaveis(no.filhos || []);
+      }, 0);
+    };
+    const nosDiretos = _fcOrdenar(municipio.nosRaiz).filter(function(no) { return no.ativo; }).map(function(no) {
+      return _fcSerializarNo(no, [], municipio);
+    });
     const forunsPublicos = municipio.foruns.map(function(forum) {
       const nosPublicos = _fcOrdenar(forum.nosRaiz).filter(function(no) { return no.ativo; }).map(function(no) {
         return _fcSerializarNo(no, [], forum);
       });
-      const contarSelecionaveis = function(lista) {
-        return lista.reduce(function(total, no) {
-          return total + (no.selecionavelAcesso ? 1 : 0) + contarSelecionaveis(no.filhos || []);
-        }, 0);
-      };
       return {
         id: forum.id,
         nome: forum.nome,
@@ -347,14 +377,27 @@ function construirHierarquiaForumContatos(opcoes) {
       nome: municipio.nome,
       codigoIbge: municipio.codigoIbge,
       microrregiao: municipio.microrregiao,
+      tipo: municipio.tipo,
+      endereco: municipio.endereco,
+      cep: municipio.cep,
+      email: municipio.email,
+      observacao: municipio.observacao,
       qtdForuns: forunsPublicos.length,
-      qtdNos: forunsPublicos.reduce(function(total, forum) { return total + forum.qtdNos; }, 0),
-      qtdUnidades: forunsPublicos.reduce(function(total, forum) { return total + forum.qtdUnidades; }, 0),
-      qtdContatos: forunsPublicos.reduce(function(total, forum) { return total + forum.qtdContatos; }, 0),
+      qtdNos: nosDiretos.reduce(function(total, no) { return total + no.qtdNos; }, 0) + forunsPublicos.reduce(function(total, forum) { return total + forum.qtdNos; }, 0),
+      qtdUnidades: contarSelecionaveis(nosDiretos) + forunsPublicos.reduce(function(total, forum) { return total + forum.qtdUnidades; }, 0),
+      qtdContatos: municipio.contatos.length + nosDiretos.reduce(function(total, no) { return total + no.qtdContatos; }, 0) + forunsPublicos.reduce(function(total, forum) { return total + forum.qtdContatos; }, 0),
+      contatos: _fcOrdenar(municipio.contatos).map(_fcContatoPublico),
+      nos: nosDiretos,
       foruns: forunsPublicos
     };
   });
-  return { sucesso: true, geradoEm: new Date(), municipios: retorno };
+  return {
+    sucesso: true,
+    geradoEm: new Date(),
+    totalOrgaos: retorno.filter(function(item) { return item.tipo === "ORGAO"; }).length,
+    totalComarcas: retorno.filter(function(item) { return item.tipo !== "ORGAO"; }).length,
+    municipios: retorno
+  };
 }
 
 function listarHierarquiaContatos(termo) {

@@ -28,8 +28,8 @@
           </select>
         </div>
         <div id="grupo-acesso-unidades" class="fa-field fa-full">
-          <label>Localidades solicitadas</label>
-          <select id="acesso-municipio" onchange="renderizarSeletorLocalidadesAcesso()"><option value="">Selecione uma Comarca</option></select>
+          <label>Fóruns/Unidades solicitados</label>
+          <select id="acesso-municipio" onchange="renderizarSeletorLocalidadesAcesso()"><option value="">Selecione a Comarca/Órgão</option></select>
           <div id="acesso-unidades" class="fa-unidades" aria-live="polite">Carregando Fóruns e Unidades...</div>
         </div>
         <div class="fa-field fa-full">
@@ -98,16 +98,17 @@ function carregarUnidadesFormularioAcesso(){
 }
 
 function prepararSeletorLocalidadesAcesso(){
-  var select=document.getElementById("acesso-municipio");if(!select)return;select.textContent="";var inicial=document.createElement("option");inicial.value="";inicial.textContent="Selecione uma Comarca";select.appendChild(inicial);
+  var select=document.getElementById("acesso-municipio");if(!select)return;select.textContent="";var inicial=document.createElement("option");inicial.value="";inicial.textContent="Selecione a Comarca/Órgão";select.appendChild(inicial);
   var municipios=[];escoposDisponiveisAcesso.forEach(function(escopo){if(escopo.municipio&&municipios.indexOf(escopo.municipio)<0)municipios.push(escopo.municipio);});
   municipios.forEach(function(nome){var opcao=document.createElement("option");opcao.value=nome;opcao.textContent=nome;select.appendChild(opcao);});select.value=municipios[0]||"";renderizarSeletorLocalidadesAcesso();
 }
 function alternarEscopoAcesso(escopo,marcado){var chave=chaveEscopoAcesso(escopo);if(marcado){escoposAcessoSelecionados.add(chave);if(escopo.tipo==="FORUM")escoposDisponiveisAcesso.filter(function(item){return item.tipo==="UNIDADE"&&item.forumId===escopo.forumId;}).forEach(function(item){escoposAcessoSelecionados.delete(chaveEscopoAcesso(item));});}else escoposAcessoSelecionados.delete(chave);renderizarSeletorLocalidadesAcesso();}
 function renderizarSeletorLocalidadesAcesso(){
-  var municipio=document.getElementById("acesso-municipio"),holder=document.getElementById("acesso-unidades");if(!municipio||!holder)return;holder.textContent="";var atuais=(typeof usuarioAtual!=="undefined"&&Array.isArray(usuarioAtual.acessos))?usuarioAtual.acessos:[];var foruns=escoposDisponiveisAcesso.filter(function(item){return item.tipo==="FORUM"&&item.municipio===municipio.value;});if(!foruns.length){holder.textContent="Selecione uma Comarca para visualizar os Fóruns.";return;}var titulo=document.createElement("strong");titulo.textContent="Fóruns";holder.appendChild(titulo);
+  var municipio=document.getElementById("acesso-municipio"),holder=document.getElementById("acesso-unidades");if(!municipio||!holder)return;holder.textContent="";var atuais=(typeof usuarioAtual!=="undefined"&&Array.isArray(usuarioAtual.acessos))?usuarioAtual.acessos:[];var foruns=escoposDisponiveisAcesso.filter(function(item){return item.tipo==="FORUM"&&item.municipio===municipio.value;});var unidadesOrgao=escoposDisponiveisAcesso.filter(function(item){return item.tipo==="UNIDADE"&&!item.forumId&&item.municipio===municipio.value;});if(!foruns.length&&!unidadesOrgao.length){holder.textContent="Selecione uma Comarca/Órgão para visualizar os Fóruns ou Unidades.";return;}if(foruns.length){var titulo=document.createElement("strong");titulo.textContent="Fóruns";holder.appendChild(titulo);}
   foruns.forEach(function(forum){var jaVinculado=atuais.some(function(atual){return atual.tipo===forum.tipo&&atual.id===forum.id;});var linha=document.createElement("div");linha.style.marginTop="10px";var check=document.createElement("input");check.type="checkbox";check.checked=escoposAcessoSelecionados.has(chaveEscopoAcesso(forum));check.disabled=jaVinculado;check.onchange=function(){alternarEscopoAcesso(forum,check.checked);};var nome=document.createElement("button");nome.type="button";nome.className="btn";nome.style.marginLeft="8px";nome.textContent=forum.caminhoTexto||forum.nome;nome.onclick=function(){forumAcessoAberto=forumAcessoAberto===forum.id?"":forum.id;renderizarSeletorLocalidadesAcesso();};linha.appendChild(check);linha.appendChild(nome);if(jaVinculado)linha.appendChild(document.createTextNode(" já vinculada"));holder.appendChild(linha);
     if(forumAcessoAberto===forum.id){var subtitulo=document.createElement("strong");subtitulo.textContent="Unidades";subtitulo.style.cssText="display:block;margin:8px 0 4px 28px";holder.appendChild(subtitulo);escoposDisponiveisAcesso.filter(function(item){return item.tipo==="UNIDADE"&&item.forumId===forum.forumId;}).forEach(function(unidade){var existente=atuais.some(function(atual){return atual.tipo===unidade.tipo&&atual.id===unidade.id;});var unidadeLinha=document.createElement("label");unidadeLinha.style.cssText="display:block;margin:5px 0 5px 28px";var unidadeCheck=document.createElement("input");unidadeCheck.type="checkbox";unidadeCheck.checked=escoposAcessoSelecionados.has(chaveEscopoAcesso(unidade));unidadeCheck.disabled=check.checked||existente;unidadeCheck.onchange=function(){alternarEscopoAcesso(unidade,unidadeCheck.checked);};unidadeLinha.appendChild(unidadeCheck);unidadeLinha.appendChild(document.createTextNode(" "+(unidade.caminhoTexto||unidade.nome)+(existente?" já vinculada":"")));holder.appendChild(unidadeLinha);});}
   });
+  if(unidadesOrgao.length){var tituloOrgao=document.createElement("strong");tituloOrgao.textContent="Unidades do Órgão";tituloOrgao.style.cssText="display:block;margin-top:14px";holder.appendChild(tituloOrgao);unidadesOrgao.forEach(function(unidade){var existente=atuais.some(function(atual){return atual.tipo===unidade.tipo&&atual.id===unidade.id;});var linha=document.createElement("label");linha.className="fa-unidade";var check=document.createElement("input");check.type="checkbox";check.checked=escoposAcessoSelecionados.has(chaveEscopoAcesso(unidade));check.disabled=existente;check.onchange=function(){alternarEscopoAcesso(unidade,check.checked);};linha.appendChild(check);linha.appendChild(document.createTextNode(" "+(unidade.caminhoTexto||unidade.nome)+(existente?" já vinculada":"")));holder.appendChild(linha);});}
 }
 
 function alternarUnidadesSolicitacao(){
@@ -134,8 +135,8 @@ function enviarFormularioAcesso(){
   var escopos = Array.from(escoposAcessoSelecionados).map(function(chave){var partes=chave.split(":");return {tipo:partes[0],id:partes.slice(1).join(":")};});
   var justificativa = String(document.getElementById("acesso-justificativa")?.value || "").trim();
   if(nome.length < 3){ mensagemFormularioAcesso(usarIdentidadeCadastrada?"Não foi possível identificar o nome cadastrado.":"Informe seu nome completo.", false); return; }
-  if(!nivel && !escopos.length){ mensagemFormularioAcesso("Solicite uma alteração de nível, localidades adicionais ou ambos.", false); return; }
-  if(usuario.cadastrado !== true && nivel === 1 && !escopos.length){ mensagemFormularioAcesso("Selecione ao menos uma Comarca, Fórum ou Unidade para o Gestor de Conteúdo.", false); return; }
+  if(!nivel && !escopos.length){ mensagemFormularioAcesso("Solicite uma alteração de nível, Fóruns/Unidades adicionais ou ambos.", false); return; }
+  if(usuario.cadastrado !== true && nivel === 1 && !escopos.length){ mensagemFormularioAcesso("Selecione ao menos uma Comarca/Órgão, Fórum ou Unidade para o Gestor de Conteúdo.", false); return; }
   var botao = document.getElementById("btn-enviar-formulario-acesso"); if(botao) botao.disabled = true;
   API.enviarFormularioAcesso({nome:nome,nivel:nivel,escopos:escopos,justificativa:justificativa}, function(resp){
     if(botao) botao.disabled = false;

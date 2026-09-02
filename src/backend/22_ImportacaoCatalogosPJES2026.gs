@@ -12,35 +12,42 @@ function catalogoPJES2026Dados_() {
   const W = function(descricao) { return ["WhatsApp", descricao, Array.prototype.slice.call(arguments, 1)]; };
   const nos = [];
   const contatos = [];
+  const orgaoPalacioId = "MUN0000";
 
   function adicionarNo(id, forumId, paiId, tipo, nome, ordem, observacao, selecionavel) {
+    const ehPalacio = forumId === "FOR0073";
     nos.push({
-      id: id, forumId: forumId, paiId: paiId || "", tipo: tipo, nome: nome,
+      id: id, forumId: ehPalacio ? "" : forumId, municipioId: ehPalacio ? orgaoPalacioId : "",
+      paiId: paiId || "", tipo: tipo, nome: nome,
       endereco: "", cep: "", observacao: observacao || "",
       selecionavelAcesso: selecionavel !== false, ativo: true, ordem: ordem
     });
   }
 
   function adicionarLinhas(forumId, noId, linhas, observacao) {
+    const ehPalacio = forumId === "FOR0073";
     let ordem = 1;
     (linhas || []).forEach(function(linha) {
       const tipo = linha[0];
       const descricao = linha[1];
       (linha[2] || []).forEach(function(valor) {
         contatos.push({
-          forumId: forumId, noId: noId || "", tipo: tipo, descricao: descricao,
+          forumId: ehPalacio ? "" : forumId, municipioId: ehPalacio ? orgaoPalacioId : "",
+          noId: noId || "", tipo: tipo, descricao: descricao,
           valor: valor, ordem: ordem++, observacao: observacao || ""
         });
       });
     });
   }
 
-  const forumPalacio = {
-    id: "FOR0073",
-    municipioId: "MUN0001",
-    nome: "Tribunal de Justiça do Estado do Espírito Santo - Palácio da Justiça",
-    endereco: "",
-    cep: "",
+  const orgaoPalacio = {
+    id: orgaoPalacioId,
+    tipo: "ORGAO",
+    nome: "Tribunal de Justiça do Estado do Espírito Santo - Palácio da Justiça Desembargador Renato de Mattos",
+    codigoIbge: "",
+    microrregiao: "Órgão Estadual",
+    endereco: "Rua Desembargador Homero Mafra, nº 60 - Enseada do Suá, Vitória/ES",
+    cep: "29050-275",
     email: "",
     ordem: 3,
     ativo: true,
@@ -297,7 +304,7 @@ function catalogoPJES2026Dados_() {
     });
   });
 
-  return { forum: forumPalacio, nos: nos, contatos: contatos, observacaoPalacio: obsPalacio, observacaoSei: obsSei };
+  return { orgao: orgaoPalacio, nos: nos, contatos: contatos, observacaoPalacio: obsPalacio, observacaoSei: obsSei };
 }
 
 function _cat2026Campo_(mapa, linha, nome) {
@@ -319,24 +326,28 @@ function _cat2026ValorNormalizado_(tipo, valor) {
 
 function _cat2026ChaveContato_(contato) {
   return [
-    textoSeguro(contato.forumId), textoSeguro(contato.noId), normalizarChave(contato.tipo),
+    textoSeguro(contato.forumId), textoSeguro(contato.municipioId), textoSeguro(contato.noId), normalizarChave(contato.tipo),
     _cat2026ValorNormalizado_(contato.tipo, contato.valor), limparTexto(contato.descricao)
   ].join("|");
 }
 
 function _cat2026Planejar_(dadosAtuais) {
   const manifesto = catalogoPJES2026Dados_();
+  const municipios = dadosAtuais.municipios;
   const forums = dadosAtuais.forums;
   const nos = dadosAtuais.nos;
   const contatos = dadosAtuais.contatos;
+  const mapaMunicipios = dadosAtuais.mapaMunicipios;
   const mapaForum = dadosAtuais.mapaForum;
   const mapaNos = dadosAtuais.mapaNos;
   const mapaContatos = dadosAtuais.mapaContatos;
+  const idsMunicipios = new Set();
   const idsForum = new Set();
   const nosPorId = {};
   const contatosPorChave = {};
   const contatosPorValor = {};
 
+  municipios.forEach(function(linha) { idsMunicipios.add(textoSeguro(_cat2026Campo_(mapaMunicipios, linha, "ID"))); });
   forums.forEach(function(linha) { idsForum.add(textoSeguro(_cat2026Campo_(mapaForum, linha, "ID"))); });
   nos.forEach(function(linha) {
     const id = textoSeguro(_cat2026Campo_(mapaNos, linha, "ID"));
@@ -345,6 +356,7 @@ function _cat2026Planejar_(dadosAtuais) {
   contatos.forEach(function(linha, indice) {
     const item = {
       forumId: textoSeguro(_cat2026Campo_(mapaContatos, linha, "FORUM_ID")),
+      municipioId: textoSeguro(_cat2026Campo_(mapaContatos, linha, "MUNICIPIO_ID")),
       noId: textoSeguro(_cat2026Campo_(mapaContatos, linha, "UNIDADE_ORGANIZACIONAL_ID")) ||
         textoSeguro(_cat2026Campo_(mapaContatos, linha, "SETOR_ID")) || textoSeguro(_cat2026Campo_(mapaContatos, linha, "UNIDADE_ID")),
       tipo: textoSeguro(_cat2026Campo_(mapaContatos, linha, "TIPO")),
@@ -359,12 +371,14 @@ function _cat2026Planejar_(dadosAtuais) {
     }
   });
 
-  const novosForums = idsForum.has(manifesto.forum.id) ? [] : [manifesto.forum];
+  const novosOrgaos = idsMunicipios.has(manifesto.orgao.id) ? [] : [manifesto.orgao];
+  const novosForums = [];
   const novosNos = manifesto.nos.filter(function(no) { return !nosPorId[no.id]; });
   const conflitosNos = manifesto.nos.filter(function(no) {
     const atual = nosPorId[no.id];
     return atual && (
       textoSeguro(_cat2026Campo_(mapaNos, atual, "FORUM_ID")) !== no.forumId ||
+      textoSeguro(_cat2026Campo_(mapaNos, atual, "MUNICIPIO_ID")) !== no.municipioId ||
       textoSeguro(_cat2026Campo_(mapaNos, atual, "PAI_ID")) !== no.paiId ||
       limparTexto(_cat2026Campo_(mapaNos, atual, "NOME")) !== limparTexto(no.nome)
     );
@@ -402,26 +416,28 @@ function _cat2026Planejar_(dadosAtuais) {
   });
 
   return {
-    manifesto: manifesto, novosForums: novosForums, novosNos: novosNos,
+    manifesto: manifesto, novosOrgaos: novosOrgaos, novosForums: novosForums, novosNos: novosNos,
     novosContatos: novosContatos, reutilizados: reutilizados,
     atualizacoes: atualizacoes, conflitosNos: conflitosNos
   };
 }
 
 function _cat2026LerBase_() {
+  const shMunicipios = DB.municipios();
   const shForum = DB.forum();
   const shNos = DB.unidadesOrganizacionais();
   const shContatos = DB.contatos();
   return {
-    shForum: shForum, shNos: shNos, shContatos: shContatos,
-    headersForum: DB.headers(shForum), headersNos: DB.headers(shNos), headersContatos: DB.headers(shContatos),
-    mapaForum: DB.map(shForum), mapaNos: DB.map(shNos), mapaContatos: DB.map(shContatos),
-    forums: DB.read(shForum), nos: DB.read(shNos), contatos: DB.read(shContatos)
+    shMunicipios: shMunicipios, shForum: shForum, shNos: shNos, shContatos: shContatos,
+    headersMunicipios: DB.headers(shMunicipios), headersForum: DB.headers(shForum), headersNos: DB.headers(shNos), headersContatos: DB.headers(shContatos),
+    mapaMunicipios: DB.map(shMunicipios), mapaForum: DB.map(shForum), mapaNos: DB.map(shNos), mapaContatos: DB.map(shContatos),
+    municipios: DB.read(shMunicipios), forums: DB.read(shForum), nos: DB.read(shNos), contatos: DB.read(shContatos)
   };
 }
 
 function _cat2026Resumo_(plano) {
   return {
+    novosOrgaos: plano.novosOrgaos.length,
     novosForums: plano.novosForums.length,
     novosNos: plano.novosNos.length,
     novosContatos: plano.novosContatos.length,
@@ -458,6 +474,21 @@ function importarCatalogosPJES2026() {
       if (match) proximoIdContato = Math.max(proximoIdContato, Number(match[1]));
     });
 
+    plano.novosOrgaos.forEach(function(item) {
+      const linha = base.headersMunicipios.map(function() { return ""; });
+      _cat2026Definir_(base.mapaMunicipios, linha, "ID", item.id);
+      _cat2026Definir_(base.mapaMunicipios, linha, "NOME", item.nome);
+      _cat2026Definir_(base.mapaMunicipios, linha, "CODIGO_IBGE", item.codigoIbge);
+      _cat2026Definir_(base.mapaMunicipios, linha, "ATIVO", true);
+      _cat2026Definir_(base.mapaMunicipios, linha, "MICRORREGIAO", item.microrregiao);
+      _cat2026Definir_(base.mapaMunicipios, linha, "TIPO", item.tipo);
+      _cat2026Definir_(base.mapaMunicipios, linha, "ENDERECO", item.endereco);
+      _cat2026Definir_(base.mapaMunicipios, linha, "CEP", item.cep);
+      _cat2026Definir_(base.mapaMunicipios, linha, "EMAIL", item.email);
+      _cat2026Definir_(base.mapaMunicipios, linha, "OBSERVACAO", item.observacao);
+      base.municipios.unshift(linha);
+    });
+
     plano.novosForums.forEach(function(item) {
       const linha = base.headersForum.map(function() { return ""; });
       _cat2026Definir_(base.mapaForum, linha, "ID", item.id);
@@ -476,6 +507,7 @@ function importarCatalogosPJES2026() {
       const linha = base.headersNos.map(function() { return ""; });
       _cat2026Definir_(base.mapaNos, linha, "ID", item.id);
       _cat2026Definir_(base.mapaNos, linha, "FORUM_ID", item.forumId);
+      _cat2026Definir_(base.mapaNos, linha, "MUNICIPIO_ID", item.municipioId);
       _cat2026Definir_(base.mapaNos, linha, "PAI_ID", item.paiId);
       _cat2026Definir_(base.mapaNos, linha, "TIPO", item.tipo);
       _cat2026Definir_(base.mapaNos, linha, "NOME", item.nome);
@@ -494,6 +526,7 @@ function importarCatalogosPJES2026() {
       const antes = {};
       base.headersContatos.forEach(function(header, indice) { antes[header] = linha[indice]; });
       _cat2026Definir_(base.mapaContatos, linha, "FORUM_ID", item.contato.forumId);
+      _cat2026Definir_(base.mapaContatos, linha, "MUNICIPIO_ID", item.contato.municipioId);
       _cat2026Definir_(base.mapaContatos, linha, "UNIDADE_ORGANIZACIONAL_ID", item.contato.noId);
       _cat2026Definir_(base.mapaContatos, linha, "UNIDADE_ID", "");
       _cat2026Definir_(base.mapaContatos, linha, "SETOR_ID", "");
@@ -511,6 +544,7 @@ function importarCatalogosPJES2026() {
       const linha = base.headersContatos.map(function() { return ""; });
       _cat2026Definir_(base.mapaContatos, linha, "ID", id);
       _cat2026Definir_(base.mapaContatos, linha, "FORUM_ID", item.forumId);
+      _cat2026Definir_(base.mapaContatos, linha, "MUNICIPIO_ID", item.municipioId);
       _cat2026Definir_(base.mapaContatos, linha, "UNIDADE_ORGANIZACIONAL_ID", item.noId);
       _cat2026Definir_(base.mapaContatos, linha, "TIPO", item.tipo);
       _cat2026Definir_(base.mapaContatos, linha, "DESCRICAO", item.descricao);
@@ -523,6 +557,7 @@ function importarCatalogosPJES2026() {
       base.contatos.push(linha);
     });
 
+    if (plano.novosOrgaos.length) base.shMunicipios.getRange(2, 1, base.municipios.length, base.headersMunicipios.length).setValues(base.municipios);
     if (plano.novosForums.length) base.shForum.getRange(2, 1, base.forums.length, base.headersForum.length).setValues(base.forums);
     if (plano.novosNos.length) base.shNos.getRange(2, 1, base.nos.length, base.headersNos.length).setValues(base.nos);
     if (plano.novosContatos.length || plano.atualizacoes.length) {
