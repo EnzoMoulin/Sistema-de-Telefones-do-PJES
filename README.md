@@ -28,3 +28,11 @@ Sistema Web App do **Poder Judiciário do Estado do Espírito Santo (TJES)** par
 ## Consulta pública
 
 O mapa responsivo do Espírito Santo permanece na consulta. No desktop ele integra o layout; no mobile é apresentado no topo. A navegação é Comarca/Órgão → Fórum opcional → árvore organizacional (Unidade e Setor) → Contato, com busca por Unidade, Setor, Telefone, Ramal, WhatsApp e E-mail.
+
+## Documentação
+
+A documentação executiva e técnica do projeto está disponível em:
+
+**[docs/DOCUMENTACAO_PROJETO.md](docs/DOCUMENTACAO_PROJETO.md)**
+
+O documento foi elaborado para apresentar à gestão tanto a finalidade institucional quanto a arquitetura, segurança, regras de negócio, auditoria, implantação e benefícios da solução.
